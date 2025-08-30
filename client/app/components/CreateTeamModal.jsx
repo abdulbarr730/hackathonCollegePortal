@@ -23,7 +23,7 @@ export default function CreateTeamModal({ isOpen, onClose, onTeamCreated }) {
     setLoading(true);
 
     try {
-      const res = await fetch('http://localhost:5001/api/teams', {
+      const res = await fetch('/api/teams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

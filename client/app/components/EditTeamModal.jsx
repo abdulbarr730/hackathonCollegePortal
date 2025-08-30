@@ -43,7 +43,7 @@ export default function EditTeamModal({
     }
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:5001/api/teams/${teamData._id}`, {
+      const res = await fetch(`/api/teams/${teamData._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -64,7 +64,7 @@ export default function EditTeamModal({
     setRemovingMember(memberId);
     try {
       const res = await fetch(
-        `http://localhost:5001/api/teams/${teamData._id}/members/${memberId}`,
+        `/api/teams/${teamData._id}/members/${memberId}`,
         { method: 'DELETE', credentials: 'include' }
       );
       const data = await res.json();
