@@ -39,11 +39,11 @@ export default function DashboardPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [viewingTeam, setViewingTeam] = useState(null);
 
-  const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5001';
+  const API = '' || 'http://localhost:5001';
 
   const fetchTeams = async () => {
     try {
-      const res = await fetch(`${API}/api/teams`, { credentials: 'include' });
+      const res = await fetch(`/api/teams`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setTeams(Array.isArray(data) ? data : []);
@@ -55,7 +55,7 @@ export default function DashboardPage() {
 
   const fetchUpdates = async () => {
     try {
-      const res = await fetch(`${API}/api/public/updates`);
+      const res = await fetch(`/api/public/updates`);
       if (res.ok) {
         const data = await res.json();
         setUpdates(data.items || []);
@@ -80,7 +80,7 @@ export default function DashboardPage() {
   const handleDeleteClick = async (teamId) => {
     if (window.confirm('Are you sure you want to delete this team?')) {
       try {
-        await fetch(`${API}/api/teams/${teamId}`, {
+        await fetch(`/api/teams/${teamId}`, {
           method: 'DELETE',
           credentials: 'include',
         });
@@ -94,7 +94,7 @@ export default function DashboardPage() {
   const handleLeaveClick = async () => {
     if (window.confirm('Leave your current team?')) {
       try {
-        const res = await fetch(`${API}/api/teams/members/leave`, {
+        const res = await fetch(`/api/teams/members/leave`, {
           method: 'DELETE',
           credentials: 'include',
         });

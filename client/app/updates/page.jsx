@@ -6,11 +6,11 @@ export default function UpdatesPage() {
   const [updates, setUpdates] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const API = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const API = '' || 'http://localhost:5001';
 
   const fetchUpdates = async () => {
     try {
-      const res = await fetch(`${API}/api/public/updates`);
+      const res = await fetch(`/api/public/updates`);
       if (res.ok) {
         const data = await res.json();
         setUpdates(data.items || []);

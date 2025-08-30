@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = '' || 'http://localhost:5001';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
@@ -31,7 +31,7 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/users/reset-password/${params.token}`, {
+      const res = await fetch(`/api/users/reset-password/${params.token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),

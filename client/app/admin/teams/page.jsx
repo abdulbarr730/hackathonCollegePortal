@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = '';
 export default function AdminTeamsPage() {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,7 +10,7 @@ export default function AdminTeamsPage() {
   const fetchTeams = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/teams`, { credentials: 'include' });
+      const res = await fetch(`/api/admin/teams`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch teams');
       const data = await res.json();
       setTeams(data.items || []);
@@ -28,7 +28,7 @@ export default function AdminTeamsPage() {
   const handleDelete = async (teamId) => {
     if (!confirm('Are you sure you want to delete this team?')) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/teams/${teamId}`, {
+      const res = await fetch(`/api/admin/teams/${teamId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -43,7 +43,7 @@ export default function AdminTeamsPage() {
     const newName = prompt('Enter new team name:');
     if (!newName) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/teams/${teamId}/name`, {
+      const res = await fetch(`/api/admin/teams/${teamId}/name`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -60,7 +60,7 @@ export default function AdminTeamsPage() {
     const newLeaderEmail = prompt('Enter new leader email:');
     if (!newLeaderEmail) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/teams/${teamId}/leader`, {
+      const res = await fetch(`/api/admin/teams/${teamId}/leader`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -77,7 +77,7 @@ export default function AdminTeamsPage() {
     const memberEmail = prompt('Enter email of new member:');
     if (!memberEmail) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/teams/${teamId}/members`, {
+      const res = await fetch(`/api/admin/teams/${teamId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -93,7 +93,7 @@ export default function AdminTeamsPage() {
   const handleRemoveMember = async (teamId, memberId) => {
     if (!confirm('Remove this member?')) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/teams/${teamId}/members/${memberId}`, {
+      const res = await fetch(`/api/admin/teams/${teamId}/members/${memberId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -106,7 +106,7 @@ export default function AdminTeamsPage() {
 
   const handleJoinRequest = async (teamId, requestId, action) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/teams/${teamId}/join/${requestId}`, {
+      const res = await fetch(`/api/admin/teams/${teamId}/join/${requestId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

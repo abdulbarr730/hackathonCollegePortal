@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Search, Plus, Loader2, ExternalLink, FileDown } from 'lucide-react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = '';
 
 export default function ResourcesPage() {
   const [resources, setResources] = useState([]);
@@ -24,7 +24,7 @@ export default function ResourcesPage() {
         limit: 20,
       });
 
-      const res = await fetch(`${API_BASE_URL}/api/resources?${params.toString()}`);
+      const res = await fetch(`/api/resources?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setResources(data.items || []);
@@ -39,7 +39,7 @@ export default function ResourcesPage() {
   // Fetch categories
   const fetchCategories = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/resources/categories`);
+      const res = await fetch(`/api/resources/categories`);
       if (res.ok) {
         const data = await res.json();
         setCategories(data);
@@ -178,7 +178,7 @@ export default function ResourcesPage() {
                     {/* File */}
                     {r.file?.path && (
                       <a
-                        href={`${API_BASE_URL}${r.file.path}`}
+                        href={`/api${r.file.path}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition"

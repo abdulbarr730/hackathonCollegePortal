@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Users, CheckCircle, Users2, RefreshCcw, ArrowRight } from 'lucide-react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = '';
 const StatCard = ({ title, value, icon: Icon, accent }) => {
   const accentColors = {
     indigo: 'border-indigo-500/50 text-indigo-400 bg-indigo-500/10',

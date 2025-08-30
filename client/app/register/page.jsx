@@ -6,7 +6,7 @@ import { gsap } from 'gsap';
 import Link from 'next/link';
 
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = '' || 'http://localhost:5001';
 export default function RegisterPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -50,7 +50,7 @@ export default function RegisterPage() {
       formData.append('document', document);
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/api/users/register`, {
+      const res = await fetch(`/api/users/register`, {
         method: 'POST',
         body: formData,
       });
@@ -86,7 +86,7 @@ export default function RegisterPage() {
     setEmailStatus('checking');
     const debounceTimer = setTimeout(async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/users/check-email`, {
+        const res = await fetch(`/api/users/check-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email }),

@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Avatar from '../../components/Avatar';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = '';
 
 export default function IdeaDetailPage() {
   const { user } = useAuth();
@@ -24,7 +24,7 @@ export default function IdeaDetailPage() {
       if (!ideaId) return;
       try {
         setLoading(true);
-        const res = await fetch(`${API_BASE_URL}/api/ideas/${ideaId}`, { credentials: 'include' });
+        const res = await fetch(`/api/ideas/${ideaId}`, { credentials: 'include' });
         if (!res.ok) throw new Error('Could not fetch idea details.');
         const data = await res.json();
         setIdea(data.idea);
@@ -42,7 +42,7 @@ export default function IdeaDetailPage() {
     e.preventDefault();
     if (!newComment.trim()) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/ideas/${ideaId}/comments`, {
+      const res = await fetch(`/api/ideas/${ideaId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
