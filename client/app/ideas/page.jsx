@@ -10,12 +10,12 @@ export default function IdeasPage() {
   const [ideas, setIdeas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5001';
+  const API = '' || 'http://localhost:5001';
 
   const fetchIdeas = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/ideas`, { credentials: 'include' });
+      const res = await fetch(`/api/ideas`, { credentials: 'include' });
       if (res.ok) {
         setIdeas(await res.json());
       }
@@ -38,7 +38,7 @@ export default function IdeasPage() {
     if (!window.confirm('Are you sure you want to delete this idea?')) return;
 
     try {
-      await fetch(`${API}/api/ideas/${ideaId}`, {
+      await fetch(`/api/ideas/${ideaId}`, {
         method: 'DELETE',
         credentials: 'include',
       });

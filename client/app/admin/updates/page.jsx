@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'next/navigation';
 import UpdateModal from '../../components/UpdateModal';
 import { motion } from 'framer-motion';
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = '';
 export default function AdminUpdatesPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -18,7 +18,7 @@ export default function AdminUpdatesPage() {
   const fetchUpdates = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/updates`, { credentials: 'include' });
+      const res = await fetch(`/api/admin/updates`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setUpdates(data.items || data || []);
@@ -38,8 +38,8 @@ export default function AdminUpdatesPage() {
   const handleSave = async (formData, id) => {
     const isEditing = !!id;
     const url = isEditing
-      ? `${API_BASE_URL}/api/admin/updates/${id}`
-      : `${API_BASE_URL}/api/admin/updates`;
+      ? `/api/admin/updates/${id}`
+      : `/api/admin/updates`;
     const method = isEditing ? 'PUT' : 'POST';
 
     try {
@@ -61,7 +61,7 @@ export default function AdminUpdatesPage() {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this update?')) return;
     try {
-      await fetch(`${API_BASE_URL}/api/admin/updates/${id}`, {
+      await fetch(`/api/admin/updates/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       });

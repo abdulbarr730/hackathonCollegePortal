@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5001';
+const API_BASE_URL = '' || 'http://localhost:5001';
 
 export default function SuggestResourcePage() {
   const [submissionType, setSubmissionType] = useState('link'); // 'link' or 'file'
@@ -40,7 +40,7 @@ export default function SuggestResourcePage() {
       data.append('category', formData.category);
       if (formData.description) data.append('description', formData.description);
 
-      let endpoint = `${API_BASE_URL}/api/resources`;
+      let endpoint = `/api/resources`;
 
       if (submissionType === 'file') {
         if (!file) {
@@ -49,7 +49,7 @@ export default function SuggestResourcePage() {
           return;
         }
         data.append('file', file); // ✅ backend expects "file"
-        endpoint = `${API_BASE_URL}/api/resources/upload`;
+        endpoint = `/api/resources/upload`;
       } else {
         if (!formData.url.trim()) {
           setError('Please enter a valid URL.');

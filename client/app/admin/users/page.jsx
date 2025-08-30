@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'next/navigation';
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = '';
 export default function AdminUsersPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -15,7 +15,7 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/users`, { credentials: 'include' });
+      const res = await fetch(`/api/admin/users`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch users');
       const data = await res.json();
       setUsers(data.items || []);
@@ -36,7 +36,7 @@ export default function AdminUsersPage() {
 
   const updateUser = async (userId, body, successMsg) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
+      const res = await fetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -53,7 +53,7 @@ export default function AdminUsersPage() {
   const handleDeleteUser = async (userId) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
+      const res = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -66,7 +66,7 @@ export default function AdminUsersPage() {
   };
 
   const handleExport = (format) => {
-    window.open(`${API_BASE_URL}/api/admin/users/export.${format}`, '_blank');
+    window.open(`/api/admin/users/export.${format}`, '_blank');
   };
 
   if (authLoading || loading) {

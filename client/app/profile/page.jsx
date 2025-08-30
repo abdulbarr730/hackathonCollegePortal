@@ -4,7 +4,7 @@ import Avatar from '../components/Avatar';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5001';
+const API = '' || 'http://localhost:5001';
 
 const PLATFORMS_META = {
   linkedin: { label: 'LinkedIn', placeholder: 'https://www.linkedin.com/in/your-id' },
@@ -55,7 +55,7 @@ export default function ProfilePage() {
     e.preventDefault();
     setProfileMsg('');
     try {
-      const res = await fetch(`${API}/api/users/profile`, {
+      const res = await fetch(`/api/users/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -78,7 +78,7 @@ export default function ProfilePage() {
       return;
     }
     try {
-      const res = await fetch(`${API}/api/users/change-password`, {
+      const res = await fetch(`/api/users/change-password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -114,7 +114,7 @@ export default function ProfilePage() {
     fd.append('photo', file);
     
     try {
-      const res = await fetch(`${API}/api/users/profile/photo`, {
+      const res = await fetch(`/api/users/profile/photo`, {
         method: 'POST',
         credentials: 'include',
         body: fd,
@@ -132,7 +132,7 @@ export default function ProfilePage() {
     setPhotoMsg('');
     if (!window.confirm('Are you sure you want to remove your photo?')) return;
     try {
-      const res = await fetch(`${API}/api/users/profile/photo`, { method: 'DELETE', credentials: 'include' });
+      const res = await fetch(`/api/users/profile/photo`, { method: 'DELETE', credentials: 'include' });
       const j = await res.json();
       if (!res.ok) throw new Error(j.msg || 'Remove failed');
       setPhotoMsg('Photo removed.');
@@ -148,7 +148,7 @@ export default function ProfilePage() {
   async function saveLinks() {
     setLinksMsg('');
     try {
-      const res = await fetch(`${API}/api/users/social`, {
+      const res = await fetch(`/api/users/social`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

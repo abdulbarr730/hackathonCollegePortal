@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { FileDown } from 'lucide-react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = '';
 const TABS = ['pending', 'approved', 'rejected'];
 
 export default function AdminResourcesPage() {
@@ -15,7 +15,7 @@ export default function AdminResourcesPage() {
     const fetchResources = async (currentStatus) => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/api/admin/resources?status=${currentStatus}`, { credentials: 'include' });
+            const res = await fetch(`/api/admin/resources?status=${currentStatus}`, { credentials: 'include' });
             if (res.ok) {
                 const data = await res.json();
                 setResources(data.items || []);
@@ -30,7 +30,7 @@ export default function AdminResourcesPage() {
     // fetch counts separately
     const fetchCounts = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/admin/resources/counts`, { credentials: 'include' });
+            const res = await fetch(`/api/admin/resources/counts`, { credentials: 'include' });
             if (res.ok) {
                 const data = await res.json();
                 setCounts(data || { pending: 0, approved: 0, rejected: 0 });
@@ -54,8 +54,8 @@ export default function AdminResourcesPage() {
         try {
             const endpoint =
                 newStatus === "approved"
-                    ? `${API_BASE_URL}/api/admin/resources/${id}/approve`
-                    : `${API_BASE_URL}/api/admin/resources/${id}/reject`;
+                    ? `/api/admin/resources/${id}/approve`
+                    : `/api/admin/resources/${id}/reject`;
 
             await fetch(endpoint, {
                 method: "POST",
@@ -73,7 +73,7 @@ export default function AdminResourcesPage() {
     const handleDelete = async (id) => {
         if (!confirm("Are you sure you want to delete this resource permanently?")) return;
         try {
-            await fetch(`${API_BASE_URL}/api/admin/resources/${id}`, {
+            await fetch(`/api/admin/resources/${id}`, {
                 method: 'DELETE',
                 credentials: 'include'
             });
@@ -144,7 +144,7 @@ export default function AdminResourcesPage() {
                             {/* File Download */}
                             {resource.file?.path && (
                                 <a
-                                    href={`${API_BASE_URL}${resource.file.path}`}
+                                    href={`/api${resource.file.path}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-2 text-green-400 hover:text-green-300 text-xs mb-4"
