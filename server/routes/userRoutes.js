@@ -83,7 +83,7 @@ router.post('/register', upload.single('document'), async (req, res) => {
       ? 'User registered and automatically verified!' 
       : 'User registered successfully! Awaiting admin approval.';
 
-    res.status(201).json({ msg: responseMessage });
+    res.status(201).json({ msg: responseMessage, isVerified: user.isVerified });
   } catch (err) {
     console.error(`Error in /register: ${err.message}`);
     res.status(500).send('Server Error');
@@ -127,7 +127,7 @@ router.post('/login', async (req, res) => {
       }).json({ msg: 'Login successful' });
   } catch (err) {
     console.error(`Error in /login: ${err.message}`);
-    res.status(500).send('Server Error');
+    res.status(500).json({ error: 'Server Error' });
   }
 });
 
