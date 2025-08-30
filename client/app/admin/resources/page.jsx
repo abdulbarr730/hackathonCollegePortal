@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { FileDown } from 'lucide-react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const TABS = ['pending', 'approved', 'rejected'];
 
 export default function AdminResourcesPage() {

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Search, Plus, Loader2, ExternalLink, FileDown } from 'lucide-react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export default function ResourcesPage() {
   const [resources, setResources] = useState([]);

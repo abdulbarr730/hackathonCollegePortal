@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 export default function AdminIdeasPage() {
   const [ideas, setIdeas] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -29,7 +29,7 @@ export default function AdminIdeasPage() {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to permanently delete this idea?')) return;
     try {
-      await fetch(`http://localhost:5001/api/admin/ideas/${id}`, { method: 'DELETE', credentials: 'include' });
+      await fetch(`${API_BASE_URL}/api/admin/ideas/${id}`, { method: 'DELETE', credentials: 'include' });
       loadIdeas();
     } catch (e) {
       alert(e.message);
