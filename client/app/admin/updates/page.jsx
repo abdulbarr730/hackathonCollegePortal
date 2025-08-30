@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'next/navigation';
 import UpdateModal from '../../components/UpdateModal';
 import { motion } from 'framer-motion';
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 export default function AdminUpdatesPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();

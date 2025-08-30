@@ -5,6 +5,8 @@ import { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import Link from 'next/link';
 
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 export default function RegisterPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');

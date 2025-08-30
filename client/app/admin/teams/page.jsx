@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 export default function AdminTeamsPage() {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);

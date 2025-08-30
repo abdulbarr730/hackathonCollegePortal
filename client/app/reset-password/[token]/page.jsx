@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
