@@ -122,7 +122,6 @@ router.post('/login', async (req, res) => {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'none',
-        domain: ".vercel.app",
         path: "/",
         maxAge: 5 * 60 * 60 * 1000,
       }).json({ msg: 'Login successful' });
