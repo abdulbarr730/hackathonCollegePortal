@@ -4,6 +4,7 @@ import './globals.css';
 import { AuthProvider } from './context/AuthContext';
 import { usePathname } from 'next/navigation';
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 import AdminSidebar from './components/AdminSidebar';
 
 export default function RootLayout({ children }) {
@@ -43,6 +44,8 @@ export default function RootLayout({ children }) {
               }>
                 {children}
               </main>
+              {/* ADDED: The Footer is rendered here for all non-admin, non-full-screen pages */}
+              <Footer />
             </div>
           )}
         </AuthProvider>

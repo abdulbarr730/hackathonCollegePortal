@@ -167,11 +167,35 @@ export default function DashboardPage() {
                 onClick: () => router.push('/resources'),
               }
             ].map((card, idx) => (
-              <motion.div key={idx} whileHover={{ scale: 1.02 }} className="relative rounded-xl p-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500">
+              <motion.div
+                key={idx}
+                whileHover={{ scale: 1.02 }}
+                className="relative rounded-xl p-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500 animate-border"
+              >
                 <div className="rounded-xl bg-slate-900/90 p-6">
                   <h3 className={`text-lg font-semibold text-${card.color}-400`}>{card.title}</h3>
-                  <p className="mt-2 text-sm text-slate-400">{card.description}</p>
-                  <button onClick={card.onClick} className={`mt-4 w-full rounded-md bg-${card.color}-600 px-4 py-2 text-sm font-medium hover:bg-${card.color}-500 transition`}>
+                  {card.items ? (
+                    card.items.length > 0 ? (
+                      <ul className="mt-3 space-y-2">
+                        {card.items.slice(0, 3).map((u) => (
+                          <li key={u._id}>
+                            <a href={u.url} className="text-sm font-medium hover:text-indigo-300">
+                              {u.title}
+                            </a>
+                            <p className="text-xs text-slate-500">{u.summary || 'No description'}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-sm text-slate-400">No updates available</p>
+                    )
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-400">{card.description}</p>
+                  )}
+                  <button
+                    onClick={card.onClick}
+                    className={`mt-4 w-full rounded-md bg-${card.color}-600 px-4 py-2 text-sm font-medium hover:bg-${card.color}-500 transition`}
+                  >
                     {card.buttonText}
                   </button>
                 </div>
