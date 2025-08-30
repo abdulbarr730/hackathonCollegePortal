@@ -6,7 +6,7 @@ export default function UpdatesPage() {
   const [updates, setUpdates] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const API = 'http://localhost:5001';
+  const API = process.env.NEXT_PUBLIC_API_URL;
 
   const fetchUpdates = async () => {
     try {

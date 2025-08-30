@@ -56,7 +56,7 @@ export default function AdminDashboardPage() {
   const fetchMetrics = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5001/api/admin/metrics', { credentials: 'include' });
+      const res = await fetch(`${API_BASE_URL}/api/admin/metrics`, { credentials: 'include' });
       if (res.ok) setMetrics(await res.json());
     } catch (error) {
       console.error('Failed to fetch metrics', error);

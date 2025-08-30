@@ -18,7 +18,7 @@ export default function AdminUpdatesPage() {
   const fetchUpdates = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5001/api/admin/updates', { credentials: 'include' });
+      const res = await fetch(`${API_BASE_URL}/api/admin/updates`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setUpdates(data.items || data || []);
@@ -38,8 +38,8 @@ export default function AdminUpdatesPage() {
   const handleSave = async (formData, id) => {
     const isEditing = !!id;
     const url = isEditing
-      ? `http://localhost:5001/api/admin/updates/${id}`
-      : 'http://localhost:5001/api/admin/updates';
+      ? `${API_BASE_URL}/api/admin/updates/${id}`
+      : `${API_BASE_URL}/api/admin/updates`;
     const method = isEditing ? 'PUT' : 'POST';
 
     try {
@@ -61,7 +61,7 @@ export default function AdminUpdatesPage() {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this update?')) return;
     try {
-      await fetch(`http://localhost:5001/api/admin/updates/${id}`, {
+      await fetch(`${API_BASE_URL}/api/admin/updates/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
