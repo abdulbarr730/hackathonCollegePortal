@@ -23,7 +23,7 @@ export default function SubmitIdeaModal({ isOpen, onClose, onIdeaCreated }) {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:5001/api/ideas', {
+      const res = await fetch('/api/ideas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
