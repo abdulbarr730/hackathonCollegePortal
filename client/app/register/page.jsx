@@ -4,9 +4,8 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
-
-const API_BASE_URL = '' || 'http://localhost:5001';
 export default function RegisterPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -21,6 +20,9 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [gender, setGender] = useState('');
   const [year, setYear] = useState('');
+  const [verificationResult, setVerificationResult] = useState(false);
+  
+  const router = useRouter();
   const formRef = useRef(null);
   const errorRef = useRef(null);
   const titleRef = useRef(null);
@@ -50,6 +52,7 @@ export default function RegisterPage() {
       formData.append('document', document);
     }
     try {
+      // MODIFIED: Using relative path
       const res = await fetch(`/api/users/register`, {
         method: 'POST',
         body: formData,
@@ -58,6 +61,7 @@ export default function RegisterPage() {
       if (!res.ok) {
         throw new Error(data.msg || 'Something went wrong during registration.');
       }
+      setVerificationResult(data.isVerified);
       setIsSuccess(true);
     } catch (err) {
       setError(err.message);
@@ -72,7 +76,6 @@ export default function RegisterPage() {
     }
   };
 
-  // Email check debounce
   useEffect(() => {
     if (!email) {
       setEmailStatus('idle');
@@ -86,6 +89,7 @@ export default function RegisterPage() {
     setEmailStatus('checking');
     const debounceTimer = setTimeout(async () => {
       try {
+        // MODIFIED: Using relative path
         const res = await fetch(`/api/users/check-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -100,7 +104,6 @@ export default function RegisterPage() {
     return () => clearTimeout(debounceTimer);
   }, [email]);
 
-  // Form hover animation
   useEffect(() => {
     const formElement = formRef.current;
     if (!formElement) return;
@@ -118,45 +121,19 @@ export default function RegisterPage() {
     formElement.addEventListener('mousemove', handleMouseMoveInside);
     formElement.addEventListener('mouseleave', handleMouseLeave);
     return () => {
-      formElement.removeEventListener('mousemove', handleMouseMoveInside);
-      formElement.removeEventListener('mouseleave', handleMouseLeave);
+      if (formElement) {
+        formElement.removeEventListener('mousemove', handleMouseMoveInside);
+        formElement.removeEventListener('mouseleave', handleMouseLeave);
+      }
     };
-  }, []);
-
-  // Title entrance + glow animation
-  useEffect(() => {
-    if (titleRef.current) {
-      gsap.fromTo(
-        titleRef.current,
-        { y: -40, opacity: 0 },
-        { y: 0, opacity: 1, duration: 1.2, ease: 'power4.out' }
-      );
-      gsap.to(titleRef.current, {
-        textShadow: '0 0 20px rgba(168, 85, 247, 0.8)',
-        repeat: -1,
-        yoyo: true,
-        duration: 2,
-        ease: 'sine.inOut',
-      });
-    }
   }, []);
 
   return (
     <div
-      className="relative flex min-h-screen flex-col items-center justify-center p-4 bg-cover bg-center bg-fixed"
+      className="relative flex min-h-full w-full items-center justify-center p-4 bg-cover bg-center bg-fixed"
       style={{ backgroundImage: "url('/coding-background.jpg')" }}
     >
       <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm"></div>
-
-      {/* 🔥 Animated Title */}
-      <h1
-        ref={titleRef}
-        className="relative z-10 mb-8 bg-gradient-to-r from-purple-400 via-pink-500 to-yellow-400 bg-clip-text text-4xl font-extrabold text-transparent text-center tracking-wide"
-      >
-        A Portal For BBDITIANS
-      </h1>
-
-      {/* Registration Card */}
       <div
         ref={formRef}
         className="relative z-10 w-full max-w-md rounded-2xl border border-purple-500/30 bg-slate-800/50 p-8 shadow-2xl shadow-purple-500/20"
@@ -164,24 +141,30 @@ export default function RegisterPage() {
         <h2 className="mb-6 bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-center text-3xl font-bold text-transparent">
           Join the Hackathon
         </h2>
-
         {isSuccess ? (
           <div className="text-center">
-            <svg
-              className="mx-auto h-16 w-16 text-green-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <h3 className="mt-4 text-2xl font-semibold text-white">Successfully Registered!</h3>
-            <p className="mt-2 text-gray-400">Your registration status is pending admin approval.</p>
+            <svg className="mx-auto h-16 w-16 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            {verificationResult ? (
+              <>
+                <h3 className="mt-4 text-2xl font-semibold text-white">College Student Verified!</h3>
+                <p className="mt-2 text-gray-400">Your account has been created and verified successfully.</p>
+                <button
+                  onClick={() => router.push('/login')}
+                  className="mt-6 w-full rounded-lg bg-blue-600 px-5 py-3 font-medium text-white transition-transform duration-200 hover:scale-105 active:scale-95"
+                >
+                  Login Here
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 className="mt-4 text-2xl font-semibold text-white">Successfully Registered!</h3>
+                {/* MODIFIED: Updated success message */}
+                <p className="mt-2 text-gray-400">Your account is now pending approval from the admin.</p>
+              </>
+            )}
           </div>
         ) : (
           <>
-            {/* Your form (unchanged except styles above) */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && <p ref={errorRef} className="rounded bg-red-500/50 p-3 text-center text-sm">{error}</p>}
               <div>
@@ -260,12 +243,9 @@ export default function RegisterPage() {
                 </button>
               </div>
             </form>
-
             <p className="mt-6 text-center text-sm text-gray-400">
               Already have an account?{' '}
-              <Link href="/login" className="font-medium text-blue-400 hover:text-blue-300">
-                Login here
-              </Link>
+              <Link href="/login" className="font-medium text-blue-400 hover:text-blue-300">Login here</Link>
             </p>
           </>
         )}
