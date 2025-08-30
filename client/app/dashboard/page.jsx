@@ -162,7 +162,7 @@ export default function DashboardPage() {
               {
                 title: "📚 Resource Hub",
                 color: "emerald",
-                description: "Access curated study materials and guides.",
+                description: "Access curated study materials, guides, and references.",
                 buttonText: "Go to Resource Hub",
                 onClick: () => router.push('/resources'),
               }
