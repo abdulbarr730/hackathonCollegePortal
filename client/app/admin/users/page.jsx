@@ -15,7 +15,7 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5001/api/admin/users', { credentials: 'include' });
+      const res = await fetch(`${API_BASE_URL}/api/admin/users`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch users');
       const data = await res.json();
       setUsers(data.items || []);
@@ -36,7 +36,7 @@ export default function AdminUsersPage() {
 
   const updateUser = async (userId, body, successMsg) => {
     try {
-      const res = await fetch(`http://localhost:5001/api/admin/users/${userId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -53,7 +53,7 @@ export default function AdminUsersPage() {
   const handleDeleteUser = async (userId) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
     try {
-      const res = await fetch(`http://localhost:5001/api/admin/users/${userId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -66,7 +66,7 @@ export default function AdminUsersPage() {
   };
 
   const handleExport = (format) => {
-    window.open(`http://localhost:5001/api/admin/users/export.${format}`, '_blank');
+    window.open(`${API_BASE_URL}/api/admin/users/export.${format}`, '_blank');
   };
 
   if (authLoading || loading) {

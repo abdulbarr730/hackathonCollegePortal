@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Avatar from '../../components/Avatar';
 
-const API_BASE_URL = 'http://localhost:5001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function IdeaDetailPage() {
   const { user } = useAuth();

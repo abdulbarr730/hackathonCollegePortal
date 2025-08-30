@@ -11,7 +11,7 @@ export default function AdminIdeasPage() {
     setLoadingData(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:5001/api/admin/ideas', { credentials: 'include' });
+      const res = await fetch(`${API_BASE_URL}/api/admin/ideas`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to load ideas');
       const data = await res.json();
       setIdeas(data.items || []);

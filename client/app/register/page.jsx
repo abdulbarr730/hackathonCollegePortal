@@ -48,7 +48,7 @@ export default function RegisterPage() {
       formData.append('document', document);
     }
     try {
-      const res = await fetch('http://localhost:5001/api/users/register', {
+      const res = await fetch(`${API_BASE_URL}/api/users/register`, {
         method: 'POST',
         body: formData,
       });
@@ -84,7 +84,7 @@ export default function RegisterPage() {
     setEmailStatus('checking');
     const debounceTimer = setTimeout(async () => {
       try {
-        const res = await fetch('http://localhost:5001/api/users/check-email', {
+        const res = await fetch(`${API_BASE_URL}/api/users/check-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email }),
