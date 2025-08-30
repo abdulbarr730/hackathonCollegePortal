@@ -32,7 +32,7 @@ router.post('/', auth, async (req, res) => {
 // @access  Private
 router.get('/', auth, async (req, res) => {
   try {
-    const ideas = await Idea.find().populate('author', 'name').sort({ createdAt: -1 });
+    const ideas = await Idea.find().populate('author', 'name nameWithYear photoUrl').sort({ createdAt: -1 });
     res.json(ideas);
   } catch (err) {
     console.error(err.message);
@@ -45,7 +45,7 @@ router.get('/', auth, async (req, res) => {
 // @access  Private
 router.get('/:id', auth, async (req, res) => {
   try {
-    const idea = await Idea.findById(req.params.id).populate('author', 'name');
+    const idea = await Idea.findById(req.params.id).populate('author', 'name nameWithYear photoUrl');
     if (!idea) return res.status(404).json({ msg: 'Idea not found' });
 
     const comments = await Comment.find({ idea: req.params.id })
@@ -74,7 +74,7 @@ router.post('/:id/comments', auth, async (req, res) => {
             idea: req.params.id
         });
         const comment = await newComment.save();
-        const populatedComment = await comment.populate('author', 'name');
+        const populatedComment = await comment.populate('author', 'name nameWithYear photoUrl');
         res.status(201).json(populatedComment);
     } catch (err) {
         console.error(err.message);
