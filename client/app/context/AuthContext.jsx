@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 
 const AuthContext = createContext(null);
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = '';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -11,7 +11,7 @@ export function AuthProvider({ children }) {
 
   const checkUser = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/users/me`, { credentials: 'include' });
+      const res = await fetch(`/api/users/me`, { credentials: 'include' });
       if (res.ok) {
         setUser(await res.json());
       } else {
@@ -29,7 +29,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    const res = await fetch(`${API_BASE_URL}/api/users/login`, {
+    const res = await fetch(`/api/users/login`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
