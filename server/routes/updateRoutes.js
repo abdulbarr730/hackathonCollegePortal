@@ -119,6 +119,24 @@ cron.schedule('0 */2 * * *', () => {
 // Run once on server start
 scrapeSIHUpdates();
 
+// @route   GET /api/updates
+// @desc    Get the pinned public updates for the dashboard
+// @access  Public
+router.get('/', async (req, res) => {
+  try {
+    const updates = await Update.find({ 
+      isPublic: true, 
+      pinned: true      // Filter for pinned updates
+    })
+    .sort({ createdAt: -1 }) // Sort by newest first
+
+    res.json(updates);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 // Admin-protected endpoint
 router.get('/', auth, async (req, res) => {
   try {
