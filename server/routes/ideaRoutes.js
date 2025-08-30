@@ -48,7 +48,9 @@ router.get('/:id', auth, async (req, res) => {
     const idea = await Idea.findById(req.params.id).populate('author', 'name');
     if (!idea) return res.status(404).json({ msg: 'Idea not found' });
 
-    const comments = await Comment.find({ idea: req.params.id }).populate('author', 'name').sort({ createdAt: 'asc' });
+    const comments = await Comment.find({ idea: req.params.id })
+      .sort({ createdAt: 'asc' })
+      .populate('author', 'name nameWithYear photoUrl');
 
     res.json({ idea, comments });
   } catch (err) {
