@@ -1,7 +1,7 @@
 const express = require('express');
-const path = require('path');
-const fs = require('fs');
 const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const streamifier = require('streamifier');
 
 const Resource = require('../models/Resource');
 const auth = require('../middleware/auth');
@@ -9,21 +9,8 @@ const auth = require('../middleware/auth');
 const router = express.Router();
 
 /**
- * Multer storage
+ * Multer setup (memory storage only)
  */
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '..', 'uploads', 'resources');
-    fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (_req, file, cb) => {
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const safeOriginal = file.originalname.replace(/[^\w.-]+/g, '_');
-    cb(null, `${unique}-${safeOriginal}`);
-  },
-});
-
 const ALLOWED_MIME = new Set([
   'application/pdf',
   'image/png',
@@ -40,7 +27,7 @@ const ALLOWED_MIME = new Set([
 ]);
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (ALLOWED_MIME.has(file.mimetype)) return cb(null, true);
@@ -48,12 +35,21 @@ const upload = multer({
   },
 });
 
-function safeUnlink(absPath) {
-  fs.unlink(absPath, () => {});
+/**
+ * Helper: upload buffer to Cloudinary
+ */
+function uploadToCloudinary(fileBuffer, options) {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(options, (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
+    streamifier.createReadStream(fileBuffer).pipe(uploadStream);
+  });
 }
 
 /**
- * URL-based submission (requires auth so we have req.user)
+ * URL-based submission (no file)
  */
 router.post('/', auth, async (req, res) => {
   try {
@@ -85,15 +81,13 @@ router.post('/', auth, async (req, res) => {
 });
 
 /**
- * File (and/or URL) upload submission (requires auth)
- * Field name must be "file"
+ * File upload (or file + url)
  */
 router.post('/upload', auth, upload.single('file'), async (req, res) => {
   try {
     const { title = '', category = '', tags = '', url = '' } = req.body;
 
     if (!title.trim() || !category.trim()) {
-      if (req.file) safeUnlink(req.file.path);
       return res.status(400).json({ msg: 'title and category are required' });
     }
 
@@ -105,13 +99,17 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
 
     let fileBlock;
     if (hasFile) {
-      const relPath = `/uploads/resources/${path.basename(req.file.path)}`;
+      const uploadResult = await uploadToCloudinary(req.file.buffer, {
+        resource_type: 'auto',
+        folder: 'resources',
+      });
+
       fileBlock = {
-        filename: path.basename(req.file.path),
+        publicId: uploadResult.public_id,
+        url: uploadResult.secure_url,
         originalName: req.file.originalname,
         mimeType: req.file.mimetype,
         size: req.file.size,
-        path: relPath,
       };
     }
 
@@ -156,8 +154,11 @@ router.get('/', async (req, res) => {
 
     const [items, total] = await Promise.all([
       Resource.find(filters)
-      .populate('addedBy', 'name')
-      .sort(sort).skip((pageNum - 1) * perPage).limit(perPage).lean(),
+        .populate('addedBy', 'name')
+        .sort(sort)
+        .skip((pageNum - 1) * perPage)
+        .limit(perPage)
+        .lean(),
       Resource.countDocuments(filters),
     ]);
 
@@ -177,7 +178,7 @@ router.get('/', async (req, res) => {
 });
 
 /**
- * Approved categories (for filters)
+ * Approved categories
  */
 router.get('/categories', async (_req, res) => {
   try {

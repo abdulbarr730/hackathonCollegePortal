@@ -6,13 +6,16 @@ const ResourceSchema = new mongoose.Schema(
     category: { type: String, required: true, trim: true },
     tags: { type: [String], default: [] },
     url: { type: String, default: '', trim: true },
+
+    // File block (Cloudinary)
     file: {
-      filename: { type: String, default: '' },
+      publicId: { type: String, default: '' },   // Cloudinary public_id
+      url: { type: String, default: '' },        // Cloudinary secure_url
       originalName: { type: String, default: '' },
       mimeType: { type: String, default: '' },
       size: { type: Number, default: 0 },
-      path: { type: String, default: '' }, // e.g. /uploads/resources/<file>
     },
+
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     rejectionReason: { type: String, default: '' },
     addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
