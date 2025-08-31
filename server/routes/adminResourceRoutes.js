@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const Resource = require('../models/Resource');
-// const requireAdmin = require('../middleware/requireAdmin'); // enable if needed
+const requireAdmin = require('../middleware/requireAdmin');
 
 const router = express.Router();
 
@@ -11,9 +11,10 @@ function safeUnlink(absPath) {
 }
 
 /**
- * List with populate(addedBy, approvedBy)
+ * List resources with filters + pagination
+ * GET /api/admin/resources
  */
-router.get('/', /* requireAdmin, */ async (req, res) => {
+router.get('/', requireAdmin, async (req, res) => {
   try {
     const { status = '', q = '', category = '', page = '1', limit = '20', sort = '-createdAt' } = req.query;
 
@@ -32,7 +33,7 @@ router.get('/', /* requireAdmin, */ async (req, res) => {
         .sort(sort)
         .skip((pageNum - 1) * perPage)
         .limit(perPage)
-        .populate('addedBy', 'name email') // ✅ correct user
+        .populate('addedBy', 'name email')
         .populate('approvedBy', 'name email')
         .lean(),
       Resource.countDocuments(filters),
@@ -54,9 +55,10 @@ router.get('/', /* requireAdmin, */ async (req, res) => {
 });
 
 /**
- * Get counts of resources by status
+ * Counts by status
+ * GET /api/admin/resources/counts
  */
-router.get('/counts', async (req, res) => {
+router.get('/counts', requireAdmin, async (req, res) => {
   try {
     const counts = await Resource.aggregate([
       { $group: { _id: "$status", count: { $sum: 1 } } }
@@ -78,12 +80,17 @@ router.get('/counts', async (req, res) => {
 
 /**
  * Approve
+ * POST /api/admin/resources/:id/approve
  */
-router.post('/:id/approve', /* requireAdmin, */ async (req, res) => {
+router.post('/:id/approve', requireAdmin, async (req, res) => {
   try {
     const doc = await Resource.findByIdAndUpdate(
       req.params.id,
-      { status: 'approved', rejectionReason: '', approvedBy: req.user?._id || undefined },
+      {
+        status: 'approved',
+        rejectionReason: '',
+        approvedBy: req.user ? req.user._id : undefined,
+      },
       { new: true }
     );
     if (!doc) return res.status(404).json({ msg: 'Not found' });
@@ -96,13 +103,18 @@ router.post('/:id/approve', /* requireAdmin, */ async (req, res) => {
 
 /**
  * Reject
+ * POST /api/admin/resources/:id/reject
  */
-router.post('/:id/reject', /* requireAdmin, */ async (req, res) => {
+router.post('/:id/reject', requireAdmin, async (req, res) => {
   try {
     const { reason = '' } = req.body || {};
     const doc = await Resource.findByIdAndUpdate(
       req.params.id,
-      { status: 'rejected', rejectionReason: reason, approvedBy: undefined },
+      {
+        status: 'rejected',
+        rejectionReason: reason,
+        approvedBy: undefined,
+      },
       { new: true }
     );
     if (!doc) return res.status(404).json({ msg: 'Not found' });
@@ -114,9 +126,10 @@ router.post('/:id/reject', /* requireAdmin, */ async (req, res) => {
 });
 
 /**
- * Delete (also remove uploaded file)
+ * Delete resource (also remove uploaded file if exists)
+ * DELETE /api/admin/resources/:id
  */
-router.delete('/:id', /* requireAdmin, */ async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const doc = await Resource.findByIdAndDelete(req.params.id);
     if (!doc) return res.status(404).json({ msg: 'Not found' });
