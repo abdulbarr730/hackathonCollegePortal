@@ -14,7 +14,7 @@ const fileSchema = new mongoose.Schema(
 const resourceSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
-    description: { type: String, required: true, trim: true },
+    description: { type: String, trim: true, default: '' },
     category: { type: String, required: true, trim: true },
     url: { type: String, trim: true }, // For external links
     file: fileSchema, // For uploaded files
