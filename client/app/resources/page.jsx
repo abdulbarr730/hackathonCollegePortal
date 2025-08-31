@@ -178,7 +178,7 @@ export default function ResourcesPage() {
                     {/* File */}
                     {r.file?.path && (
                       <a
-                        href={`/api${r.file.path}`}
+                        href={r.file.path}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition"
