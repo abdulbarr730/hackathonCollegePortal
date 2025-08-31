@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const Resource = require('../models/Resource');
-const requireAdmin = require('../middleware/requireAdmin');
+const requireAdmin = require('../middleware/adminAuth');
 
 const router = express.Router();
 
