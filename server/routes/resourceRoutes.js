@@ -104,6 +104,7 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
         folder: 'resources',
       });
 
+      // ✅ Only keep Cloudinary info
       fileBlock = {
         publicId: uploadResult.public_id,
         url: uploadResult.secure_url,

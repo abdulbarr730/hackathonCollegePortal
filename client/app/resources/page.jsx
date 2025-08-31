@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Search, Plus, Loader2, ExternalLink, FileDown } from 'lucide-react';
+import { Search, Plus, Loader2, ExternalLink, FileDown, User } from 'lucide-react';
 
 const API_BASE_URL = '';
 
@@ -175,17 +175,19 @@ export default function ResourcesPage() {
                       </a>
                     )}
 
-                    {/* File */}
+                    {/* File (Cloudinary path) */}
                     {r.file?.path && (
                       <a
                         href={r.file.path}
                         target="_blank"
                         rel="noopener noreferrer"
+                        download
                         className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition"
                       >
                         <FileDown className="w-4 h-4" /> Download File
                       </a>
                     )}
+
                     {r.submittedBy?.name && (
                       <div className="flex items-center gap-2 text-xs text-slate-500 pt-2">
                         <User className="w-4 h-4" />
