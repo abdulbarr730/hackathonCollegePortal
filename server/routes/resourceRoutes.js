@@ -155,7 +155,9 @@ router.get('/', async (req, res) => {
     }
 
     const [items, total] = await Promise.all([
-      Resource.find(filters).sort(sort).skip((pageNum - 1) * perPage).limit(perPage).lean(),
+      Resource.find(filters)
+      .populate('addedBy', 'name')
+      .sort(sort).skip((pageNum - 1) * perPage).limit(perPage).lean(),
       Resource.countDocuments(filters),
     ]);
 

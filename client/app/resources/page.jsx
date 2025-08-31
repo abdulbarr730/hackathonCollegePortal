@@ -186,6 +186,12 @@ export default function ResourcesPage() {
                         <FileDown className="w-4 h-4" /> Download File
                       </a>
                     )}
+                    {r.submittedBy?.name && (
+                      <div className="flex items-center gap-2 text-xs text-slate-500 pt-2">
+                        <User className="w-4 h-4" />
+                        <span>Submitted by {r.submittedBy.name}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
