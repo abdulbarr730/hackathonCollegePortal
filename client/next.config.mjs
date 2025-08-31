@@ -16,6 +16,10 @@ const nextConfig = {
             destination:
               "https://hackathoncollegeportal-server.onrender.com/api/:path*",
           },
+          {
+            source: "/uploads/:path*",
+            destination: "https://hackathoncollegeportal-server.onrender.com/api/:path*",
+          },
         ];
   },
 };
