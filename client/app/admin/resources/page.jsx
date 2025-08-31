@@ -144,7 +144,7 @@ export default function AdminResourcesPage() {
                             {/* File Download */}
                             {resource.file?.path && (
                                 <a
-                                    href={`/api${resource.file.path}`}
+                                    href={resource.file.path}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-2 text-green-400 hover:text-green-300 text-xs mb-4"
