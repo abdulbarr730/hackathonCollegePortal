@@ -1,27 +1,32 @@
+// models/Resource.js
 const mongoose = require('mongoose');
 
-const ResourceSchema = new mongoose.Schema(
+const fileSchema = new mongoose.Schema(
   {
-    title: { type: String, required: true, trim: true },
-    category: { type: String, required: true, trim: true },
-    tags: { type: [String], default: [] },
-    url: { type: String, default: '', trim: true },
+    publicId: { type: String, required: true }, // Cloudinary public ID
+    url: { type: String, required: true },      // Cloudinary secure URL
+    originalName: { type: String, required: true },
+    mimeType: { type: String, required: true },
+    size: { type: Number, required: true },     // file size in bytes
+  },
+  { _id: false }
+);
 
-    // File block (Cloudinary)
-    file: {
-      publicId: { type: String, default: '' },   // Cloudinary public_id
-      url: { type: String, default: '' },        // Cloudinary secure_url
-      originalName: { type: String, default: '' },
-      mimeType: { type: String, default: '' },
-      size: { type: Number, default: 0 },
+const resourceSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true },
+    category: { type: String, required: true },
+    url: { type: String }, // optional (for external links)
+    file: fileSchema, // optional (for uploaded files via Cloudinary)
+    tags: [{ type: String }],
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
     },
-
-    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-    rejectionReason: { type: String, default: '' },
-    addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model('Resource', ResourceSchema);
+module.exports = mongoose.model('Resource', resourceSchema);
