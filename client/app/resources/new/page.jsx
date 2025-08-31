@@ -29,53 +29,63 @@ export default function SuggestResourcePage() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setMessage('');
-    setLoading(true);
+  e.preventDefault();
+  setError('');
+  setMessage('');
+  setLoading(true);
 
-    try {
+  try {
+    let endpoint = `/api/resources`;
+    let res;
+
+    if (submissionType === 'file') {
+      if (!file) {
+        setError('Please select a file to upload.');
+        setLoading(false);
+        return;
+      }
+
       const data = new FormData();
       data.append('title', formData.title);
       data.append('category', formData.category);
       if (formData.description) data.append('description', formData.description);
+      data.append('file', file); // ✅ file
 
-      let endpoint = `/api/resources`;
+      endpoint = `/api/resources/upload`;
 
-      if (submissionType === 'file') {
-        if (!file) {
-          setError('Please select a file to upload.');
-          setLoading(false);
-          return;
-        }
-        data.append('file', file); // ✅ backend expects "file"
-        endpoint = `/api/resources/upload`;
-      } else {
-        if (!formData.url.trim()) {
-          setError('Please enter a valid URL.');
-          setLoading(false);
-          return;
-        }
-        data.append('url', formData.url);
-      }
-
-      const res = await fetch(endpoint, {
+      res = await fetch(endpoint, {
         method: 'POST',
         credentials: 'include',
         body: data,
       });
+    } else {
+      if (!formData.url.trim()) {
+        setError('Please enter a valid URL.');
+        setLoading(false);
+        return;
+      }
 
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.msg || 'Submission failed.');
-
-      setMessage('✅ Thank you! Your resource has been submitted for review.');
-      setTimeout(() => router.push('/resources'), 2000);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      res = await fetch(endpoint, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData), // ✅ JSON instead of FormData
+      });
     }
-  };
+
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.msg || 'Submission failed.');
+
+    setMessage('✅ Thank you! Your resource has been submitted for review.');
+    setTimeout(() => router.push('/resources'), 2000);
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
