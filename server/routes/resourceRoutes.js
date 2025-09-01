@@ -22,19 +22,13 @@ const upload = multer({
 function buildDownloadUrl(secureUrl) {
   if (!secureUrl) return secureUrl;
 
-  // If already has fl_attachment, return as-is
-  if (secureUrl.includes('/upload/fl_attachment/')) return secureUrl;
+  // If already has fl_attachment param, return as-is
+  if (secureUrl.includes('fl_attachment')) return secureUrl;
 
-  // Insert after /image|video|raw/upload/
-  const withTypeHandled = secureUrl.replace(
-    /\/(image|video|raw)\/upload\//,
-    '/$1/upload/fl_attachment/'
-  );
-
-  if (withTypeHandled !== secureUrl) return withTypeHandled;
-
-  // Fallback: generic
-  return secureUrl.replace('/upload/', '/upload/fl_attachment/');
+  // Add as query param (works for image, video, raw)
+  return secureUrl.includes('?')
+    ? `${secureUrl}&fl_attachment`
+    : `${secureUrl}?fl_attachment`;
 }
 
 /**
