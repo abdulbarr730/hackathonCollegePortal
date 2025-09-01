@@ -158,4 +158,28 @@ router.get('/categories', async (_req, res) => {
   }
 });
 
+// @route   GET /api/resources/:id/download-link
+// @desc    Generate a secure, temporary download link for a private file
+// @access  Private
+router.get('/:id/download-link', auth, async (req, res) => {
+  try {
+    const resource = await Resource.findById(req.params.id).select('file');
+    if (!resource || !resource.file?.publicId) {
+      return res.status(404).json({ msg: 'No downloadable file found for this resource.' });
+    }
+
+    // Generate a signed URL from Cloudinary
+    // It's a temporary link that will expire
+    const signedUrl = cloudinary.utils.private_download_url(resource.file.publicId, '', {
+        // We set attachment to force a download prompt with the original filename
+        attachment: resource.file.originalName 
+    });
+
+    res.json({ downloadUrl: signedUrl });
+  } catch (err) {
+    console.error('Error generating download link:', err);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;
