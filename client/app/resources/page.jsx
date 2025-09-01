@@ -58,19 +58,16 @@ export default function ResourcesPage() {
     fetchResources();
   }, [filters]);
 
+  // This handler fetches the secure link from the backend
   const handleDownload = async (resourceId, e) => {
-    e.preventDefault(); // Prevent the default link behavior
-    
+    e.preventDefault();
     try {
       const res = await fetch(`/api/resources/${resourceId}/download-link`, {
         credentials: 'include',
       });
       if (!res.ok) throw new Error('Could not get download link.');
-      
       const data = await res.json();
-      // Open the secure, temporary URL from the backend in a new tab
       window.open(data.downloadUrl, '_blank');
-
     } catch (err) {
       alert(err.message || 'Error preparing download.');
     }
