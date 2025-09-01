@@ -177,9 +177,20 @@ export default function ResourcesPage() {
                     )}
 
                     {/* File (Cloudinary path) */}
+                    {r.file?.url && r.file?.mimeType === "application/pdf" && (
+                      <a
+                        href={r.file.url} // open inline
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition"
+                      >
+                        <FileText className="w-4 h-4" /> View PDF
+                      </a>
+                    )}
+
                     {r.file?.downloadUrl && (
                       <a
-                        href={r.file.downloadUrl}
+                        href={r.file.downloadUrl} // force download
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition"
@@ -187,6 +198,7 @@ export default function ResourcesPage() {
                         <FileDown className="w-4 h-4" /> Download File
                       </a>
                     )}
+
 
                     {r.submittedBy?.name && (
                       <div className="flex items-center gap-2 text-xs text-slate-500 pt-2">
