@@ -161,6 +161,7 @@ router.get('/categories', async (_req, res) => {
 // @route   GET /api/resources/:id/download-link
 // @desc    Generate a secure, temporary download link for a private file
 // @access  Private
+// MODIFIED: This is the final, most reliable version of the download link route
 router.get('/:id/download-link', auth, async (req, res) => {
   try {
     const resource = await Resource.findById(req.params.id).select('file');
@@ -168,14 +169,14 @@ router.get('/:id/download-link', auth, async (req, res) => {
       return res.status(404).json({ msg: 'No downloadable file found for this resource.' });
     }
 
-    // This generates a secure URL that is valid for 1 hour
-    const downloadUrl = cloudinary.utils.sign_url(resource.file.url, {
-      // This tells the browser to prompt a download with the original filename
-      // instead of trying to open the file in the browser.
-      attachment: resource.file.originalName 
+    // This is the most robust way to generate a signed URL for any private file type
+    const signedUrl = cloudinary.url(resource.file.publicId, {
+      resource_type: 'raw',
+      sign_url: true,
+      attachment: resource.file.originalName,
     });
 
-    res.json({ downloadUrl });
+    res.json({ downloadUrl: signedUrl });
   } catch (err) {
     console.error('Error generating download link:', err);
     res.status(500).send('Server Error');
