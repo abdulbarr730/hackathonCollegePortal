@@ -177,9 +177,9 @@ export default function ResourcesPage() {
                     )}
 
                     {/* File (Cloudinary path) */}
-                    {r.file?.url && (
+                    {r.file?.downloadUrl && (
                       <a
-                        href={r.file.url}
+                        href={r.file.downloadUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition"

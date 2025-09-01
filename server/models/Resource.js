@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const fileSchema = new mongoose.Schema(
   {
     publicId: { type: String, required: true }, // Cloudinary public ID
-    url: { type: String, required: true },      // Cloudinary secure URL
+    url: { type: String, required: true },      // Cloudinary secure URL (view link)
+    downloadUrl: { type: String, required: true }, // ✅ Direct download URL
     originalName: { type: String, required: true },
     mimeType: { type: String, required: true },
     size: { type: Number, required: true },      // file size in bytes
