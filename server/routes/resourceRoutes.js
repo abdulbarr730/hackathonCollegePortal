@@ -168,14 +168,14 @@ router.get('/:id/download-link', auth, async (req, res) => {
       return res.status(404).json({ msg: 'No downloadable file found for this resource.' });
     }
 
-    // Generate a signed URL, specifying the resource type as 'raw' for non-image files
-    const signedUrl = cloudinary.url(resource.file.publicId, {
-      resource_type: 'raw', // This tells Cloudinary it's a file, not an image
-      sign_url: true,
-      attachment: resource.file.originalName, // Prompts a download with the correct filename
+    // This generates a secure URL that is valid for 1 hour
+    const downloadUrl = cloudinary.utils.sign_url(resource.file.url, {
+      // This tells the browser to prompt a download with the original filename
+      // instead of trying to open the file in the browser.
+      attachment: resource.file.originalName 
     });
 
-    res.json({ downloadUrl: signedUrl });
+    res.json({ downloadUrl });
   } catch (err) {
     console.error('Error generating download link:', err);
     res.status(500).send('Server Error');
