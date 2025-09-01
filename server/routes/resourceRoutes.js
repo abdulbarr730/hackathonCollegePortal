@@ -108,7 +108,10 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
  */
 router.get('/', async (req, res) => {
   try {
-    const { q = '', category = '' } = req.query;
+    const { q = '', category = '', page = '1', limit = '20', sort = '-createdAt' } = req.query;
+
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
     const filters = { status: 'approved' };
     if (category) filters.category = category;
@@ -116,12 +119,26 @@ router.get('/', async (req, res) => {
       filters.$or = [{ title: new RegExp(q, 'i') }, { description: new RegExp(q, 'i') }];
     }
 
-    const items = await Resource.find(filters)
+    // MODIFIED: Re-added pagination logic to fetch items and total count in parallel
+    const [items, total] = await Promise.all([
+      Resource.find(filters)
         .populate('addedBy', 'name')
-        .sort({ createdAt: -1 })
-        .lean();
+        .sort(sort)
+        .skip((pageNum - 1) * perPage)
+        .limit(perPage), // Removed .lean() for robustness to ensure file objects are included
+      Resource.countDocuments(filters),
+    ]);
 
-    return res.json({ items });
+    // MODIFIED: Returning a full pagination object for the frontend
+    return res.json({
+      items,
+      pagination: {
+        page: pageNum,
+        pages: Math.ceil(total / perPage) || 1,
+        total,
+        limit: perPage,
+      },
+    });
   } catch (err) {
     console.error('List resources error:', err);
     return res.status(500).json({ msg: 'Server Error' });
