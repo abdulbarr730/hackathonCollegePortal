@@ -3,7 +3,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Search, Plus, Loader2, ExternalLink, FileDown, FileText, User } from 'lucide-react';
+import {
+  Search,
+  Plus,
+  Loader2,
+  ExternalLink,
+  FileDown,
+  FileText,
+  User,
+} from 'lucide-react';
 
 const API_BASE_URL = '';
 
@@ -13,7 +21,7 @@ export default function ResourcesPage() {
   const [filters, setFilters] = useState({ q: '', category: '' });
   const [loading, setLoading] = useState(true);
 
-  // Fetch resources
+  // Fetch resources (only approved ones)
   const fetchResources = async () => {
     setLoading(true);
     try {
@@ -22,6 +30,7 @@ export default function ResourcesPage() {
         category: filters.category || '',
         page: 1,
         limit: 20,
+        status: 'approved', // ensure only approved ones
       });
 
       const res = await fetch(`/api/resources?${params.toString()}`);
@@ -57,7 +66,6 @@ export default function ResourcesPage() {
   useEffect(() => {
     fetchResources();
   }, [filters]);
-
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white px-6 py-12">
@@ -176,12 +184,12 @@ export default function ResourcesPage() {
                       </a>
                     )}
 
-                    {/* File (Cloudinary path) */}
-                    {r.file && (
+                    {/* File (Supabase public URL) */}
+                    {r.fileUrl && (
                       <div className="flex gap-3">
-                        {/* View PDF via backend proxy (opens in new tab) */}
+                        {/* View PDF */}
                         <a
-                          href={`/api/resources/${r._id}/view`}
+                          href={r.fileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition"
@@ -189,17 +197,16 @@ export default function ResourcesPage() {
                           <FileText className="w-4 h-4" /> View PDF
                         </a>
 
-                        {/* Download PDF via backend proxy */}
+                        {/* Download PDF */}
                         <a
-                          href={`/api/resources/${r._id}/download`}
+                          href={r.fileUrl}
+                          download
                           className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition"
                         >
                           <FileDown className="w-4 h-4" /> Download PDF
                         </a>
                       </div>
                     )}
-
-
 
                     {r.submittedBy?.name && (
                       <div className="flex items-center gap-2 text-xs text-slate-500 pt-2">

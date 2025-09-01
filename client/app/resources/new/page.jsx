@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-const API_BASE_URL = '' || 'http://localhost:5001';
-
 export default function SuggestResourcePage() {
   const [submissionType, setSubmissionType] = useState('link'); // 'link' or 'file'
   const [formData, setFormData] = useState({
@@ -29,63 +27,61 @@ export default function SuggestResourcePage() {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError('');
-  setMessage('');
-  setLoading(true);
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    setLoading(true);
 
-  try {
-    let endpoint = `/api/resources`;
-    let res;
+    try {
+      let endpoint = '/api/resources';
+      let res;
 
-    if (submissionType === 'file') {
-      if (!file) {
-        setError('Please select a file to upload.');
-        setLoading(false);
-        return;
+      if (submissionType === 'file') {
+        if (!file) {
+          setError('Please select a file to upload.');
+          setLoading(false);
+          return;
+        }
+
+        const data = new FormData();
+        data.append('title', formData.title);
+        data.append('category', formData.category);
+        if (formData.description) data.append('description', formData.description);
+        data.append('file', file); // ✅ send file
+
+        endpoint = '/api/resources/upload';
+
+        res = await fetch(endpoint, {
+          method: 'POST',
+          body: data,
+        });
+      } else {
+        if (!formData.url.trim()) {
+          setError('Please enter a valid URL.');
+          setLoading(false);
+          return;
+        }
+
+        res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        });
       }
 
-      const data = new FormData();
-      data.append('title', formData.title);
-      data.append('category', formData.category);
-      if (formData.description) data.append('description', formData.description);
-      data.append('file', file); // ✅ file
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.msg || 'Submission failed.');
 
-      endpoint = `/api/resources/upload`;
-
-      res = await fetch(endpoint, {
-        method: 'POST',
-        credentials: 'include',
-        body: data,
-      });
-    } else {
-      if (!formData.url.trim()) {
-        setError('Please enter a valid URL.');
-        setLoading(false);
-        return;
-      }
-
-      res = await fetch(endpoint, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData), // ✅ JSON instead of FormData
-      });
+      setMessage('✅ Thank you! Your resource has been submitted for review.');
+      setTimeout(() => router.push('/resources'), 2000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.msg || 'Submission failed.');
-
-    setMessage('✅ Thank you! Your resource has been submitted for review.');
-    setTimeout(() => router.push('/resources'), 2000);
-  } catch (err) {
-    setError(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">

@@ -1,204 +1,320 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { FileDown } from 'lucide-react';
+import { FileDown, Eye, Edit, Trash2, Save, X } from 'lucide-react';
 
-const API_BASE_URL = '';
 const TABS = ['pending', 'approved', 'rejected'];
 
 export default function AdminResourcesPage() {
-    const [resources, setResources] = useState([]);
-    const [status, setStatus] = useState('pending');
-    const [loading, setLoading] = useState(true);
-    const [counts, setCounts] = useState({ pending: 0, approved: 0, rejected: 0 });
+  const [resources, setResources] = useState([]);
+  const [status, setStatus] = useState('pending');
+  const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState({ pending: 0, approved: 0, rejected: 0 });
 
-    // fetch resources by status
-    const fetchResources = async (currentStatus) => {
-        setLoading(true);
-        try {
-            const res = await fetch(`/api/admin/resources?status=${currentStatus}`, { credentials: 'include' });
-            if (res.ok) {
-                const data = await res.json();
-                setResources(data.items || []);
-            }
-        } catch (error) {
-            console.error("Failed to fetch resources", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+  // For edit
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
 
-    // fetch counts separately
-    const fetchCounts = async () => {
-        try {
-            const res = await fetch(`/api/admin/resources/counts`, { credentials: 'include' });
-            if (res.ok) {
-                const data = await res.json();
-                setCounts(data || { pending: 0, approved: 0, rejected: 0 });
-            }
-        } catch (error) {
-            console.error("Failed to fetch counts", error);
-        }
-    };
+  // For bulk delete
+  const [selected, setSelected] = useState([]);
 
-    useEffect(() => {
-        fetchResources(status);
-        fetchCounts();
-    }, [status]);
+  // fetch resources by status
+  const fetchResources = async (currentStatus) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/resources?status=${currentStatus}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setResources(data.items || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch resources", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const refreshData = () => {
-        fetchResources(status);
-        fetchCounts();
-    };
+  // fetch counts separately
+  const fetchCounts = async () => {
+    try {
+      const res = await fetch(`/api/admin/resources/counts`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setCounts(data || { pending: 0, approved: 0, rejected: 0 });
+      }
+    } catch (error) {
+      console.error("Failed to fetch counts", error);
+    }
+  };
 
-    const handleUpdateStatus = async (id, newStatus) => {
-        try {
-            const endpoint =
-                newStatus === "approved"
-                    ? `/api/admin/resources/${id}/approve`
-                    : `/api/admin/resources/${id}/reject`;
+  useEffect(() => {
+    fetchResources(status);
+    fetchCounts();
+    setSelected([]); // clear selection when switching tabs
+  }, [status]);
 
-            await fetch(endpoint, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify(newStatus === "rejected" ? { reason: "Rejected by admin" } : {}),
-            });
+  const refreshData = () => {
+    fetchResources(status);
+    fetchCounts();
+  };
 
-            refreshData();
-        } catch (error) {
-            alert(`Failed to ${newStatus} resource.`);
-        }
-    };
+  const handleUpdateStatus = async (id, newStatus) => {
+    try {
+      const endpoint =
+        newStatus === "approved"
+          ? `/api/admin/resources/${id}/approve`
+          : `/api/admin/resources/${id}/reject`;
 
-    const handleDelete = async (id) => {
-        if (!confirm("Are you sure you want to delete this resource permanently?")) return;
-        try {
-            await fetch(`/api/admin/resources/${id}`, {
-                method: 'DELETE',
-                credentials: 'include'
-            });
-            refreshData();
-        } catch (error) {
-            alert("Failed to delete resource.");
-        }
-    };
+      await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(newStatus === "rejected" ? { reason: "Rejected by admin" } : {}),
+      });
 
-    return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-wrap items-center justify-between gap-4">
-                <h1 className="text-3xl font-bold text-white">Moderate Resources</h1>
+      refreshData();
+    } catch (error) {
+      alert(`Failed to ${newStatus} resource.`);
+    }
+  };
 
-                {/* Tabs */}
-                <div className="flex gap-2 rounded-lg bg-slate-900/80 p-1">
-                    {TABS.map(tab => (
-                        <button
-                            key={tab}
-                            onClick={() => setStatus(tab)}
-                            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
-                                status === tab
-                                    ? 'bg-purple-600 text-white shadow-lg'
-                                    : 'text-slate-300 hover:bg-slate-700'
-                            }`}
-                        >
-                            {tab.charAt(0).toUpperCase() + tab.slice(1)} ({counts[tab] || 0})
-                        </button>
-                    ))}
-                </div>
-            </div>
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure you want to delete this resource permanently?")) return;
+    try {
+      await fetch(`/api/admin/resources/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      refreshData();
+    } catch (error) {
+      alert("Failed to delete resource.");
+    }
+  };
 
-            {/* Resource List */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {loading ? (
-                    <p className="text-slate-400">Loading resources...</p>
-                ) : resources.length === 0 ? (
-                    <p className="text-slate-400">No resources found in this category.</p>
-                ) : (
-                    resources.map(resource => (
-                        <div key={resource._id} className="rounded-xl border border-slate-700 bg-slate-800 p-5 shadow hover:shadow-xl transition">
-                            <h2 className="text-lg font-bold text-indigo-400 mb-1">{resource.title}</h2>
+  const handleBulkDelete = async () => {
+    if (selected.length === 0) return alert("No resources selected.");
+    if (!confirm(`Delete ${selected.length} resources permanently?`)) return;
 
-                            {/* Submitted By */}
-                            <p className="text-xs text-slate-400 mb-2">
-                                Submitted by:{" "}
-                                {resource.addedBy?.name
-                                    || resource.addedBy?.email
-                                    || (typeof resource.addedBy === "string" ? resource.addedBy : "Unknown")}
-                            </p>
+    try {
+      await fetch(`/api/admin/resources/bulk-delete`, {
+        method: 'POST',
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify({ ids: selected }),
+      });
+      refreshData();
+      setSelected([]);
+    } catch (error) {
+      alert("Failed bulk delete.");
+    }
+  };
 
-                            {/* Description */}
-                            <p className="text-sm text-slate-300 mb-2 line-clamp-3">{resource.description}</p>
+  const startEdit = (res) => {
+    setEditingId(res._id);
+    setEditTitle(res.title);
+    setEditDescription(res.description);
+  };
 
-                            {/* URL */}
-                            {resource.url && (
-                                <a
-                                    href={resource.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-cyan-400 hover:underline text-xs block truncate mb-2"
-                                >
-                                    {resource.url}
-                                </a>
-                            )}
+  const saveEdit = async (id) => {
+    try {
+      await fetch(`/api/admin/resources/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ title: editTitle, description: editDescription }),
+      });
+      setEditingId(null);
+      refreshData();
+    } catch (error) {
+      alert("Failed to update resource.");
+    }
+  };
 
-                            {/* File Download */}
-                            {resource.file?.path && (
-                                <a
-                                    href={resource.file.path}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2 text-green-400 hover:text-green-300 text-xs mb-4"
-                                >
-                                    <FileDown className="w-4 h-4" /> Download File
-                                </a>
-                            )}
-
-                            {/* Action Buttons */}
-                            <div className="flex flex-wrap gap-2">
-                                {status === 'pending' && (
-                                    <>
-                                        <button
-                                            onClick={() => handleUpdateStatus(resource._id, 'approved')}
-                                            className="rounded-md bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 shadow"
-                                        >
-                                            Approve
-                                        </button>
-                                        <button
-                                            onClick={() => handleUpdateStatus(resource._id, 'rejected')}
-                                            className="rounded-md bg-yellow-600 px-3 py-1 text-xs text-white hover:bg-yellow-700 shadow"
-                                        >
-                                            Reject
-                                        </button>
-                                    </>
-                                )}
-                                {status === 'approved' && (
-                                    <button
-                                        onClick={() => handleUpdateStatus(resource._id, 'rejected')}
-                                        className="rounded-md bg-yellow-600 px-3 py-1 text-xs text-white hover:bg-yellow-700 shadow"
-                                    >
-                                        Reject
-                                    </button>
-                                )}
-                                {status === 'rejected' && (
-                                    <button
-                                        onClick={() => handleUpdateStatus(resource._id, 'approved')}
-                                        className="rounded-md bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 shadow"
-                                    >
-                                        Approve
-                                    </button>
-                                )}
-                                {/* Delete always visible */}
-                                <button
-                                    onClick={() => handleDelete(resource._id)}
-                                    className="rounded-md bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700 shadow"
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
-        </div>
+  const toggleSelect = (id) => {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-3xl font-bold text-white">Moderate Resources</h1>
+
+        {/* Tabs */}
+        <div className="flex gap-2 rounded-lg bg-slate-900/80 p-1">
+          {TABS.map(tab => (
+            <button
+              key={tab}
+              onClick={() => setStatus(tab)}
+              className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+                status === tab
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)} ({counts[tab] || 0})
+            </button>
+          ))}
+        </div>
+
+        {/* Bulk Delete */}
+        {selected.length > 0 && (
+          <button
+            onClick={handleBulkDelete}
+            className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 shadow"
+          >
+            Delete Selected ({selected.length})
+          </button>
+        )}
+      </div>
+
+      {/* Resource List */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {loading ? (
+          <p className="text-slate-400">Loading resources...</p>
+        ) : resources.length === 0 ? (
+          <p className="text-slate-400">No resources found in this category.</p>
+        ) : (
+          resources.map(resource => (
+            <div
+              key={resource._id}
+              className={`rounded-xl border ${
+                selected.includes(resource._id) ? "border-red-500" : "border-slate-700"
+              } bg-slate-800 p-5 shadow hover:shadow-xl transition`}
+            >
+              {/* Select Checkbox */}
+              <input
+                type="checkbox"
+                checked={selected.includes(resource._id)}
+                onChange={() => toggleSelect(resource._id)}
+                className="mb-2 accent-purple-600"
+              />
+
+              {editingId === resource._id ? (
+                <>
+                  <input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full rounded bg-slate-700 text-white px-2 py-1 mb-2"
+                  />
+                  <textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    className="w-full rounded bg-slate-700 text-white px-2 py-1 mb-2"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => saveEdit(resource._id)}
+                      className="flex items-center gap-1 rounded-md bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 shadow"
+                    >
+                      <Save className="w-4 h-4" /> Save
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="flex items-center gap-1 rounded-md bg-gray-600 px-3 py-1 text-xs text-white hover:bg-gray-700 shadow"
+                    >
+                      <X className="w-4 h-4" /> Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-lg font-bold text-indigo-400 mb-1">{resource.title}</h2>
+
+                  {/* Submitted By */}
+                  <p className="text-xs text-slate-400 mb-2">
+                    Submitted by:{" "}
+                    {resource.addedBy?.name
+                      || resource.addedBy?.email
+                      || (typeof resource.addedBy === "string" ? resource.addedBy : "Unknown")}
+                  </p>
+
+                  {/* Description */}
+                  <p className="text-sm text-slate-300 mb-2 line-clamp-3">{resource.description}</p>
+
+                  {/* File Size */}
+                  {resource.file?.size && (
+                    <p className="text-xs text-slate-400 mb-2">Size: {(resource.file.size / 1024).toFixed(2)} KB</p>
+                  )}
+
+                  {/* File Preview + Download */}
+                  {resource.file?.path && (
+                    <div className="flex gap-3 mb-4">
+                      <a
+                        href={resource.file.path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 text-xs"
+                      >
+                        <Eye className="w-4 h-4" /> Preview
+                      </a>
+                      <a
+                        href={resource.file.path}
+                        download
+                        className="flex items-center gap-2 text-green-400 hover:text-green-300 text-xs"
+                      >
+                        <FileDown className="w-4 h-4" /> Download
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    {status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleUpdateStatus(resource._id, 'approved')}
+                          className="rounded-md bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 shadow"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus(resource._id, 'rejected')}
+                          className="rounded-md bg-yellow-600 px-3 py-1 text-xs text-white hover:bg-yellow-700 shadow"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    {status === 'approved' && (
+                      <button
+                        onClick={() => handleUpdateStatus(resource._id, 'rejected')}
+                        className="rounded-md bg-yellow-600 px-3 py-1 text-xs text-white hover:bg-yellow-700 shadow"
+                      >
+                        Reject
+                      </button>
+                    )}
+                    {status === 'rejected' && (
+                      <button
+                        onClick={() => handleUpdateStatus(resource._id, 'approved')}
+                        className="rounded-md bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 shadow"
+                      >
+                        Approve
+                      </button>
+                    )}
+                    {/* Edit */}
+                    <button
+                      onClick={() => startEdit(resource)}
+                      className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 shadow"
+                    >
+                      <Edit className="w-4 h-4" /> Edit
+                    </button>
+                    {/* Delete always visible */}
+                    <button
+                      onClick={() => handleDelete(resource._id)}
+                      className="flex items-center gap-1 rounded-md bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700 shadow"
+                    >
+                      <Trash2 className="w-4 h-4" /> Delete
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
 }

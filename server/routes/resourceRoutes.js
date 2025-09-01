@@ -1,61 +1,45 @@
 const express = require('express');
 const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const streamifier = require('streamifier');
 const axios = require('axios');
 
 const Resource = require('../models/Resource');
 const auth = require('../middleware/auth');
+const supabase = require('../config/supabase'); // ✅ use shared config
 
 const router = express.Router();
 
 /**
- * Multer setup (memory storage for Cloudinary)
+ * Multer setup (memory storage for Supabase)
  */
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
 });
 
-/**
- * Helper: build correct Cloudinary download URL
- */
-function buildDownloadUrl(secureUrl) {
-  if (!secureUrl) return secureUrl;
-
-  // If already has fl_attachment param, return as-is
-  if (secureUrl.includes('fl_attachment')) return secureUrl;
-
-  // Add as query param (works for image, video, raw)
-  return secureUrl.includes('?')
-    ? `${secureUrl}&fl_attachment`
-    : `${secureUrl}?fl_attachment`;
-}
+const BUCKET = 'resources';
 
 /**
- * Helper: upload buffer to Cloudinary
+ * Helper: upload buffer to Supabase
  */
-function uploadToCloudinary(fileBuffer, filename) {
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        resource_type: 'raw', // handles pdf, docx, zip, etc.
-        folder: 'resources',
-        use_filename: true,
-        unique_filename: false,
-        filename_override: filename,
-      },
-      (err, result) => {
-        if (err) return reject(err);
+async function uploadToSupabase(fileBuffer, filename, mimetype) {
+  const path = `${Date.now()}-${filename}`;
 
-        const viewUrl = result.secure_url;             // ✅ preview in browser
-        const downloadUrl = buildDownloadUrl(viewUrl); // ✅ force download
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, fileBuffer, {
+      contentType: mimetype,
+      upsert: false,
+    });
 
-        resolve({ ...result, viewUrl, downloadUrl });
-      }
-    );
-    streamifier.createReadStream(fileBuffer).pipe(uploadStream);
-  });
+  if (error) throw error;
+
+  // Get a public URL
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+
+  const viewUrl = data.publicUrl;
+  const downloadUrl = `${data.publicUrl}?download=${encodeURIComponent(filename)}`;
+
+  return { path, viewUrl, downloadUrl };
 }
 
 /**
@@ -74,7 +58,7 @@ router.post('/', auth, async (req, res) => {
       title,
       description: description || '',
       category,
-      url, // this stays as is (external resource links)
+      url, // external resource link
       status: 'pending',
       addedBy: req.user._id,
     });
@@ -102,13 +86,17 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
       return res.status(400).json({ msg: 'A file is required for upload.' });
     }
 
-    // Upload the file buffer from memory to Cloudinary
-    const uploadResult = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+    // Upload to Supabase
+    const uploadResult = await uploadToSupabase(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype
+    );
 
     const fileData = {
-      publicId: uploadResult.public_id,
-      url: uploadResult.viewUrl,             // ✅ plain view url
-      downloadUrl: uploadResult.downloadUrl, // ✅ download url
+      path: uploadResult.path,
+      url: uploadResult.viewUrl,
+      downloadUrl: uploadResult.downloadUrl,
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
       size: req.file.size,
@@ -155,20 +143,8 @@ router.get('/', async (req, res) => {
       Resource.countDocuments(filters),
     ]);
 
-    // ✅ Ensure all resources have a proper downloadUrl
-    const itemsWithDownload = items.map((r) => {
-      if (r?.file?.url) {
-        const fileObj = r.file.toObject?.() || r.file;
-        if (!fileObj.downloadUrl) {
-          fileObj.downloadUrl = buildDownloadUrl(fileObj.url);
-        }
-        r.file = fileObj;
-      }
-      return r;
-    });
-
     return res.json({
-      items: itemsWithDownload,
+      items,
       pagination: {
         page: pageNum,
         pages: Math.ceil(total / perPage) || 1,
@@ -205,7 +181,7 @@ router.get('/:id/view', async (req, res) => {
       return res.status(404).json({ msg: 'File not found' });
     }
 
-    const fileUrl = resource.file.downloadUrl || resource.file.url;
+    const fileUrl = resource.file.url;
     const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
 
     res.setHeader('Content-Type', resource.file.mimeType || 'application/pdf');
@@ -223,11 +199,11 @@ router.get('/:id/view', async (req, res) => {
 router.get('/:id/download', async (req, res) => {
   try {
     const resource = await Resource.findById(req.params.id);
-    if (!resource || !resource.file?.url) {
+    if (!resource || !resource.file?.downloadUrl) {
       return res.status(404).json({ msg: 'File not found' });
     }
 
-    const fileUrl = resource.file.downloadUrl || resource.file.url;
+    const fileUrl = resource.file.downloadUrl;
     const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
 
     res.setHeader('Content-Type', resource.file.mimeType || 'application/pdf');
