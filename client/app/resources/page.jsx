@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Search, Plus, Loader2, ExternalLink, FileDown, User } from 'lucide-react';
+import { Search, Plus, Loader2, ExternalLink, FileDown, FileText, User } from 'lucide-react';
 
 const API_BASE_URL = '';
 
@@ -177,26 +177,41 @@ export default function ResourcesPage() {
                     )}
 
                     {/* File (Cloudinary path) */}
-                    {r.file?.url && r.file?.mimeType === "application/pdf" && (
-                      <a
-                        href={r.file.url} // open inline
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition"
-                      >
-                        <FileText className="w-4 h-4" /> View PDF
-                      </a>
-                    )}
+                    {r.file?.url && (
+                      <div className="flex flex-col gap-2">
+                        {/* View inline for PDFs */}
+                        {r.file?.mimeType === 'application/pdf' ? (
+                          <a
+                            href={r.file.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition"
+                          >
+                            <FileText className="w-4 h-4" /> View PDF
+                          </a>
+                        ) : (
+                          <a
+                            href={r.file.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition"
+                          >
+                            <ExternalLink className="w-4 h-4" /> Open File
+                          </a>
+                        )}
 
-                    {r.file?.downloadUrl && (
-                      <a
-                        href={r.file.downloadUrl} // force download
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition"
-                      >
-                        <FileDown className="w-4 h-4" /> Download File
-                      </a>
+                        {/* Download button (forces download) */}
+                        {r.file?.downloadUrl && (
+                          <a
+                            href={r.file.downloadUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition"
+                          >
+                            <FileDown className="w-4 h-4" /> Download File
+                          </a>
+                        )}
+                      </div>
                     )}
 
 
