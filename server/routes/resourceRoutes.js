@@ -27,6 +27,7 @@ function uploadToCloudinary(fileBuffer, filename) {
         folder: 'resources',
         use_filename: true,
         unique_filename: false,
+        filename_override: filename,
       },
       (err, result) => {
         if (err) return reject(err);
@@ -36,6 +37,7 @@ function uploadToCloudinary(fileBuffer, filename) {
           resource_type: 'raw',
           flags: 'attachment',   // forces download
           secure: true,
+          filename_override: filename,
         });
 
         resolve({ ...result, downloadUrl });
