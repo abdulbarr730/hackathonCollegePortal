@@ -186,7 +186,7 @@ export default function ResourcesPage() {
 
                     {/* File (Supabase public URL) */}
                     {r.fileUrl && (
-                      <div className="flex gap-3">
+                      <div className="flex flex-col gap-2">
                         {/* View PDF */}
                         <a
                           href={r.fileUrl}
