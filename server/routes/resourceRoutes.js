@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
+const axios = require('axios');
 
 const Resource = require('../models/Resource');
 const auth = require('../middleware/auth');
@@ -38,7 +39,7 @@ function uploadToCloudinary(fileBuffer, filename) {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        resource_type: 'raw',
+        resource_type: 'raw', // handles pdf, docx, zip, etc.
         folder: 'resources',
         use_filename: true,
         unique_filename: false,
@@ -47,8 +48,8 @@ function uploadToCloudinary(fileBuffer, filename) {
       (err, result) => {
         if (err) return reject(err);
 
-        const viewUrl = result.secure_url;
-        const downloadUrl = buildDownloadUrl(viewUrl);
+        const viewUrl = result.secure_url;            // ✅ preview in browser
+        const downloadUrl = buildDownloadUrl(viewUrl); // ✅ force download
 
         resolve({ ...result, viewUrl, downloadUrl });
       }
@@ -73,7 +74,7 @@ router.post('/', auth, async (req, res) => {
       title,
       description: description || '',
       category,
-      url,
+      url, // this stays as is (external resource links)
       status: 'pending',
       addedBy: req.user._id,
     });
@@ -106,8 +107,8 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
 
     const fileData = {
       publicId: uploadResult.public_id,
-      url: uploadResult.viewUrl,             // ✅ for preview / open in browser
-      downloadUrl: uploadResult.downloadUrl, // ✅ force download
+      url: uploadResult.viewUrl,             // ✅ plain view url
+      downloadUrl: uploadResult.downloadUrl, // ✅ download url
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
       size: req.file.size,
@@ -191,6 +192,50 @@ router.get('/categories', async (_req, res) => {
   } catch (err) {
     console.error('Categories error:', err);
     return res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
+/**
+ * Proxy: View file inline
+ */
+router.get('/:id/view', async (req, res) => {
+  try {
+    const resource = await Resource.findById(req.params.id);
+    if (!resource || !resource.file?.url) {
+      return res.status(404).json({ msg: 'File not found' });
+    }
+
+    const fileUrl = resource.file.url;
+    const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+
+    res.setHeader('Content-Type', resource.file.mimeType || 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${resource.file.originalName}"`);
+    res.send(response.data);
+  } catch (err) {
+    console.error('Proxy view error:', err.message);
+    res.status(500).json({ msg: 'Failed to fetch file' });
+  }
+});
+
+/**
+ * Proxy: Download file
+ */
+router.get('/:id/download', async (req, res) => {
+  try {
+    const resource = await Resource.findById(req.params.id);
+    if (!resource || !resource.file?.url) {
+      return res.status(404).json({ msg: 'File not found' });
+    }
+
+    const fileUrl = resource.file.url;
+    const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+
+    res.setHeader('Content-Type', resource.file.mimeType || 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${resource.file.originalName}"`);
+    res.send(response.data);
+  } catch (err) {
+    console.error('Proxy download error:', err.message);
+    res.status(500).json({ msg: 'Failed to download file' });
   }
 });
 
