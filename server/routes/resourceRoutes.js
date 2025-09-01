@@ -4,7 +4,7 @@ const axios = require('axios');
 
 const Resource = require('../models/Resource');
 const auth = require('../middleware/auth');
-const supabase = require('../config/supabase'); // ✅ use shared config
+const supabase = require('../config/supabase'); // ✅ shared supabase config
 
 const router = express.Router();
 
@@ -22,11 +22,11 @@ const BUCKET = 'resources';
  * Helper: upload buffer to Supabase
  */
 async function uploadToSupabase(fileBuffer, filename, mimetype) {
-  const path = `${Date.now()}-${filename}`;
+  const publicId = `${Date.now()}-${filename}`; // ✅ treat as publicId
 
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, fileBuffer, {
+    .upload(publicId, fileBuffer, {
       contentType: mimetype,
       upsert: false,
     });
@@ -34,12 +34,12 @@ async function uploadToSupabase(fileBuffer, filename, mimetype) {
   if (error) throw error;
 
   // Get a public URL
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(publicId);
 
   const viewUrl = data.publicUrl;
   const downloadUrl = `${data.publicUrl}?download=${encodeURIComponent(filename)}`;
 
-  return { path, viewUrl, downloadUrl };
+  return { publicId, viewUrl, downloadUrl };
 }
 
 /**
@@ -94,7 +94,7 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
     );
 
     const fileData = {
-      path: uploadResult.path,
+      publicId: uploadResult.publicId, // ✅ required in schema
       url: uploadResult.viewUrl,
       downloadUrl: uploadResult.downloadUrl,
       originalName: req.file.originalname,
