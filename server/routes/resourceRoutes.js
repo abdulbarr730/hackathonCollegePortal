@@ -168,11 +168,11 @@ router.get('/:id/download-link', auth, async (req, res) => {
       return res.status(404).json({ msg: 'No downloadable file found for this resource.' });
     }
 
-    // Generate a signed URL from Cloudinary
-    // It's a temporary link that will expire
-    const signedUrl = cloudinary.utils.private_download_url(resource.file.publicId, '', {
-        // We set attachment to force a download prompt with the original filename
-        attachment: resource.file.originalName 
+    // Generate a signed URL, specifying the resource type as 'raw' for non-image files
+    const signedUrl = cloudinary.url(resource.file.publicId, {
+      resource_type: 'raw', // This tells Cloudinary it's a file, not an image
+      sign_url: true,
+      attachment: resource.file.originalName, // Prompts a download with the correct filename
     });
 
     res.json({ downloadUrl: signedUrl });
