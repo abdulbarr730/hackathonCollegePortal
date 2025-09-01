@@ -1,20 +1,14 @@
 const mongoose = require('mongoose');
-const { createClient } = require('@supabase/supabase-js');
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY // ⚠️ use service role for deletions
-);
+const { supabase } = require('../config/supabase'); // adjust path if needed
 
 const fileSchema = new mongoose.Schema(
   {
-    path: { type: String, required: true },        // Supabase object path
-    url: { type: String, required: true },         // Public view URL
-    downloadUrl: { type: String, required: true }, // Direct download URL
+    key: { type: String, required: true },        // Supabase object key (path in bucket)
+    url: { type: String, required: true },        // Public view URL
+    downloadUrl: { type: String, required: true },// Direct download URL
     originalName: { type: String, required: true },
     mimeType: { type: String, required: true },
-    size: { type: Number, required: true },        // File size in bytes
+    size: { type: Number, required: true },       // File size in bytes
   },
   { _id: false }
 );
@@ -50,19 +44,19 @@ resourceSchema.pre('validate', function (next) {
   next();
 });
 
-// Auto-delete file from Supabase when resource is removed
+// Auto-delete file from Supabase when admin deletes resource
 resourceSchema.pre('remove', async function (next) {
   try {
-    if (this.file && this.file.path) {
+    if (this.file && this.file.key) {
       const { error } = await supabase
         .storage
-        .from('resources') // your bucket name
-        .remove([this.file.path]);
+        .from('resources') // 👈 bucket name
+        .remove([this.file.key]);
 
       if (error) {
         console.error('❌ Failed to delete file from Supabase:', error.message);
       } else {
-        console.log(`✅ File deleted from Supabase: ${this.file.path}`);
+        console.log(`✅ File deleted from Supabase: ${this.file.key}`);
       }
     }
     next();
@@ -72,7 +66,7 @@ resourceSchema.pre('remove', async function (next) {
   }
 });
 
-// Indexes for faster queries
+// Indexes
 resourceSchema.index({ status: 1, category: 1 });
 resourceSchema.index({ tags: 1 });
 resourceSchema.index({ title: 'text', description: 'text' });

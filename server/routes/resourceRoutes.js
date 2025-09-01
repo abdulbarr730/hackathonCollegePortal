@@ -22,11 +22,11 @@ const BUCKET = 'resources';
  * Helper: upload buffer to Supabase
  */
 async function uploadToSupabase(fileBuffer, filename, mimetype) {
-  const publicId = `${Date.now()}-${filename}`; // ✅ treat as publicId
+  const key = `${Date.now()}-${filename}`; // ✅ this is the Supabase object key
 
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(publicId, fileBuffer, {
+    .upload(key, fileBuffer, {
       contentType: mimetype,
       upsert: false,
     });
@@ -34,12 +34,12 @@ async function uploadToSupabase(fileBuffer, filename, mimetype) {
   if (error) throw error;
 
   // Get a public URL
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(publicId);
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(key);
 
-  const viewUrl = data.publicUrl;
+  const url = data.publicUrl; // view URL
   const downloadUrl = `${data.publicUrl}?download=${encodeURIComponent(filename)}`;
 
-  return { publicId, viewUrl, downloadUrl };
+  return { key, url, downloadUrl };
 }
 
 /**
@@ -94,8 +94,8 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
     );
 
     const fileData = {
-      publicId: uploadResult.publicId, // ✅ required in schema
-      url: uploadResult.viewUrl,
+      key: uploadResult.key, // ✅ matches schema
+      url: uploadResult.url,
       downloadUrl: uploadResult.downloadUrl,
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
@@ -184,7 +184,7 @@ router.get('/:id/view', async (req, res) => {
     const fileUrl = resource.file.url;
     const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
 
-    res.setHeader('Content-Type', resource.file.mimeType || 'application/pdf');
+    res.setHeader('Content-Type', resource.file.mimeType || 'application/octet-stream');
     res.setHeader('Content-Disposition', `inline; filename="${resource.file.originalName}"`);
     res.send(response.data);
   } catch (err) {
@@ -206,7 +206,7 @@ router.get('/:id/download', async (req, res) => {
     const fileUrl = resource.file.downloadUrl;
     const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
 
-    res.setHeader('Content-Type', resource.file.mimeType || 'application/pdf');
+    res.setHeader('Content-Type', resource.file.mimeType || 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${resource.file.originalName}"`);
     res.send(response.data);
   } catch (err) {
