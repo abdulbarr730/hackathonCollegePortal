@@ -22,7 +22,7 @@ const upload = multer({
 function uploadToCloudinary(fileBuffer) {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
-      { resource_type: 'auto', folder: 'resources' },
+      { resource_type: 'raw', folder: 'resources' },
       (err, result) => {
         if (err) return reject(err);
         resolve(result);
