@@ -12,9 +12,30 @@ const router = express.Router();
  * Multer setup (memory storage for Cloudinary)
  */
 const upload = multer({
-  storage: multer.memoryStorage(), // MODIFIED: Use memory storage
+  storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
 });
+
+/**
+ * Helper: build correct Cloudinary download URL
+ */
+function buildDownloadUrl(secureUrl) {
+  if (!secureUrl) return secureUrl;
+
+  // If already has fl_attachment, return as-is
+  if (secureUrl.includes('/upload/fl_attachment/')) return secureUrl;
+
+  // Insert after /image|video|raw/upload/
+  const withTypeHandled = secureUrl.replace(
+    /\/(image|video|raw)\/upload\//,
+    '/$1/upload/fl_attachment/'
+  );
+
+  if (withTypeHandled !== secureUrl) return withTypeHandled;
+
+  // Fallback: generic
+  return secureUrl.replace('/upload/', '/upload/fl_attachment/');
+}
 
 /**
  * Helper: upload buffer to Cloudinary
@@ -32,11 +53,8 @@ function uploadToCloudinary(fileBuffer, filename) {
       (err, result) => {
         if (err) return reject(err);
 
-        // Cloudinary already returns secure_url (works for viewing)
         const viewUrl = result.secure_url;
-
-        // ✅ Build proper download URL manually
-        const downloadUrl = viewUrl.replace('/upload/', '/upload/fl_attachment/');
+        const downloadUrl = buildDownloadUrl(viewUrl);
 
         resolve({ ...result, downloadUrl });
       }
@@ -84,9 +102,9 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
     if (!title || !category) {
       return res.status(400).json({ msg: 'Title and category are required' });
     }
-    
+
     if (!req.file) {
-        return res.status(400).json({ msg: 'A file is required for upload.' });
+      return res.status(400).json({ msg: 'A file is required for upload.' });
     }
 
     // Upload the file buffer from memory to Cloudinary
@@ -133,19 +151,29 @@ router.get('/', async (req, res) => {
       filters.$or = [{ title: new RegExp(q, 'i') }, { description: new RegExp(q, 'i') }];
     }
 
-    // MODIFIED: Re-added pagination logic to fetch items and total count in parallel
     const [items, total] = await Promise.all([
       Resource.find(filters)
         .populate('addedBy', 'name')
         .sort(sort)
         .skip((pageNum - 1) * perPage)
-        .limit(perPage), // Removed .lean() for robustness to ensure file objects are included
+        .limit(perPage),
       Resource.countDocuments(filters),
     ]);
 
-    // MODIFIED: Returning a full pagination object for the frontend
+    // ✅ Ensure all resources have a proper downloadUrl
+    const itemsWithDownload = items.map((r) => {
+      if (r?.file?.url) {
+        const fileObj = r.file.toObject?.() || r.file;
+        if (!fileObj.downloadUrl) {
+          fileObj.downloadUrl = buildDownloadUrl(fileObj.url);
+        }
+        r.file = fileObj;
+      }
+      return r;
+    });
+
     return res.json({
-      items,
+      items: itemsWithDownload,
       pagination: {
         page: pageNum,
         pages: Math.ceil(total / perPage) || 1,
@@ -171,6 +199,5 @@ router.get('/categories', async (_req, res) => {
     return res.status(500).json({ msg: 'Server Error' });
   }
 });
-
 
 module.exports = router;
