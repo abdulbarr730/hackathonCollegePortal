@@ -58,20 +58,6 @@ export default function ResourcesPage() {
     fetchResources();
   }, [filters]);
 
-  // This handler fetches the secure link from the backend
-  const handleDownload = async (resourceId, e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch(`/api/resources/${resourceId}/download-link`, {
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Could not get download link.');
-      const data = await res.json();
-      window.open(data.downloadUrl, '_blank');
-    } catch (err) {
-      alert(err.message || 'Error preparing download.');
-    }
-  };
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white px-6 py-12">
@@ -192,12 +178,14 @@ export default function ResourcesPage() {
 
                     {/* File (Cloudinary path) */}
                     {r.file?.url && (
-                    <button
-                      onClick={(e) => handleDownload(r._id, e)}
-                      className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition"
-                    >
-                      <FileDown className="w-4 h-4" /> Download File
-                    </button>
+                      <a
+                        href={r.file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition"
+                      >
+                        <FileDown className="w-4 h-4" /> Download File
+                      </a>
                     )}
 
                     {r.submittedBy?.name && (

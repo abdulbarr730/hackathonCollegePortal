@@ -89,14 +89,6 @@ router.get('/metrics', adminAuth, async (_req, res) => {
   }
 });
 
-router.get('/debug-env', adminAuth, (req, res) => {
-  res.json({
-    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
-    apiKeySet: process.env.CLOUDINARY_API_KEY ? 'Yes' : 'NO - THIS IS MISSING',
-    apiSecretSet: process.env.CLOUDINARY_API_SECRET ? 'Yes' : 'NO - THIS IS THE PROBLEM',
-  });
-});
-
 /* =============================== IDEAS ================================= */
 // GET /api/admin/ideas
 router.get('/ideas', adminAuth, async (req, res) => {
