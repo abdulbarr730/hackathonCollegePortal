@@ -22,7 +22,7 @@ const upload = multer({
 function uploadToCloudinary(fileBuffer, filename) {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
-      { 
+      {
         resource_type: 'raw',
         folder: 'resources',
         use_filename: true,
@@ -32,13 +32,11 @@ function uploadToCloudinary(fileBuffer, filename) {
       (err, result) => {
         if (err) return reject(err);
 
-        // Build a proper download URL
-        const downloadUrl = cloudinary.url(result.public_id, {
-          resource_type: 'raw',
-          flags: 'attachment',   // forces download
-          secure: true,
-          filename_override: filename,
-        });
+        // Cloudinary already returns secure_url (works for viewing)
+        const viewUrl = result.secure_url;
+
+        // ✅ Build proper download URL manually
+        const downloadUrl = viewUrl.replace('/upload/', '/upload/fl_attachment/');
 
         resolve({ ...result, downloadUrl });
       }
