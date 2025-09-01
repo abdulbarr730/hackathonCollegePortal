@@ -50,7 +50,7 @@ function uploadToCloudinary(fileBuffer, filename) {
         const viewUrl = result.secure_url;
         const downloadUrl = buildDownloadUrl(viewUrl);
 
-        resolve({ ...result, downloadUrl });
+        resolve({ ...result, viewUrl, downloadUrl });
       }
     );
     streamifier.createReadStream(fileBuffer).pipe(uploadStream);
@@ -106,8 +106,8 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
 
     const fileData = {
       publicId: uploadResult.public_id,
-      url: uploadResult.secure_url,           // view online
-      downloadUrl: uploadResult.downloadUrl,  // ✅ direct download
+      url: uploadResult.viewUrl,             // ✅ for preview / open in browser
+      downloadUrl: uploadResult.downloadUrl, // ✅ force download
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
       size: req.file.size,
