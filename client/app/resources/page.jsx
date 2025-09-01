@@ -58,6 +58,24 @@ export default function ResourcesPage() {
     fetchResources();
   }, [filters]);
 
+  const handleDownload = async (resourceId, e) => {
+    e.preventDefault(); // Prevent the default link behavior
+    
+    try {
+      const res = await fetch(`/api/resources/${resourceId}/download-link`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Could not get download link.');
+      
+      const data = await res.json();
+      // Open the secure, temporary URL from the backend in a new tab
+      window.open(data.downloadUrl, '_blank');
+
+    } catch (err) {
+      alert(err.message || 'Error preparing download.');
+    }
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white px-6 py-12">
       {/* Animated gradient background */}
@@ -176,16 +194,13 @@ export default function ResourcesPage() {
                     )}
 
                     {/* File (Cloudinary path) */}
-                    {r.file?.path && (
-                      <a
-                        href={r.file.path}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        download
-                        className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition"
-                      >
-                        <FileDown className="w-4 h-4" /> Download File
-                      </a>
+                    {r.file?.url && (
+                    <button
+                      onClick={(e) => handleDownload(r._id, e)}
+                      className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition"
+                    >
+                      <FileDown className="w-4 h-4" /> Download File
+                    </button>
                     )}
 
                     {r.submittedBy?.name && (
