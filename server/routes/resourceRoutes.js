@@ -48,7 +48,7 @@ function uploadToCloudinary(fileBuffer, filename) {
       (err, result) => {
         if (err) return reject(err);
 
-        const viewUrl = result.secure_url;            // ✅ preview in browser
+        const viewUrl = result.secure_url;             // ✅ preview in browser
         const downloadUrl = buildDownloadUrl(viewUrl); // ✅ force download
 
         resolve({ ...result, viewUrl, downloadUrl });
@@ -205,7 +205,7 @@ router.get('/:id/view', async (req, res) => {
       return res.status(404).json({ msg: 'File not found' });
     }
 
-    const fileUrl = resource.file.url;
+    const fileUrl = resource.file.downloadUrl || resource.file.url;
     const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
 
     res.setHeader('Content-Type', resource.file.mimeType || 'application/pdf');
@@ -227,7 +227,7 @@ router.get('/:id/download', async (req, res) => {
       return res.status(404).json({ msg: 'File not found' });
     }
 
-    const fileUrl = resource.file.url;
+    const fileUrl = resource.file.downloadUrl || resource.file.url;
     const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
 
     res.setHeader('Content-Type', resource.file.mimeType || 'application/pdf');
