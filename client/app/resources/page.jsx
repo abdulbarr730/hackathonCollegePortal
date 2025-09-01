@@ -13,8 +13,6 @@ import {
   User,
 } from 'lucide-react';
 
-const API_BASE_URL = '';
-
 export default function ResourcesPage() {
   const [resources, setResources] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -37,6 +35,8 @@ export default function ResourcesPage() {
       if (res.ok) {
         const data = await res.json();
         setResources(data.items || []);
+      } else {
+        console.error('Failed to fetch resources, status:', res.status);
       }
     } catch (err) {
       console.error('Failed to fetch resources:', err);
@@ -66,6 +66,13 @@ export default function ResourcesPage() {
   useEffect(() => {
     fetchResources();
   }, [filters]);
+
+  function fmtSize(bytes) {
+    if (!bytes && bytes !== 0) return null;
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white px-6 py-12">
@@ -172,7 +179,7 @@ export default function ResourcesPage() {
                   )}
 
                   <div className="space-y-2">
-                    {/* URL */}
+                    {/* External URL */}
                     {r.url && (
                       <a
                         href={r.url}
@@ -184,34 +191,41 @@ export default function ResourcesPage() {
                       </a>
                     )}
 
-                    {/* File (Supabase public URL) */}
-                    {r.fileUrl && (
-                      <div className="flex flex-col gap-2">
-                        {/* View PDF */}
-                        <a
-                          href={r.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition"
-                        >
-                          <FileText className="w-4 h-4" /> View PDF
-                        </a>
+                    {/* File-based resource: use nested r.file (backend) */}
+                    {r.file?.url && (
+                      <div className="flex flex-col gap-2 mt-2">
+                        <div className="text-xs text-slate-400">
+                          {r.file.originalName} • {fmtSize(r.file.size)}
+                        </div>
 
-                        {/* Download PDF */}
-                        <a
-                          href={r.fileUrl}
-                          download
-                          className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition"
-                        >
-                          <FileDown className="w-4 h-4" /> Download PDF
-                        </a>
+                        <div className="flex flex-wrap gap-3">
+                          {/* View via server proxy to avoid CORS */}
+                          <a
+                            href={`/api/resources/${r._id}/view`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition"
+                          >
+                            <FileText className="w-4 h-4" /> View
+                          </a>
+
+                          {/* Download via proxy (same-origin) */}
+                          <a
+                            href={`/api/resources/${r._id}/download`}
+                            download={r.file?.originalName || ''}
+                            className="flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition"
+                          >
+                            <FileDown className="w-4 h-4" /> Download
+                          </a>
+                        </div>
                       </div>
                     )}
 
-                    {r.submittedBy?.name && (
+                    {/* Submitted By */}
+                    {r.addedBy?.name && (
                       <div className="flex items-center gap-2 text-xs text-slate-500 pt-2">
                         <User className="w-4 h-4" />
-                        <span>Submitted by {r.submittedBy.name}</span>
+                        <span>Submitted by {r.addedBy.name}</span>
                       </div>
                     )}
                   </div>
