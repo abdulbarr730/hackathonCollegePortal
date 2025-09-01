@@ -19,13 +19,26 @@ const upload = multer({
 /**
  * Helper: upload buffer to Cloudinary
  */
-function uploadToCloudinary(fileBuffer) {
+function uploadToCloudinary(fileBuffer, filename) {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
-      { resource_type: 'raw', folder: 'resources' },
+      { 
+        resource_type: 'raw',
+        folder: 'resources',
+        use_filename: true,
+        unique_filename: false,
+      },
       (err, result) => {
         if (err) return reject(err);
-        resolve(result);
+
+        // Build a proper download URL
+        const downloadUrl = cloudinary.url(result.public_id, {
+          resource_type: 'raw',
+          flags: 'attachment',   // forces download
+          secure: true,
+        });
+
+        resolve({ ...result, downloadUrl });
       }
     );
     streamifier.createReadStream(fileBuffer).pipe(uploadStream);
@@ -77,11 +90,12 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
     }
 
     // Upload the file buffer from memory to Cloudinary
-    const uploadResult = await uploadToCloudinary(req.file.buffer);
+    const uploadResult = await uploadToCloudinary(req.file.buffer, req.file.originalname);
 
     const fileData = {
       publicId: uploadResult.public_id,
-      url: uploadResult.secure_url,
+      url: uploadResult.secure_url,           // view online
+      downloadUrl: uploadResult.downloadUrl,  // ✅ direct download
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
       size: req.file.size,
