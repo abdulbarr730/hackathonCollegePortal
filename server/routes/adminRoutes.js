@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const json2csv = require('json2csv').parse;
 
 // MODELS
 const User = require('../models/User');
@@ -152,24 +153,11 @@ router.delete('/ideas/:id', adminAuth, async (req, res) => {
    ======================================================================== */
 router.get('/users', adminAuth, async (req, res) => {
   try {
-    const {
-      q = '',
-      verified,
-      admin,
-      role,
-      page = 1,
-      limit = 20,
-      sort = '-createdAt',
-    } = req.query;
+    const { q = '', verified, admin, role, page = 1, limit = 20, sort = '-createdAt' } = req.query;
 
     const filters = {};
+    if (q) filters.$or = [{ name: new RegExp(q, 'i') }, { email: new RegExp(q, 'i') }];
 
-    // 🔍 Search
-    if (q) {
-      filters.$or = [{ name: new RegExp(q, 'i') }, { email: new RegExp(q, 'i') }];
-    }
-
-    // ✅ Filters (only applied if query param exists)
     if (typeof verified !== 'undefined') filters.isVerified = verified === 'true';
     if (typeof admin !== 'undefined') filters.isAdmin = admin === 'true';
     if (role) filters.role = role;
@@ -180,6 +168,7 @@ router.get('/users', adminAuth, async (req, res) => {
     const [items, total] = await Promise.all([
       User.find(filters)
         .select('-password')
+        .populate('team', 'name') // populate team name
         .sort(sort)
         .skip((pageNum - 1) * perPage)
         .limit(perPage)
@@ -202,6 +191,41 @@ router.get('/users', adminAuth, async (req, res) => {
   }
 });
 
+// Export users
+router.get('/export/users', adminAuth, async (req, res) => {
+  try {
+    const { q = '', verified, role, excludeAdmin = 'true' } = req.query;
+    const filters = {};
+    if (q) filters.$or = [{ name: new RegExp(q, 'i') }, { email: new RegExp(q, 'i') }];
+    if (typeof verified !== 'undefined') filters.isVerified = verified === 'true';
+    if (role) filters.role = role;
+    if (excludeAdmin === 'true') filters.isAdmin = { $ne: true };
+
+    const users = await User.find(filters)
+      .select('-password')
+      .populate('team', 'name')
+      .lean();
+
+    const data = users.map(u => ({
+      Name: u.name,
+      Email: u.email,
+      RollNumber: u.rollNumber || '',
+      Role: u.role,
+      Verified: u.isVerified,
+      Team: u.team?.name || '',
+    }));
+
+    const csv = json2csv(data);
+    res.header('Content-Type', 'text/csv');
+    res.attachment('users.csv');
+    return res.send(csv);
+  } catch (err) {
+    console.error('Export users error:', err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// GET user by ID
 router.get('/users/:id', adminAuth, async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
@@ -215,6 +239,7 @@ router.get('/users/:id', adminAuth, async (req, res) => {
   }
 });
 
+// PUT user updates
 router.put('/users/:id', adminAuth, async (req, res) => {
   try {
     const { isVerified, isAdmin, role, password } = req.body;
@@ -259,9 +284,7 @@ router.put('/users/:id', adminAuth, async (req, res) => {
       logs.push({ action: 'USER_PASSWORD_RESET', meta: {} });
     }
 
-    if (Object.keys(changes).length === 0) {
-      return res.status(400).json({ msg: 'No valid update fields provided' });
-    }
+    if (Object.keys(changes).length === 0) return res.status(400).json({ msg: 'No valid update fields provided' });
 
     await target.save();
 
@@ -283,6 +306,7 @@ router.put('/users/:id', adminAuth, async (req, res) => {
         isAdmin: target.isAdmin,
         isVerified: target.isVerified,
         role: target.role,
+        team: target.team?.name || '',
       },
     });
   } catch (err) {
@@ -366,7 +390,6 @@ router.post('/users/bulk-admin', adminAuth, async (req, res) => {
 router.get('/teams', adminAuth, async (req, res) => {
   try {
     const { leader, page = 1, limit = 20, sort = '-createdAt' } = req.query;
-
     const filters = {};
     if (leader) filters.leader = leader;
 
