@@ -255,76 +255,80 @@ export default function AdminResourcesPage() {
                     <p className="text-xs text-slate-400 mb-2">Size: {(resource.file.size / 1024).toFixed(2)} KB</p>
                   )}
 
-                  {/* File Preview + Download */}
-                  {resource.file?.path && (
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <a
-                        href={resource.file.path}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 rounded-md bg-cyan-600 px-3 py-1 text-xs text-white hover:bg-cyan-700 shadow"
-                      >
-                        <Eye className="w-4 h-4" /> View
-                      </a>
-                      <a
-                        href={resource.file.path}
-                        download
-                        className="flex items-center gap-1 rounded-md bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 shadow"
-                      >
-                        <FileDown className="w-4 h-4" /> Download
-                      </a>
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="flex flex-wrap gap-2">
-                    {status === 'pending' && (
-                      <>
+                  {/* Action Buttons (all in one row) */}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                    {/* Approve/Reject depending on status */}
+                    {status === "pending" && (
+                        <>
                         <button
-                          onClick={() => handleUpdateStatus(resource._id, 'approved')}
-                          className="rounded-md bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 shadow"
+                            onClick={() => handleUpdateStatus(resource._id, "approved")}
+                            className="rounded-md bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 shadow"
                         >
-                          Approve
+                            Approve
                         </button>
                         <button
-                          onClick={() => handleUpdateStatus(resource._id, 'rejected')}
-                          className="rounded-md bg-yellow-600 px-3 py-1 text-xs text-white hover:bg-yellow-700 shadow"
+                            onClick={() => handleUpdateStatus(resource._id, "rejected")}
+                            className="rounded-md bg-yellow-600 px-3 py-1 text-xs text-white hover:bg-yellow-700 shadow"
                         >
-                          Reject
+                            Reject
                         </button>
-                      </>
+                        </>
                     )}
-                    {status === 'approved' && (
-                      <button
-                        onClick={() => handleUpdateStatus(resource._id, 'rejected')}
+                    {status === "approved" && (
+                        <button
+                        onClick={() => handleUpdateStatus(resource._id, "rejected")}
                         className="rounded-md bg-yellow-600 px-3 py-1 text-xs text-white hover:bg-yellow-700 shadow"
-                      >
+                        >
                         Reject
-                      </button>
+                        </button>
                     )}
-                    {status === 'rejected' && (
-                      <button
-                        onClick={() => handleUpdateStatus(resource._id, 'approved')}
+                    {status === "rejected" && (
+                        <button
+                        onClick={() => handleUpdateStatus(resource._id, "approved")}
                         className="rounded-md bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 shadow"
-                      >
+                        >
                         Approve
-                      </button>
+                        </button>
                     )}
+
                     {/* Edit */}
                     <button
-                      onClick={() => startEdit(resource)}
-                      className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 shadow"
+                        onClick={() => startEdit(resource)}
+                        className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 shadow"
                     >
-                      <Edit className="w-4 h-4" /> Edit
+                        <Edit className="w-4 h-4" /> Edit
                     </button>
-                    {/* Delete always visible */}
+
+                    {/* Delete */}
                     <button
-                      onClick={() => handleDelete(resource._id)}
-                      className="flex items-center gap-1 rounded-md bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700 shadow"
+                        onClick={() => handleDelete(resource._id)}
+                        className="flex items-center gap-1 rounded-md bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700 shadow"
                     >
-                      <Trash2 className="w-4 h-4" /> Delete
+                        <Trash2 className="w-4 h-4" /> Delete
                     </button>
-                  </div>
+
+                    {/* View + Download (if file exists) */}
+                    {resource.file?.path && (
+                        <>
+                        <a
+                            href={resource.file.path}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 rounded-md bg-cyan-600 px-3 py-1 text-xs text-white hover:bg-cyan-700 shadow"
+                        >
+                            <Eye className="w-4 h-4" /> View
+                        </a>
+                        <a
+                            href={resource.file.path}
+                            download
+                            className="flex items-center gap-1 rounded-md bg-purple-600 px-3 py-1 text-xs text-white hover:bg-purple-700 shadow"
+                        >
+                            <FileDown className="w-4 h-4" /> Download
+                        </a>
+                        </>
+                    )}
+                    </div>
+
                 </>
               )}
             </div>
