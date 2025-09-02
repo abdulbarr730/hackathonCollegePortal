@@ -44,8 +44,7 @@ router.get('/', requireAdmin, async (req, res) => {
         .skip((pageNum - 1) * perPage)
         .limit(perPage)
         .populate('addedBy', 'name email')
-        .populate('approvedBy', 'name email')
-        .lean(),
+        .populate('approvedBy', 'name email'),
       Resource.countDocuments(filters),
     ]);
 
