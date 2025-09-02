@@ -159,15 +159,31 @@ export default function AdminResourcesPage() {
           ))}
         </div>
 
-        {/* Bulk Delete */}
-        {selected.length > 0 && (
-          <button
-            onClick={handleBulkDelete}
-            className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 shadow"
-          >
-            Delete Selected ({selected.length})
-          </button>
-        )}
+        {/* Bulk Delete + Select All */}
+        <div className="flex items-center gap-4">
+          {resources.length > 0 && (
+            <label className="flex items-center gap-2 text-slate-300">
+              <input
+                type="checkbox"
+                checked={selected.length === resources.length}
+                onChange={(e) =>
+                  setSelected(e.target.checked ? resources.map(r => r._id) : [])
+                }
+                className="accent-purple-600"
+              />
+              Select All
+            </label>
+          )}
+
+          {selected.length > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 shadow"
+            >
+              Delete Selected ({selected.length})
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Resource List */}
@@ -241,19 +257,19 @@ export default function AdminResourcesPage() {
 
                   {/* File Preview + Download */}
                   {resource.file?.path && (
-                    <div className="flex gap-3 mb-4">
+                    <div className="flex flex-wrap gap-2 mb-4">
                       <a
                         href={resource.file.path}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 text-xs"
+                        className="flex items-center gap-1 rounded-md bg-cyan-600 px-3 py-1 text-xs text-white hover:bg-cyan-700 shadow"
                       >
-                        <Eye className="w-4 h-4" /> Preview
+                        <Eye className="w-4 h-4" /> View
                       </a>
                       <a
                         href={resource.file.path}
                         download
-                        className="flex items-center gap-2 text-green-400 hover:text-green-300 text-xs"
+                        className="flex items-center gap-1 rounded-md bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 shadow"
                       >
                         <FileDown className="w-4 h-4" /> Download
                       </a>
