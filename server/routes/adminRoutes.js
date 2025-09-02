@@ -15,33 +15,22 @@ const adminAuth = require('../middleware/adminAuth');
 /* ========================================================================
    ADMIN LOGIN
    ======================================================================== */
-// POST /api/admin/login
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    // 🔍 Find admin user
     const user = await User.findOne({ email });
     if (!user || !user.isAdmin) {
       return res.status(400).json({ msg: 'Invalid credentials or not an admin' });
     }
 
-    // 🔑 Validate password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
 
-    // 🎫 Generate JWT
-    const payload = {
-      user: {
-        id: user.id,
-        isAdmin: user.isAdmin,
-      },
-    };
-
+    const payload = { user: { id: user.id, isAdmin: user.isAdmin } };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
 
-    // 🍪 Send cookie (secure in prod)
     res
       .cookie('token', token, {
         httpOnly: true,
@@ -60,7 +49,6 @@ router.post('/login', async (req, res) => {
 /* ========================================================================
    DASHBOARD METRICS
    ======================================================================== */
-// GET /api/admin/metrics
 router.get('/metrics', adminAuth, async (_req, res) => {
   try {
     const [
@@ -99,7 +87,6 @@ router.get('/metrics', adminAuth, async (_req, res) => {
 /* ========================================================================
    IDEAS MANAGEMENT
    ======================================================================== */
-// GET /api/admin/ideas
 router.get('/ideas', adminAuth, async (req, res) => {
   try {
     const { page = 1, limit = 20, sort = '-createdAt', status } = req.query;
@@ -136,7 +123,6 @@ router.get('/ideas', adminAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/admin/ideas/:id
 router.delete('/ideas/:id', adminAuth, async (req, res) => {
   try {
     const idea = await Idea.findById(req.params.id);
@@ -164,7 +150,6 @@ router.delete('/ideas/:id', adminAuth, async (req, res) => {
 /* ========================================================================
    USERS MANAGEMENT
    ======================================================================== */
-// GET /api/admin/users
 router.get('/users', adminAuth, async (req, res) => {
   try {
     const {
@@ -178,16 +163,15 @@ router.get('/users', adminAuth, async (req, res) => {
     } = req.query;
 
     const filters = {};
+
+    // 🔍 Search
     if (q) {
-      filters.$or = [
-        { name: new RegExp(q, 'i') },
-        { email: new RegExp(q, 'i') },
-      ];
+      filters.$or = [{ name: new RegExp(q, 'i') }, { email: new RegExp(q, 'i') }];
     }
-    if (verified === 'true') filters.isVerified = true;
-    if (verified === 'false') filters.isVerified = false;
-    if (admin === 'true') filters.isAdmin = true;
-    if (admin === 'false') filters.isAdmin = false;
+
+    // ✅ Filters (only applied if query param exists)
+    if (typeof verified !== 'undefined') filters.isVerified = verified === 'true';
+    if (typeof admin !== 'undefined') filters.isAdmin = admin === 'true';
     if (role) filters.role = role;
 
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
@@ -218,7 +202,6 @@ router.get('/users', adminAuth, async (req, res) => {
   }
 });
 
-// GET /api/admin/users/:id
 router.get('/users/:id', adminAuth, async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
@@ -232,7 +215,6 @@ router.get('/users/:id', adminAuth, async (req, res) => {
   }
 });
 
-// PUT /api/admin/users/:id
 router.put('/users/:id', adminAuth, async (req, res) => {
   try {
     const { isVerified, isAdmin, role, password } = req.body;
@@ -243,7 +225,6 @@ router.put('/users/:id', adminAuth, async (req, res) => {
     const changes = {};
     const logs = [];
 
-    // 🔄 Verification
     if (typeof isVerified !== 'undefined') {
       const from = target.isVerified;
       target.isVerified = !!isVerified;
@@ -251,7 +232,6 @@ router.put('/users/:id', adminAuth, async (req, res) => {
       logs.push({ action: 'USER_VERIFY', meta: { from, to: target.isVerified } });
     }
 
-    // 🔄 Admin flag
     if (typeof isAdmin !== 'undefined') {
       const from = target.isAdmin;
       target.isAdmin = !!isAdmin;
@@ -259,7 +239,6 @@ router.put('/users/:id', adminAuth, async (req, res) => {
       logs.push({ action: 'USER_ADMIN_TOGGLE', meta: { from, to: target.isAdmin } });
     }
 
-    // 🔄 Role update
     if (typeof role !== 'undefined') {
       if (!allowedRoles.includes(role)) {
         return res.status(400).json({ msg: `Invalid role. Allowed: ${allowedRoles.join(', ')}` });
@@ -270,7 +249,6 @@ router.put('/users/:id', adminAuth, async (req, res) => {
       logs.push({ action: 'USER_ROLE_UPDATE', meta: { from, to: role } });
     }
 
-    // 🔄 Password reset
     if (typeof password !== 'undefined') {
       if (!password || password.length < 8) {
         return res.status(400).json({ msg: 'Password must be at least 8 characters' });
@@ -316,7 +294,6 @@ router.put('/users/:id', adminAuth, async (req, res) => {
 /* ========================================================================
    BULK USER ACTIONS
    ======================================================================== */
-// Bulk verify
 router.post('/users/bulk-verify', adminAuth, async (req, res) => {
   try {
     const { ids = [], isVerified = true } = req.body;
@@ -339,7 +316,6 @@ router.post('/users/bulk-verify', adminAuth, async (req, res) => {
   }
 });
 
-// Bulk delete
 router.post('/users/bulk-delete', adminAuth, async (req, res) => {
   try {
     const { ids = [] } = req.body;
@@ -362,7 +338,6 @@ router.post('/users/bulk-delete', adminAuth, async (req, res) => {
   }
 });
 
-// Bulk admin toggle
 router.post('/users/bulk-admin', adminAuth, async (req, res) => {
   try {
     const { ids = [], isAdmin = true } = req.body;
@@ -388,15 +363,9 @@ router.post('/users/bulk-admin', adminAuth, async (req, res) => {
 /* ========================================================================
    TEAMS MANAGEMENT
    ======================================================================== */
-// GET /api/admin/teams
 router.get('/teams', adminAuth, async (req, res) => {
   try {
-    const {
-      leader,
-      page = 1,
-      limit = 20,
-      sort = '-createdAt',
-    } = req.query;
+    const { leader, page = 1, limit = 20, sort = '-createdAt' } = req.query;
 
     const filters = {};
     if (leader) filters.leader = leader;
@@ -435,7 +404,6 @@ router.get('/teams', adminAuth, async (req, res) => {
   }
 });
 
-// GET /api/admin/teams/:id
 router.get('/teams/:id', adminAuth, async (req, res) => {
   try {
     const t = await Team.findById(req.params.id)
