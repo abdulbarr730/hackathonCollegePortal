@@ -3,30 +3,35 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-const { validateSocial } = require('../utils/validators');
+// MODELS
 const User = require('../models/User');
 const Team = require('../models/Team');
 const Idea = require('../models/Idea');
-const Update = require('../models/Update');
 const AdminLog = require('../models/AdminLog');
 
+// MIDDLEWARE
 const adminAuth = require('../middleware/adminAuth');
 
-/* ============================= ADMIN LOGIN ============================= */
+/* ========================================================================
+   ADMIN LOGIN
+   ======================================================================== */
 // POST /api/admin/login
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
+    // 🔍 Find admin user
     const user = await User.findOne({ email });
     if (!user || !user.isAdmin) {
       return res.status(400).json({ msg: 'Invalid credentials or not an admin' });
     }
 
+    // 🔑 Validate password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
 
+    // 🎫 Generate JWT
     const payload = {
       user: {
         id: user.id,
@@ -36,12 +41,12 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
 
+    // 🍪 Send cookie (secure in prod)
     res
       .cookie('token', token, {
         httpOnly: true,
-        secure: false, // localhost dev
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        domain: 'localhost',
         path: '/',
         maxAge: 8 * 60 * 60 * 1000,
       })
@@ -52,7 +57,9 @@ router.post('/login', async (req, res) => {
   }
 });
 
-/* ================================ METRICS =============================== */
+/* ========================================================================
+   DASHBOARD METRICS
+   ======================================================================== */
 // GET /api/admin/metrics
 router.get('/metrics', adminAuth, async (_req, res) => {
   try {
@@ -89,7 +96,9 @@ router.get('/metrics', adminAuth, async (_req, res) => {
   }
 });
 
-/* =============================== IDEAS ================================= */
+/* ========================================================================
+   IDEAS MANAGEMENT
+   ======================================================================== */
 // GET /api/admin/ideas
 router.get('/ideas', adminAuth, async (req, res) => {
   try {
@@ -152,104 +161,9 @@ router.delete('/ideas/:id', adminAuth, async (req, res) => {
   }
 });
 
-/* =========================== USERS: EXPORTS ============================= */
-// GET /api/admin/users/export.csv
-router.get('/users/export.csv', adminAuth, async (req, res) => {
-  try {
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="users.csv"');
-
-    res.write('\uFEFF'); // Excel BOM
-    res.write('name,email,isAdmin,isVerified,collegeIdNumber,team,createdAt\n');
-
-    const csvEscape = (val) => {
-      if (val === null || val === undefined) return '';
-      const s = String(val);
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-
-    const cursor = User.find()
-      .select('name email isAdmin isVerified collegeIdNumber team createdAt')
-      .lean()
-      .cursor();
-
-    for await (const u of cursor) {
-      const row = [
-        csvEscape(u.name),
-        csvEscape(u.email),
-        u.isAdmin ? 'true' : 'false',
-        u.isVerified ? 'true' : 'false',
-        csvEscape(u.collegeIdNumber),
-        csvEscape(u.team ? String(u.team) : ''),
-        csvEscape(u.createdAt ? new Date(u.createdAt).toISOString() : ''),
-      ].join(',');
-      if (!res.write(row + '\n')) {
-        await new Promise((resolve) => res.once('drain', resolve));
-      }
-    }
-
-    res.end();
-  } catch (err) {
-    console.error('Admin export CSV error:', err);
-    if (!res.headersSent) {
-      return res.status(500).json({ msg: 'Export failed', error: err.message });
-    }
-    try { res.end(); } catch {}
-  }
-});
-
-// GET /api/admin/users/export.xlsx
-router.get('/users/export.xlsx', adminAuth, async (req, res) => {
-  try {
-    const ExcelJS = require('exceljs');
-    const cursor = User.find()
-      .select('name email isAdmin isVerified collegeIdNumber team createdAt')
-      .lean()
-      .cursor();
-
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Users');
-
-    sheet.columns = [
-      { header: 'Name', key: 'name', width: 28 },
-      { header: 'Email', key: 'email', width: 32 },
-      { header: 'isAdmin', key: 'isAdmin', width: 10 },
-      { header: 'isVerified', key: 'isVerified', width: 12 },
-      { header: 'College ID', key: 'collegeIdNumber', width: 18 },
-      { header: 'Team', key: 'team', width: 16 },
-      { header: 'Created At', key: 'createdAt', width: 24 },
-    ];
-
-    sheet.getRow(1).font = { bold: true };
-    sheet.getRow(1).alignment = { vertical: 'middle' };
-
-    for await (const u of cursor) {
-      sheet.addRow({
-        name: u.name || '',
-        email: u.email || '',
-        isAdmin: u.isAdmin ? 'true' : 'false',
-        isVerified: u.isVerified ? 'true' : 'false',
-        collegeIdNumber: u.collegeIdNumber || '',
-        team: u.team ? String(u.team) : '',
-        createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : '',
-      });
-    }
-
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="users.xlsx"');
-
-    await workbook.xlsx.write(res);
-    res.end();
-  } catch (err) {
-    console.error('Admin export XLSX error:', err);
-    if (!res.headersSent) {
-      return res.status(500).json({ msg: 'Export failed', error: err.message });
-    }
-    try { res.end(); } catch {}
-  }
-});
-
-/* ============================== USERS: LIST ============================= */
+/* ========================================================================
+   USERS MANAGEMENT
+   ======================================================================== */
 // GET /api/admin/users
 router.get('/users', adminAuth, async (req, res) => {
   try {
@@ -257,17 +171,24 @@ router.get('/users', adminAuth, async (req, res) => {
       q = '',
       verified,
       admin,
+      role,
       page = 1,
       limit = 20,
       sort = '-createdAt',
     } = req.query;
 
     const filters = {};
-    if (q) filters.$text = { $search: q };
+    if (q) {
+      filters.$or = [
+        { name: new RegExp(q, 'i') },
+        { email: new RegExp(q, 'i') },
+      ];
+    }
     if (verified === 'true') filters.isVerified = true;
     if (verified === 'false') filters.isVerified = false;
     if (admin === 'true') filters.isAdmin = true;
     if (admin === 'false') filters.isAdmin = false;
+    if (role) filters.role = role;
 
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
@@ -297,7 +218,6 @@ router.get('/users', adminAuth, async (req, res) => {
   }
 });
 
-/* =============================== USER: GET ============================== */
 // GET /api/admin/users/:id
 router.get('/users/:id', adminAuth, async (req, res) => {
   try {
@@ -312,7 +232,6 @@ router.get('/users/:id', adminAuth, async (req, res) => {
   }
 });
 
-/* ========================== USER: GENERIC UPDATE ======================== */
 // PUT /api/admin/users/:id
 router.put('/users/:id', adminAuth, async (req, res) => {
   try {
@@ -324,6 +243,7 @@ router.put('/users/:id', adminAuth, async (req, res) => {
     const changes = {};
     const logs = [];
 
+    // 🔄 Verification
     if (typeof isVerified !== 'undefined') {
       const from = target.isVerified;
       target.isVerified = !!isVerified;
@@ -331,6 +251,7 @@ router.put('/users/:id', adminAuth, async (req, res) => {
       logs.push({ action: 'USER_VERIFY', meta: { from, to: target.isVerified } });
     }
 
+    // 🔄 Admin flag
     if (typeof isAdmin !== 'undefined') {
       const from = target.isAdmin;
       target.isAdmin = !!isAdmin;
@@ -338,6 +259,7 @@ router.put('/users/:id', adminAuth, async (req, res) => {
       logs.push({ action: 'USER_ADMIN_TOGGLE', meta: { from, to: target.isAdmin } });
     }
 
+    // 🔄 Role update
     if (typeof role !== 'undefined') {
       if (!allowedRoles.includes(role)) {
         return res.status(400).json({ msg: `Invalid role. Allowed: ${allowedRoles.join(', ')}` });
@@ -348,6 +270,7 @@ router.put('/users/:id', adminAuth, async (req, res) => {
       logs.push({ action: 'USER_ROLE_UPDATE', meta: { from, to: role } });
     }
 
+    // 🔄 Password reset
     if (typeof password !== 'undefined') {
       if (!password || password.length < 8) {
         return res.status(400).json({ msg: 'Password must be at least 8 characters' });
@@ -385,12 +308,15 @@ router.put('/users/:id', adminAuth, async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Admin generic update user error:', err);
+    console.error('Admin update user error:', err);
     res.status(500).send('Server Error');
   }
 });
 
-/* ============================ USERS: BULK =============================== */
+/* ========================================================================
+   BULK USER ACTIONS
+   ======================================================================== */
+// Bulk verify
 router.post('/users/bulk-verify', adminAuth, async (req, res) => {
   try {
     const { ids = [], isVerified = true } = req.body;
@@ -413,6 +339,7 @@ router.post('/users/bulk-verify', adminAuth, async (req, res) => {
   }
 });
 
+// Bulk delete
 router.post('/users/bulk-delete', adminAuth, async (req, res) => {
   try {
     const { ids = [] } = req.body;
@@ -435,11 +362,36 @@ router.post('/users/bulk-delete', adminAuth, async (req, res) => {
   }
 });
 
-/* =============================== TEAMS: ADMIN =========================== */
+// Bulk admin toggle
+router.post('/users/bulk-admin', adminAuth, async (req, res) => {
+  try {
+    const { ids = [], isAdmin = true } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ msg: 'ids array required' });
+
+    const result = await User.updateMany({ _id: { $in: ids } }, { $set: { isAdmin: !!isAdmin } });
+
+    await AdminLog.create({
+      actor: req.user.id,
+      action: 'USER_BULK_ADMIN',
+      targetType: 'User',
+      targetId: req.user.id,
+      meta: { ids, isAdmin: !!isAdmin, matched: result.matchedCount, modified: result.modifiedCount },
+    });
+
+    res.json({ msg: 'Bulk admin update completed', matched: result.matchedCount, modified: result.modifiedCount });
+  } catch (err) {
+    console.error('Admin bulk admin error:', err);
+    res.status(500).send('Server Error');
+  }
+});
+
+/* ========================================================================
+   TEAMS MANAGEMENT
+   ======================================================================== */
+// GET /api/admin/teams
 router.get('/teams', adminAuth, async (req, res) => {
   try {
     const {
-      q = '',
       leader,
       page = 1,
       limit = 20,
@@ -483,6 +435,7 @@ router.get('/teams', adminAuth, async (req, res) => {
   }
 });
 
+// GET /api/admin/teams/:id
 router.get('/teams/:id', adminAuth, async (req, res) => {
   try {
     const t = await Team.findById(req.params.id)

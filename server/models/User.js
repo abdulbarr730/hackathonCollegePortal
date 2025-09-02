@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
-const validator = require('validator'); // optional, for email validation
+const validator = require('validator');
+const bcrypt = require('bcryptjs'); // ✅ for password hashing
 
-// Define SocialSchema first
+// -------------------- Social Profiles Schema --------------------
 const SocialSchema = new mongoose.Schema(
   {
     linkedin: { type: String, trim: true, default: '' },
@@ -18,16 +19,18 @@ const SocialSchema = new mongoose.Schema(
   { _id: false }
 );
 
-// Now define the User schema
+// -------------------- User Schema --------------------
 const userSchema = new mongoose.Schema(
   {
+    // Basic info
     name: { type: String, required: true },
     nameUpdateCount: { type: Number, default: 0 },
 
-    // ADDED: photoUrl field in its correct spot
+    // Profile picture
     photoUrl: { type: String, default: '' },
     photoPublicId: { type: String, default: '' },
 
+    // Login credentials
     email: {
       type: String,
       required: true,
@@ -36,56 +39,56 @@ const userSchema = new mongoose.Schema(
       trim: true,
       validate: [validator.isEmail, 'Invalid email address'],
     },
-
     password: { type: String, required: true },
 
+    // College-related
     rollNumber: { type: String, unique: true, sparse: true },
-
-    isAdmin: { type: Boolean, default: false },
-    isVerified: { type: Boolean, default: false },
-
     gender: {
       type: String,
       enum: ['Male', 'Female', 'Other'],
       required: true,
     },
-
-    year: {
-      type: Number,
-      min: 1, // Optional: Enforce a minimum value
-      max: 4, // Optional: Enforce a maximum value
-    },
+    year: { type: Number, min: 1, max: 4 },
     yearUpdateCount: { type: Number, default: 0 },
 
+    // Permissions & verification
+    isAdmin: { type: Boolean, default: false },
+    isVerified: { type: Boolean, default: false },
+
+    // Roles
     role: {
       type: String,
       enum: ['student', 'spoc', 'judge', 'admin'],
       default: 'student',
+      index: true,
     },
 
+    // Relations
     team: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },
 
+    // Social profiles
     socialProfiles: { type: SocialSchema, default: () => ({}) },
 
+    // Verification method
     verificationMethod: {
       type: String,
       enum: ['rollNumber', 'documentUpload'],
       default: 'rollNumber',
       required: true,
     },
-
     documentUrl: { type: String, default: '' },
 
+    // Password reset
     passwordResetToken: { type: String },
     passwordResetExpires: { type: Date },
 
+    // Admin notes
     adminNotes: { type: String, default: '' },
   },
   { timestamps: true }
 );
 
 // -------------------- Virtuals --------------------
-// Virtual property to format the user's name with their academic year
 userSchema.virtual('nameWithYear').get(function () {
   if (this.year) {
     const yearMap = {
@@ -100,20 +103,43 @@ userSchema.virtual('nameWithYear').get(function () {
   return this.name;
 });
 
-
-// ADDED: Ensure virtuals are included when converting to JSON
+// Ensure virtuals appear in JSON & object output
 userSchema.set('toJSON', { virtuals: true });
 userSchema.set('toObject', { virtuals: true });
 
-
 // -------------------- Indexes --------------------
-// userSchema.index({ email: 1 });
 userSchema.index({ isVerified: 1 });
 userSchema.index({ isAdmin: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ team: 1 });
-userSchema.index({ name: 'text', email: 'text' });
-// userSchema.index({ rollNumber: 1 });
 userSchema.index({ createdAt: -1 });
+userSchema.index({ name: 'text', email: 'text' });
+
+// -------------------- Hooks --------------------
+// Hash password before saving (only if modified)
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Ensure email is always lowercase
+userSchema.pre('save', function (next) {
+  if (this.isModified('email')) {
+    this.email = this.email.toLowerCase();
+  }
+  next();
+});
+
+// -------------------- Methods --------------------
+// Compare candidate password with stored hash
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 module.exports = mongoose.model('User', userSchema);
