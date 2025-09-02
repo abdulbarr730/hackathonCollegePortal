@@ -66,6 +66,7 @@ app.use('/api/admin/updates', require('./routes/adminUpdateRoutes'));
 app.use('/api/users/social', require('./routes/socialRoutes'));
 app.use('/api/admin/social-config', require('./routes/adminSocialConfigRoutes'));
 app.use('/api/comments', require('./routes/commentRoutes'));
+app.use('/api/invitations', require('./routes/invitationRoutes'));
 
 // Pointing to the new, self-contained profile route file
 app.use('/api/profile', require('./routes/profileRoutes'));
