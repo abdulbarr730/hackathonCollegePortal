@@ -93,10 +93,10 @@ router.get('/metrics', adminAuth, async (_req, res) => {
 // GET /api/admin/ideas
 router.get('/ideas', adminAuth, async (req, res) => {
   try {
-    const { page = 1, limit = 20, sort = '-createdAt', status } = req.query; // Added status filter
+    const { page = 1, limit = 20, sort = '-createdAt', status } = req.query;
     const filters = {};
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
-        filters.status = status;
+      filters.status = status;
     }
 
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
@@ -104,7 +104,7 @@ router.get('/ideas', adminAuth, async (req, res) => {
 
     const [items, total] = await Promise.all([
       Idea.find(filters)
-        .populate('author', 'name email') // Changed from 'team' to 'author' for clarity
+        .populate('author', 'name email')
         .sort(sort)
         .skip((pageNum - 1) * perPage)
         .limit(perPage)
@@ -127,9 +127,6 @@ router.get('/ideas', adminAuth, async (req, res) => {
   }
 });
 
-// --- APPROVE AND REJECT ROUTES REMOVED AS REQUESTED ---
-
-// ADDED: Admin delete idea route
 // DELETE /api/admin/ideas/:id
 router.delete('/ideas/:id', adminAuth, async (req, res) => {
   try {
@@ -137,10 +134,9 @@ router.delete('/ideas/:id', adminAuth, async (req, res) => {
     if (!idea) {
       return res.status(404).json({ msg: 'Idea not found' });
     }
-    
+
     await Idea.findByIdAndDelete(req.params.id);
 
-    // Optional: Log this action
     await AdminLog.create({
       actor: req.user.id,
       action: 'IDEA_DELETE',
@@ -156,20 +152,14 @@ router.delete('/ideas/:id', adminAuth, async (req, res) => {
   }
 });
 
-
-/* =========================== USERS: EXPORTS FIRST ======================= */
+/* =========================== USERS: EXPORTS ============================= */
 // GET /api/admin/users/export.csv
 router.get('/users/export.csv', adminAuth, async (req, res) => {
   try {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="users.csv"');
 
-    // Excel BOM
-    res.write('\uFEFF');
-
-    const filters = {};
-
-    // Header
+    res.write('\uFEFF'); // Excel BOM
     res.write('name,email,isAdmin,isVerified,collegeIdNumber,team,createdAt\n');
 
     const csvEscape = (val) => {
@@ -178,7 +168,7 @@ router.get('/users/export.csv', adminAuth, async (req, res) => {
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
 
-    const cursor = User.find(filters)
+    const cursor = User.find()
       .select('name email isAdmin isVerified collegeIdNumber team createdAt')
       .lean()
       .cursor();
@@ -212,10 +202,7 @@ router.get('/users/export.csv', adminAuth, async (req, res) => {
 router.get('/users/export.xlsx', adminAuth, async (req, res) => {
   try {
     const ExcelJS = require('exceljs');
-
-    const filters = {};
-
-    const cursor = User.find(filters)
+    const cursor = User.find()
       .select('name email isAdmin isVerified collegeIdNumber team createdAt')
       .lean()
       .cursor();
@@ -268,8 +255,8 @@ router.get('/users', adminAuth, async (req, res) => {
   try {
     const {
       q = '',
-      verified,  // 'true' | 'false' | undefined
-      admin,     // 'true' | 'false' | undefined
+      verified,
+      admin,
       page = 1,
       limit = 20,
       sort = '-createdAt',
@@ -325,118 +312,85 @@ router.get('/users/:id', adminAuth, async (req, res) => {
   }
 });
 
-/* ============================ USER: VERIFY ============================== */
-// PUT /api/admin/users/:id/verify
-router.put('/users/:id/verify', adminAuth, async (req, res) => {
+/* ========================== USER: GENERIC UPDATE ======================== */
+// PUT /api/admin/users/:id
+router.put('/users/:id', adminAuth, async (req, res) => {
   try {
-    const { isVerified = true, note = '' } = req.body;
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ msg: 'User not found' });
-
-    const from = user.isVerified;
-    user.isVerified = !!isVerified;
-    await user.save();
-
-    await AdminLog.create({
-      actor: req.user.id,
-      action: 'USER_VERIFY',
-      targetType: 'User',
-      targetId: user._id,
-      meta: { from, to: user.isVerified, note },
-    });
-
-    res.json({ msg: 'User verification updated', user: { _id: user._id, isVerified: user.isVerified } });
-  } catch (err) {
-    console.error('Admin verify toggle error:', err);
-    res.status(500).send('Server Error');
-  }
-});
-
-/* ──────────────────────────────────────────────────────
-    ADMIN: update any user’s social links
-    PUT /api/admin/users/:id/social
-    ────────────────────────────────────────────────────── */
-router.put('/users/:id/social', adminAuth, async (req, res) => {
-  try {
-    const update = validateSocial(req.body || {});
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { $set: { social: update } },
-      { new: true, select: '-password' }
-    );
-    await AdminLog.create({
-      actor: req.user.id,
-      action: 'USER_SOCIAL_UPDATE',
-      targetType: 'User',
-      targetId: user._id,
-      meta: update,
-    });
-    res.json({ msg: 'Social links updated', social: user.social });
-  } catch (e) {
-    res.status(400).json({ msg: e.message || 'Invalid data' });
-  }
-});
-
-/* ============================ USER: ROLE ================================ */
-// PUT /api/admin/users/:id/role
-router.put('/users/:id/role', adminAuth, async (req, res) => {
-  try {
-    const { isAdmin } = req.body;
-    if (typeof isAdmin !== 'boolean') return res.status(400).json({ msg: 'isAdmin must be boolean' });
-
+    const { isVerified, isAdmin, role, password } = req.body;
     const target = await User.findById(req.params.id);
     if (!target) return res.status(404).json({ msg: 'User not found' });
 
-    const from = target.isAdmin;
-    target.isAdmin = isAdmin;
+    const allowedRoles = ['student', 'spoc', 'judge', 'admin'];
+    const changes = {};
+    const logs = [];
+
+    if (typeof isVerified !== 'undefined') {
+      const from = target.isVerified;
+      target.isVerified = !!isVerified;
+      changes.isVerified = { from, to: target.isVerified };
+      logs.push({ action: 'USER_VERIFY', meta: { from, to: target.isVerified } });
+    }
+
+    if (typeof isAdmin !== 'undefined') {
+      const from = target.isAdmin;
+      target.isAdmin = !!isAdmin;
+      changes.isAdmin = { from, to: target.isAdmin };
+      logs.push({ action: 'USER_ADMIN_TOGGLE', meta: { from, to: target.isAdmin } });
+    }
+
+    if (typeof role !== 'undefined') {
+      if (!allowedRoles.includes(role)) {
+        return res.status(400).json({ msg: `Invalid role. Allowed: ${allowedRoles.join(', ')}` });
+      }
+      const from = target.role;
+      target.role = role;
+      changes.role = { from, to: role };
+      logs.push({ action: 'USER_ROLE_UPDATE', meta: { from, to: role } });
+    }
+
+    if (typeof password !== 'undefined') {
+      if (!password || password.length < 8) {
+        return res.status(400).json({ msg: 'Password must be at least 8 characters' });
+      }
+      const salt = await bcrypt.genSalt(10);
+      target.password = await bcrypt.hash(password, salt);
+      changes.password = { changed: true };
+      logs.push({ action: 'USER_PASSWORD_RESET', meta: {} });
+    }
+
+    if (Object.keys(changes).length === 0) {
+      return res.status(400).json({ msg: 'No valid update fields provided' });
+    }
+
     await target.save();
 
-    await AdminLog.create({
-      actor: req.user.id,
-      action: 'USER_ROLE_UPDATE',
-      targetType: 'User',
-      targetId: target._id,
-      meta: { from, to: isAdmin },
+    for (const l of logs) {
+      await AdminLog.create({
+        actor: req.user.id,
+        action: l.action,
+        targetType: 'User',
+        targetId: target._id,
+        meta: l.meta || {},
+      });
+    }
+
+    res.json({
+      msg: 'User updated successfully',
+      user: {
+        _id: target._id,
+        email: target.email,
+        isAdmin: target.isAdmin,
+        isVerified: target.isVerified,
+        role: target.role,
+      },
     });
-
-    res.json({ msg: 'User role updated', user: { _id: target._id, isAdmin: target.isAdmin } });
   } catch (err) {
-    console.error('Admin role update error:', err);
-    res.status(500).send('Server Error');
-  }
-});
-
-/* ============================ USER: RESET PWD =========================== */
-// POST /api/admin/users/:id/reset-password
-router.post('/users/:id/reset-password', adminAuth, async (req, res) => {
-  try {
-    const { newPassword } = req.body;
-    if (!newPassword || newPassword.length < 8) return res.status(400).json({ msg: 'Password must be 8+ chars' });
-
-    const target = await User.findById(req.params.id);
-    if (!target) return res.status(404).json({ msg: 'User not found' });
-
-    const salt = await bcrypt.genSalt(10);
-    target.password = await bcrypt.hash(newPassword, salt);
-    await target.save();
-
-    await AdminLog.create({
-      actor: req.user.id,
-      action: 'USER_PASSWORD_RESET',
-      targetType: 'User',
-      targetId: target._id,
-      meta: {},
-    });
-
-    res.json({ msg: 'Password reset successfully' });
-  } catch (err) {
-    console.error('Admin reset password error:', err);
+    console.error('Admin generic update user error:', err);
     res.status(500).send('Server Error');
   }
 });
 
 /* ============================ USERS: BULK =============================== */
-// POST /api/admin/users/bulk-verify
 router.post('/users/bulk-verify', adminAuth, async (req, res) => {
   try {
     const { ids = [], isVerified = true } = req.body;
@@ -459,7 +413,6 @@ router.post('/users/bulk-verify', adminAuth, async (req, res) => {
   }
 });
 
-// POST /api/admin/users/bulk-delete
 router.post('/users/bulk-delete', adminAuth, async (req, res) => {
   try {
     const { ids = [] } = req.body;
@@ -482,49 +435,7 @@ router.post('/users/bulk-delete', adminAuth, async (req, res) => {
   }
 });
 
-/* ============================ LEGACY/BASIC ============================== */
-// GET /api/admin/users-basic
-router.get('/users-basic', adminAuth, async (_req, res) => {
-  try {
-    const users = await User.find().select('-password');
-    res.json(users);
-  } catch (err) {
-    res.status(500).send('Server Error');
-  }
-});
-
-// PUT /api/admin/users/:id/verify-legacy
-router.put('/users/:id/verify-legacy', adminAuth, async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ msg: 'User not found' });
-    user.isVerified = true;
-    await user.save();
-    res.json({ msg: 'User verified successfully', user });
-  } catch (err) {
-    res.status(500).send('Server Error');
-  }
-});
-
-// DELETE /api/admin/users/:id
-router.delete('/users/:id', adminAuth, async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ msg: 'User not found' });
-    await user.deleteOne();
-    res.json({ msg: 'User deleted successfully' });
-  } catch (err) {
-    res.status(500).send('Server Error');
-  }
-});
-
 /* =============================== TEAMS: ADMIN =========================== */
-/* GET /api/admin/teams
-    Optional query:
-    - q (requires text index if enabled)
-    - leader (ObjectId)
-    - page, limit, sort
-*/
 router.get('/teams', adminAuth, async (req, res) => {
   try {
     const {
@@ -537,8 +448,6 @@ router.get('/teams', adminAuth, async (req, res) => {
 
     const filters = {};
     if (leader) filters.leader = leader;
-    // If you added a text index on Team fields, you can enable this:
-    // if (q) filters.$text = { $search: q };
 
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
@@ -551,10 +460,7 @@ router.get('/teams', adminAuth, async (req, res) => {
       .populate('members', 'name email photoUrl')
       .lean();
 
-    const [items, total] = await Promise.all([
-      query.exec(),
-      Team.countDocuments(filters),
-    ]);
+    const [items, total] = await Promise.all([query.exec(), Team.countDocuments(filters)]);
 
     const mapped = items.map((t) => ({
       ...t,
@@ -577,7 +483,6 @@ router.get('/teams', adminAuth, async (req, res) => {
   }
 });
 
-// GET /api/admin/teams/:id
 router.get('/teams/:id', adminAuth, async (req, res) => {
   try {
     const t = await Team.findById(req.params.id)
@@ -598,6 +503,5 @@ router.get('/teams/:id', adminAuth, async (req, res) => {
     res.status(500).send('Server Error');
   }
 });
-
 
 module.exports = router;
