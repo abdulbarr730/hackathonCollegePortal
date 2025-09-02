@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'next/navigation';
 
-const API_BASE_URL = ''; // leave empty, Next.js will proxy /api to backend
+const API_BASE_URL = ''; // Leave empty, Next.js will proxy /api to backend
 
 export default function AdminUsersPage() {
   // --- Auth Context ---
@@ -19,7 +19,7 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10; // show 10 users per page
+  const pageSize = 10; // users per page
 
   // --- Fetch Users from Backend ---
   const fetchUsers = async () => {
@@ -128,10 +128,8 @@ export default function AdminUsersPage() {
   });
 
   const totalPages = Math.ceil(filteredUsers.length / pageSize);
-  const paginatedUsers = filteredUsers.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + pageSize);
 
   // --- Select All in Current Page ---
   const toggleSelectAll = () => {
@@ -197,7 +195,8 @@ export default function AdminUsersPage() {
 
       {/* Table Header */}
       <div className="overflow-hidden rounded-lg border border-slate-700">
-        <div className="grid grid-cols-12 gap-4 bg-slate-800 p-4 text-sm font-medium text-slate-400">
+        <div className="grid grid-cols-13 gap-4 bg-slate-800 p-4 text-sm font-medium text-slate-400">
+          <div className="col-span-1">#</div>
           <div className="col-span-1">
             <input
               type="checkbox"
@@ -214,8 +213,11 @@ export default function AdminUsersPage() {
 
         {/* User Rows */}
         <div className="divide-y divide-slate-800">
-          {paginatedUsers.map((u) => (
-            <div key={u._id} className="grid grid-cols-12 gap-4 p-4 items-center">
+          {paginatedUsers.map((u, index) => (
+            <div key={u._id} className="grid grid-cols-13 gap-4 p-4 items-center">
+              {/* Index */}
+              <div className="col-span-1 text-sm text-slate-300">{startIndex + index + 1}</div>
+
               {/* Select */}
               <div className="col-span-1">
                 <input
@@ -269,7 +271,7 @@ export default function AdminUsersPage() {
 
                 <button
                   onClick={() => {
-                    const newRole = prompt('Enter new role (student, leader, admin):', u.role || 'student');
+                    const newRole = prompt('Enter new role (student, spoc, judge, admin):', u.role || 'student');
                     if (newRole) updateUser(u._id, { role: newRole }, `Role updated to ${newRole}`);
                   }}
                   className="rounded-md bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-sm font-semibold text-white"
