@@ -25,7 +25,14 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/users`, { credentials: 'include' });
+      const params = new URLSearchParams();
+      if (search) params.append('q', search);
+      if (filter === 'verified') params.append('verified', 'true');
+      if (filter === 'unverified') params.append('verified', 'false');
+      if (filter === 'admin') params.append('admin', 'true');
+      if (filter === 'nonadmin') params.append('admin', 'false');
+
+      const res = await fetch(`/api/admin/users?${params.toString()}`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch users');
       const data = await res.json();
       setUsers(data.items || []);
@@ -42,7 +49,7 @@ export default function AdminUsersPage() {
     } else if (user && user.isAdmin) {
       fetchUsers();
     }
-  }, [user, isAuthenticated, authLoading, router]);
+  }, [user, isAuthenticated, authLoading, search, filter, router]);
 
   // --- Update Single User ---
   const updateUser = async (userId, body, successMsg) => {
@@ -86,12 +93,26 @@ export default function AdminUsersPage() {
 
     if (action === 'delete' && !confirm(`Delete ${selected.length} users?`)) return;
 
+    // Map frontend action to backend endpoint
+    let endpoint = '';
+    let body = {};
+    if (action === 'verify' || action === 'unverify') {
+      endpoint = '/users/bulk-verify';
+      body = { ids: selected, isVerified: action === 'verify' };
+    } else if (action === 'makeAdmin' || action === 'removeAdmin') {
+      endpoint = '/users/bulk-admin';
+      body = { ids: selected, isAdmin: action === 'makeAdmin' };
+    } else if (action === 'delete') {
+      endpoint = '/users/bulk-delete';
+      body = { ids: selected };
+    }
+
     try {
-      const res = await fetch(`/api/admin/users/bulk`, {
-        method: 'PUT',
+      const res = await fetch(`/api/admin${endpoint}`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ action, userIds: selected }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error('Bulk action failed');
       fetchUsers();
@@ -104,29 +125,18 @@ export default function AdminUsersPage() {
 
   // --- Export Users ---
   const handleExport = (format) => {
-    window.open(`/api/admin/users/export.${format}`, '_blank');
+    const params = new URLSearchParams();
+    if (search) params.append('q', search);
+    if (filter === 'verified') params.append('verified', 'true');
+    if (filter === 'unverified') params.append('verified', 'false');
+    if (filter === 'admin') params.append('admin', 'true');
+    if (filter === 'nonadmin') params.append('admin', 'false');
+
+    window.open(`/api/admin/users/export?${params.toString()}`, '_blank');
   };
 
   // --- Filter + Search + Pagination ---
-  const filteredUsers = users.filter((u) => {
-    if (filter === 'verified' && !u.isVerified) return false;
-    if (filter === 'unverified' && u.isVerified) return false;
-    if (filter === 'admin' && !u.isAdmin) return false;
-    if (filter === 'nonadmin' && u.isAdmin) return false;
-
-    if (search) {
-      const q = search.toLowerCase();
-      if (
-        !u.name?.toLowerCase().includes(q) &&
-        !u.email?.toLowerCase().includes(q) &&
-        !u.rollNumber?.toLowerCase().includes(q)
-      ) {
-        return false;
-      }
-    }
-    return true;
-  });
-
+  const filteredUsers = users; // Already filtered by backend
   const totalPages = Math.ceil(filteredUsers.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const paginatedUsers = filteredUsers.slice(startIndex, startIndex + pageSize);
@@ -195,7 +205,7 @@ export default function AdminUsersPage() {
 
       {/* Table Header */}
       <div className="overflow-hidden rounded-lg border border-slate-700">
-        <div className="grid grid-cols-13 gap-4 bg-slate-800 p-4 text-sm font-medium text-slate-400">
+        <div className="grid grid-cols-14 gap-4 bg-slate-800 p-4 text-sm font-medium text-slate-400">
           <div className="col-span-1">#</div>
           <div className="col-span-1">
             <input
@@ -208,17 +218,15 @@ export default function AdminUsersPage() {
           <div className="col-span-2">Roll Number</div>
           <div className="col-span-2">Status</div>
           <div className="col-span-2">Role</div>
+          <div className="col-span-2">Team</div>
           <div className="col-span-2 text-right">Actions</div>
         </div>
 
         {/* User Rows */}
         <div className="divide-y divide-slate-800">
           {paginatedUsers.map((u, index) => (
-            <div key={u._id} className="grid grid-cols-13 gap-4 p-4 items-center">
-              {/* Index */}
+            <div key={u._id} className="grid grid-cols-14 gap-4 p-4 items-center">
               <div className="col-span-1 text-sm text-slate-300">{startIndex + index + 1}</div>
-
-              {/* Select */}
               <div className="col-span-1">
                 <input
                   type="checkbox"
@@ -231,29 +239,18 @@ export default function AdminUsersPage() {
                   }
                 />
               </div>
-
-              {/* User info */}
               <div className="col-span-3">
                 <p className="font-semibold text-white">{u.nameWithYear || u.name}</p>
                 <p className="text-sm text-slate-400">{u.email}</p>
               </div>
-
-              {/* Roll Number */}
               <div className="col-span-2 text-sm text-slate-300">{u.rollNumber || 'N/A'}</div>
-
-              {/* Status */}
               <div className="col-span-2">
                 <span className={`px-2 py-1 text-xs font-semibold rounded-full ${u.isVerified ? 'bg-green-500/20 text-green-300' : 'bg-amber-500/20 text-amber-300'}`}>
                   {u.isVerified ? 'Verified' : 'Not Verified'}
                 </span>
               </div>
-
-              {/* Role */}
-              <div className="col-span-2 text-sm text-slate-300 capitalize">
-                {u.role || (u.isAdmin ? 'admin' : 'student')}
-              </div>
-
-              {/* Actions */}
+              <div className="col-span-2 text-sm text-slate-300 capitalize">{u.role || (u.isAdmin ? 'admin' : 'student')}</div>
+              <div className="col-span-2 text-sm text-slate-300">{u.team?.name || 'N/A'}</div>
               <div className="col-span-2 flex flex-wrap gap-2 justify-end">
                 <button
                   onClick={() => updateUser(u._id, { isVerified: !u.isVerified }, `User ${u.isVerified ? 'un-verified' : 'verified'} successfully`)}
@@ -261,14 +258,12 @@ export default function AdminUsersPage() {
                 >
                   {u.isVerified ? 'Un-verify' : 'Verify'}
                 </button>
-
                 <button
                   onClick={() => updateUser(u._id, { isAdmin: !u.isAdmin }, `User ${u.isAdmin ? 'demoted from admin' : 'promoted to admin'}`)}
                   className="rounded-md bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-sm font-semibold text-white"
                 >
                   {u.isAdmin ? 'Remove Admin' : 'Make Admin'}
                 </button>
-
                 <button
                   onClick={() => {
                     const newRole = prompt('Enter new role (student, spoc, judge, admin):', u.role || 'student');
@@ -278,7 +273,6 @@ export default function AdminUsersPage() {
                 >
                   Change Role
                 </button>
-
                 <button
                   onClick={() => {
                     const newPassword = prompt('Enter new password for this user:');
@@ -288,7 +282,6 @@ export default function AdminUsersPage() {
                 >
                   Reset Password
                 </button>
-
                 <button
                   onClick={() => handleDeleteUser(u._id)}
                   className="rounded-md bg-red-600 hover:bg-red-700 px-3 py-1.5 text-sm font-semibold text-white"
