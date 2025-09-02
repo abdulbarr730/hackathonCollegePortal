@@ -19,7 +19,7 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10; // users per page
+  const pageSize = 15; // users per page
 
   // --- Fetch Users from Backend ---
   const fetchUsers = async () => {
