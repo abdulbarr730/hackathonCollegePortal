@@ -78,12 +78,12 @@ function normalizeInput(key, raw) {
 
   let val = raw.trim();
 
-  // If it already looks like a URL
+  // If it already looks like a URL, just return
   if (/^https?:\/\//i.test(val)) {
     return val;
   }
 
-  // Otherwise treat it as username
+  // Otherwise treat it as username -> build full URL
   if (PLATFORM_META[key]?.template) {
     return PLATFORM_META[key].template(val);
   }
