@@ -6,6 +6,17 @@ const auth = require('../middleware/auth');
 const Team = require('../models/Team');
 const User = require('../models/User');
 
+// -------------------- Helper: Female rule check --------------------
+function violatesFemaleRule(teamMembers, newUser) {
+  if (teamMembers.length === 5) {
+    const hasFemale = teamMembers.some(m => m.gender === 'Female');
+    if (!hasFemale && newUser.gender !== 'Female') {
+      return true;
+    }
+  }
+  return false;
+}
+
 // -------------------- Create a Team --------------------
 router.post('/', auth, async (req, res) => {
   const { teamName, problemStatementTitle, problemStatementDescription } = req.body;
@@ -148,11 +159,9 @@ router.post('/:id/join', auth, async (req, res) => {
       return res.status(400).json({ msg: 'You have already sent a request to join this team.' });
     }
 
-    if (team.members.length === 5) {
-      const hasFemale = team.members.some(member => member.gender === 'Female');
-      if (!hasFemale && user.gender !== 'Female') {
-          return res.status(400).json({ msg: 'A team of 6 must have at least one female member.' });
-      }
+    // ✅ Female rule check
+    if (violatesFemaleRule(team.members, user)) {
+      return res.status(400).json({ msg: 'A team of 6 must have at least one female member.' });
     }
     
     team.pendingRequests.push(req.user.id);
@@ -191,59 +200,61 @@ router.post('/:id/cancel-request', auth, async (req, res) => {
 
 // -------------------- Approve a join request --------------------
 router.post('/:id/approve/:userId', auth, async (req, res) => {
-    try {
-        const { id: teamId, userId } = req.params;
+  try {
+    const { id: teamId, userId } = req.params;
 
-        const userToApprove = await User.findById(userId);
-        if (!userToApprove || userToApprove.team) {
-            await Team.updateOne({ _id: teamId }, { $pull: { pendingRequests: userId } });
-            return res.status(400).json({ msg: 'User is no longer available to join.' });
-        }
-        
-        const updatedTeam = await Team.findOneAndUpdate(
-            {
-                _id: teamId,
-                leader: req.user.id,
-                $expr: { $lt: [{ $size: '$members' }, 6] },
-                pendingRequests: userId,
-            },
-            {
-                $push: { members: userId },
-                $pull: { pendingRequests: userId },
-            },
-            { new: true }
-        );
+    const team = await Team.findById(teamId).populate('members', 'gender');
+    if (!team) return res.status(404).json({ msg: 'Team not found' });
 
-        if (!updatedTeam) {
-            return res.status(400).json({ msg: 'Could not approve request. Team might be full, user is not pending, or you are not the leader.' });
-        }
-
-        userToApprove.team = teamId;
-        await userToApprove.save();
-
-        res.json(updatedTeam);
-    } catch (err) { 
-        console.error(`Error in POST /api/teams/:id/approve/:userId: ${err.message}`);
-        res.status(500).send('Server Error'); 
+    if (team.leader.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'User not authorized' });
     }
+
+    if (team.members.length >= 6) {
+      return res.status(400).json({ msg: 'Team is already full.' });
+    }
+
+    const userToApprove = await User.findById(userId);
+    if (!userToApprove || userToApprove.team) {
+      await Team.updateOne({ _id: teamId }, { $pull: { pendingRequests: userId } });
+      return res.status(400).json({ msg: 'User is no longer available to join.' });
+    }
+
+    // ✅ Female rule check
+    if (violatesFemaleRule(team.members, userToApprove)) {
+      return res.status(400).json({ msg: 'A team of 6 must have at least one female member.' });
+    }
+
+    team.members.push(userId);
+    team.pendingRequests = team.pendingRequests.filter(id => id.toString() !== userId);
+    await team.save();
+
+    userToApprove.team = teamId;
+    await userToApprove.save();
+
+    res.json(team);
+  } catch (err) { 
+    console.error(`Error in POST /api/teams/:id/approve/:userId: ${err.message}`);
+    res.status(500).send('Server Error'); 
+  }
 });
 
 // -------------------- Reject a join request --------------------
 router.post('/:id/reject/:userId', auth, async (req, res) => {
-    try {
-        const result = await Team.updateOne(
-            { _id: req.params.id, leader: req.user.id },
-            { $pull: { pendingRequests: req.params.userId } }
-        );
+  try {
+    const result = await Team.updateOne(
+      { _id: req.params.id, leader: req.user.id },
+      { $pull: { pendingRequests: req.params.userId } }
+    );
 
-        if (result.nModified === 0) {
-            return res.status(404).json({ msg: 'Team not found or user not authorized' });
-        }
-        res.json({ msg: 'Request rejected.' });
-    } catch (err) { 
-        console.error(`Error in POST /api/teams/:id/reject/:userId: ${err.message}`);
-        res.status(500).send('Server Error'); 
+    if (result.nModified === 0) {
+      return res.status(404).json({ msg: 'Team not found or user not authorized' });
     }
+    res.json({ msg: 'Request rejected.' });
+  } catch (err) { 
+    console.error(`Error in POST /api/teams/:id/reject/:userId: ${err.message}`);
+    res.status(500).send('Server Error'); 
+  }
 });
 
 // -------------------- Leave the current team --------------------
