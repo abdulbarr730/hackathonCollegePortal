@@ -10,11 +10,23 @@ export default function AllUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [myTeam, setMyTeam] = useState(null);
+  const [allowedPlatforms, setAllowedPlatforms] = useState([]);
 
   useEffect(() => {
+    fetchAllowedPlatforms();
     fetchUsers();
     fetchMyTeam();
   }, []);
+
+  // Fetch allowed social platforms (LinkedIn, GitHub, etc.)
+  const fetchAllowedPlatforms = async () => {
+    try {
+      const res = await axios.get('/api/social/config', { withCredentials: true });
+      setAllowedPlatforms(res.data.allowedPlatforms || []);
+    } catch (err) {
+      console.error('Error fetching allowed platforms:', err);
+    }
+  };
 
   // Fetch all users
   const fetchUsers = async () => {
@@ -86,6 +98,7 @@ export default function AllUsersPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {users.map((u) => {
           const inTeam = Boolean(u.team);
+          const socialProfiles = u.socialProfiles || {};
 
           return (
             <motion.div
@@ -111,34 +124,31 @@ export default function AllUsersPage() {
                   <p className="text-lg font-semibold text-white">{u.name}</p>
                   <p className="text-sm text-gray-400">{u.email}</p>
                   <p className="text-xs text-gray-500">
-                    {u.year ? `${u.year} Year` : 'Year not set'}
+                    {u.year ? `${u.year}th Year` : 'Year not set'}
                   </p>
                 </div>
               </div>
 
-              {/* Social links */}
-              <div className="mt-3 flex gap-3">
-                {u.linkedin && (
-                  <a
-                    href={u.linkedin}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-400 hover:text-blue-300 text-sm"
-                  >
-                    LinkedIn
-                  </a>
-                )}
-                {u.github && (
-                  <a
-                    href={u.github}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-gray-300 text-sm"
-                  >
-                    GitHub
-                  </a>
-                )}
-              </div>
+              {/* Dynamic Social Links */}
+              {Object.keys(socialProfiles).length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-3">
+                  {allowedPlatforms.map((platform) => {
+                    const url = socialProfiles[platform];
+                    if (!url) return null; // Skip empty ones
+                    return (
+                      <a
+                        key={platform}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-indigo-400 hover:text-indigo-300 underline capitalize"
+                      >
+                        {platform}
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Invite or status */}
               {inTeam ? (
