@@ -8,10 +8,9 @@ const Team = require('../models/Team');
 // -------------------- Send an invite --------------------
 router.post('/', auth, async (req, res) => {
   const { inviteeId } = req.body;
-  const inviterId = req.user.id; // use id consistently
+  const inviterId = req.user.id;
 
   try {
-    // Fetch inviter with populated team
     const inviter = await User.findById(inviterId).populate('team');
     if (!inviter.team) {
       return res.status(400).json({ msg: 'You must create a team first before sending invites.' });
@@ -21,7 +20,6 @@ router.post('/', auth, async (req, res) => {
     if (!invitee) return res.status(404).json({ msg: 'Invitee not found' });
     if (invitee.team) return res.status(400).json({ msg: 'User already in a team' });
 
-    // Prevent duplicate invitations
     const existing = await Invitation.findOne({
       teamId: inviter.team._id,
       inviteeId,
@@ -57,7 +55,6 @@ router.get('/me', auth, async (req, res) => {
         populate: { path: 'leader', select: 'name email photoUrl' },
       });
 
-    // Format invites to include useful info
     const formattedInvites = invites.map(invite => ({
       _id: invite._id,
       status: invite.status,
@@ -102,7 +99,7 @@ router.post('/:id/accept', auth, async (req, res) => {
     invite.status = 'accepted';
     await invite.save();
 
-    // Reject all other pending invitations
+    // Reject other pending invitations
     await Invitation.updateMany(
       { inviteeId: req.user.id, _id: { $ne: invite._id } },
       { status: 'rejected' }
@@ -140,6 +137,43 @@ router.get('/count', auth, async (req, res) => {
       status: 'pending',
     });
     res.json({ count });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// -------------------- Get sent invitations for team leader --------------------
+router.get('/sent', auth, async (req, res) => {
+  try {
+    const leader = await User.findById(req.user.id).populate('team');
+    if (!leader.team) return res.status(400).json({ msg: 'You do not have a team' });
+
+    const invites = await Invitation.find({
+      teamId: leader.team._id,
+      status: 'pending'
+    }).populate('inviteeId', 'name email photoUrl');
+
+    res.json(invites);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// -------------------- Cancel a sent invitation --------------------
+router.delete('/sent/:inviteId', auth, async (req, res) => {
+  try {
+    const leader = await User.findById(req.user.id).populate('team');
+    if (!leader.team) return res.status(400).json({ msg: 'You do not have a team' });
+
+    const invite = await Invitation.findById(req.params.inviteId);
+    if (!invite || invite.teamId.toString() !== leader.team._id.toString()) {
+      return res.status(404).json({ msg: 'Invitation not found or not authorized' });
+    }
+
+    await invite.deleteOne();
+    res.json({ msg: 'Invitation canceled' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ msg: 'Server error' });

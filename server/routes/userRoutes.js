@@ -8,6 +8,7 @@ const cloudinary = require('../config/cloudinary');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const PreapprovedStudent = require('../models/PreapprovedStudent'); 
+const Invitation = require('../models/Invitation');
 const auth = require('../middleware/auth');
 const { validateSocial } = require('../utils/validators');
 
@@ -48,9 +49,7 @@ router.post('/register', upload.single('document'), async (req, res) => {
   const { name, email, password, rollNumber, verificationMethod, gender, year } = req.body;
   try {
     const orQuery = [{ email }];
-    if (rollNumber) {
-      orQuery.push({ rollNumber });
-    }
+    if (rollNumber) orQuery.push({ rollNumber });
     const existingUser = await User.findOne({ $or: orQuery });
     if (existingUser) {
       return res.status(400).json({ msg: 'User with this email or Roll Number already exists.' });
@@ -58,15 +57,11 @@ router.post('/register', upload.single('document'), async (req, res) => {
 
     const newUserFields = { name, email, password, verificationMethod, gender, year, rollNumber };
 
-    // Auto-verification logic
     if (rollNumber) {
       const preapproved = await PreapprovedStudent.findOne({ rollNumber });
-      if (preapproved) {
-        newUserFields.isVerified = true;
-      }
+      if (preapproved) newUserFields.isVerified = true;
     }
 
-    // Document upload verification
     if (verificationMethod === 'documentUpload') {
       if (!req.file) return res.status(400).json({ msg: 'ID card document is required.' });
       const cloudinaryResult = await uploadToCloudinary(req.file.buffer);
@@ -98,24 +93,12 @@ router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ msg: 'Invalid credentials' });
-    }
-    if (!user.isVerified) {
-      return res.status(400).json({ msg: 'Your account has not been verified by an admin yet.' });
-    }
+    if (!user) return res.status(400).json({ msg: 'Invalid credentials' });
+    if (!user.isVerified) return res.status(400).json({ msg: 'Your account has not been verified by an admin yet.' });
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ msg: 'Invalid credentials' });
-    }
+    if (!isMatch) return res.status(400).json({ msg: 'Invalid credentials' });
 
-    const payload = {
-      user: {
-        id: user.id,
-        isAdmin: user.isAdmin,
-      },
-    };
-
+    const payload = { user: { id: user.id, isAdmin: user.isAdmin } };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5h' });
 
     res.cookie('token', token, {
@@ -159,24 +142,20 @@ router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.json({ msg: 'If a user with that email exists, a reset link has been sent.' });
-    }
+    if (!user) return res.json({ msg: 'If a user with that email exists, a reset link has been sent.' });
+
     const resetToken = crypto.randomBytes(32).toString('hex');
     user.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     user.passwordResetExpires = Date.now() + 15 * 60 * 1000;
     await user.save();
 
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
-    const message = `You are receiving this email because you have requested a password reset. Please click the following link to complete the process:\n\n${resetUrl}`;
+    const message = `You are receiving this email because you requested a password reset. Click here:\n\n${resetUrl}`;
     
     let transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: process.env.SMTP_PORT,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
     });
 
     await transporter.sendMail({
@@ -201,19 +180,14 @@ router.post('/forgot-password', async (req, res) => {
 router.post('/reset-password/:token', async (req, res) => {
   try {
     const { password } = req.body;
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(req.params.token)
-      .digest('hex');
+    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
 
     const user = await User.findOne({
       passwordResetToken: hashedToken,
       passwordResetExpires: { $gt: Date.now() },
     });
 
-    if (!user) {
-      return res.status(400).json({ msg: 'Token is invalid or has expired.' });
-    }
+    if (!user) return res.status(400).json({ msg: 'Token is invalid or has expired.' });
 
     user.password = await bcrypt.hash(password, 10);
     user.passwordResetToken = undefined;
@@ -257,30 +231,21 @@ router.put('/profile', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
 
-    // Handle name update (limit: 2)
     if (name && name !== user.name) {
-      if (user.nameUpdateCount >= 2) {
-        return res.status(403).json({ msg: 'You can no longer change your name.' });
-      }
+      if (user.nameUpdateCount >= 2) return res.status(403).json({ msg: 'You can no longer change your name.' });
       user.name = name;
       user.nameUpdateCount += 1;
     }
 
-    // Handle academic year update (limit: 4)
     if (year && year !== user.year) {
-      if (user.yearUpdateCount >= 4) {
-        return res.status(403).json({ msg: 'You can no longer change your academic year.' });
-      }
+      if (user.yearUpdateCount >= 4) return res.status(403).json({ msg: 'You can no longer change your academic year.' });
       user.year = year;
       user.yearUpdateCount += 1;
     }
 
-    // Handle email update (unlimited)
     if (email && email !== user.email) {
       const emailExists = await User.findOne({ email });
-      if (emailExists && emailExists.id !== user.id) {
-        return res.status(400).json({ msg: 'Email is already in use.' });
-      }
+      if (emailExists && emailExists.id !== user.id) return res.status(400).json({ msg: 'Email is already in use.' });
       user.email = email;
     }
     
@@ -302,11 +267,8 @@ router.put('/change-password', auth, async (req, res) => {
 
   try {
     const user = await User.findById(req.user.id);
-
     const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ msg: 'Incorrect current password.' });
-    }
+    if (!isMatch) return res.status(400).json({ msg: 'Incorrect current password.' });
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
@@ -335,31 +297,38 @@ router.get('/me', auth, (req, res) => {
 
 /**
  * @route   GET /api/users
- * @desc    Get all users with optional filters
+ * @desc    Get all users with optional filters, mark if invited
  * @query   year, search
- * @access  Public or Admin
+ * @access  Public or Private
  */
-router.get('/', async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
     const { year, search } = req.query;
     const filter = {};
 
-    // Filter by year
-    if (year) {
-      filter.year = Number(year);
-    }
-
-    // Search by name or email
-    if (search) {
-      filter.$or = [
-        { name: new RegExp(search, 'i') },
-        { email: new RegExp(search, 'i') },
-      ];
-    }
+    if (year) filter.year = Number(year);
+    if (search) filter.$or = [{ name: new RegExp(search, 'i') }, { email: new RegExp(search, 'i') }];
 
     const users = await User.find(filter)
       .select('name email year photoUrl team socialProfiles isVerified')
       .lean();
+
+    // If the logged-in user has a team, mark already invited users
+    const currentUser = await User.findById(req.user.id).populate('team');
+    if (currentUser.team) {
+      const pendingInvites = await Invitation.find({
+        teamId: currentUser.team._id,
+        status: 'pending'
+      }).select('inviteeId').lean();
+
+      const inviteeIds = new Set(pendingInvites.map(i => i.inviteeId.toString()));
+
+      users.forEach(u => {
+        u.isInvited = inviteeIds.has(u._id.toString());
+      });
+    } else {
+      users.forEach(u => (u.isInvited = false));
+    }
 
     res.json(users);
   } catch (err) {
