@@ -160,7 +160,7 @@ export default function ProfilePage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(links),
+        body: JSON.stringify({ socialProfiles: links }),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.msg || 'Save failed');
