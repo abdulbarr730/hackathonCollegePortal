@@ -367,4 +367,35 @@ router.delete('/:teamId/members/:memberId', auth, async (req, res) => {
   }
 });
 
+// -------------------- Remove a team's logo --------------------
+router.delete('/:id/logo', auth, async (req, res) => {
+  try {
+    let team = await Team.findById(req.params.id);
+    if (!team) {
+      return res.status(404).json({ msg: 'Team not found' });
+    }
+    // Ensure user is the leader
+    if (team.leader.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'User not authorized' });
+    }
+    // If there's no logo, there's nothing to do
+    if (!team.logoPublicId) {
+      return res.status(400).json({ msg: 'Team does not have a logo to remove.' });
+    }
+
+    // Delete the image from Cloudinary
+    await deleteFromCloudinary(team.logoPublicId);
+
+    // Clear the logo fields in the database
+    team.logoUrl = '';
+    team.logoPublicId = '';
+    await team.save();
+
+    res.json(team); // Send back the updated team object
+  } catch (err) {
+    console.error(`Error in DELETE /api/teams/:id/logo: ${err.message}`);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;
