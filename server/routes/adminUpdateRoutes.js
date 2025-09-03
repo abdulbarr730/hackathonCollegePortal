@@ -2,6 +2,7 @@ const express = require('express');
 const Update = require('../models/Update');
 const { runFeederOnce } = require('../services/sihFeeder');
 const { notifyUsersNewUpdates } = require('../services/updateNotifications');
+const crypto = require('crypto');
 
 // NOTE: Plug your admin guard here
 const requireAdmin = require('../middleware/adminAuth');
