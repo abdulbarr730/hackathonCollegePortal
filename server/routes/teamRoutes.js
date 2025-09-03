@@ -285,4 +285,25 @@ router.delete('/:teamId/members/:memberId', auth, async (req, res) => {
   }
 });
 
+// GET my team for logged-in user
+router.get('/my-team', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).populate({
+      path: 'team',
+      populate: [
+        { path: 'members', select: 'name email gender' },
+        { path: 'leader', select: 'name email gender' }
+      ]
+    });
+
+    if (!user.team) return res.json(null);
+
+    res.json(user.team);
+  } catch (err) {
+    console.error(`Error in GET /api/teams/my-team: ${err.message}`);
+    res.status(500).send('Server Error');
+  }
+});
+
+
 module.exports = router;
