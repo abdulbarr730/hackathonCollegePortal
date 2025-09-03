@@ -11,19 +11,20 @@ router.post('/', auth, async (req, res) => {
   const inviterId = req.user._id;
 
   try {
-    const inviter = await User.findById(inviterId);
+    // Fetch inviter with team info
+    const inviter = await User.findById(inviterId).select('team');
     if (!inviter.team) {
       return res.status(400).json({ msg: 'You must be in a team to invite' });
     }
 
-    const invitee = await User.findById(inviteeId);
+    const invitee = await User.findById(inviteeId).select('team');
     if (!invitee) return res.status(404).json({ msg: 'Invitee not found' });
     if (invitee.team) return res.status(400).json({ msg: 'User already in a team' });
 
     // Prevent duplicate invitations
     const existing = await Invitation.findOne({
       teamId: inviter.team,
-      inviteeId: inviteeId,
+      inviteeId,
       status: 'pending',
     });
     if (existing) {
@@ -32,8 +33,8 @@ router.post('/', auth, async (req, res) => {
 
     const invitation = new Invitation({
       teamId: inviter.team,
-      inviterId: inviterId,
-      inviteeId: inviteeId,
+      inviterId,
+      inviteeId,
     });
 
     await invitation.save();
