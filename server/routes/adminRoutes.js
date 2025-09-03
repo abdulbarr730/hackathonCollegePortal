@@ -165,10 +165,11 @@ router.get('/users', adminAuth, async (req, res) => {
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
-    // Fetch all users
+    // Fetch all users with their direct team populated
     const [users, total] = await Promise.all([
       User.find(filters)
         .select('-password')
+        .populate('team', 'teamName') // ✅ Populate direct team reference
         .sort(sort)
         .skip((pageNum - 1) * perPage)
         .limit(perPage)
@@ -176,21 +177,24 @@ router.get('/users', adminAuth, async (req, res) => {
       User.countDocuments(filters),
     ]);
 
-    // Fetch teams to map users
-    const teams = await Team.find().select('name members').lean();
+    // Fetch all teams (for members fallback)
+    const teams = await Team.find().select('teamName members').lean();
 
-    // Map userId -> teamName
+    // Map userId -> teamName based on team members
     const userToTeamMap = {};
     teams.forEach(team => {
       team.members.forEach(memberId => {
-        userToTeamMap[memberId.toString()] = team.name;
+        userToTeamMap[memberId.toString()] = team.teamName;
       });
     });
 
-    // Add teamName to each user
+    // Final mapping with fallback
     const usersWithTeam = users.map(user => ({
       ...user,
-      teamName: userToTeamMap[user._id.toString()] || 'N/A',
+      teamName:
+        user.team?.teamName || // ✅ Direct relationship
+        userToTeamMap[user._id.toString()] || // ✅ Fallback through members array
+        'N/A', // Default
     }));
 
     res.json({
@@ -207,6 +211,7 @@ router.get('/users', adminAuth, async (req, res) => {
     res.status(500).send('Server Error');
   }
 });
+
 
 // Export users
 router.get('/export/users', adminAuth, async (req, res) => {
