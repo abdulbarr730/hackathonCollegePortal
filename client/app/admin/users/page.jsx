@@ -34,7 +34,9 @@ export default function AdminUsersPage() {
 
       const res = await fetch(`/api/admin/users?${params.toString()}`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch users');
+
       const data = await res.json();
+      console.log('Fetched Users:', data.items); // Debugging team data
       setUsers(data.items || []);
     } catch (err) {
       setError(err.message);
@@ -93,7 +95,6 @@ export default function AdminUsersPage() {
 
     if (action === 'delete' && !confirm(`Delete ${selected.length} users?`)) return;
 
-    // Map frontend action to backend endpoint
     let endpoint = '';
     let body = {};
     if (action === 'verify' || action === 'unverify') {
@@ -250,7 +251,9 @@ export default function AdminUsersPage() {
                 </span>
               </div>
               <div className="col-span-2 text-sm text-slate-300 capitalize">{u.role || (u.isAdmin ? 'admin' : 'student')}</div>
-              <div className="col-span-2 text-sm text-slate-300">{u.team?.name || 'N/A'}</div>
+              <div className="col-span-2 text-sm text-slate-300">
+                {u.team && u.team.name ? u.team.name : 'No Team'}
+              </div>
               <div className="col-span-2 flex flex-wrap gap-2 justify-end">
                 <button
                   onClick={() => updateUser(u._id, { isVerified: !u.isVerified }, `User ${u.isVerified ? 'un-verified' : 'verified'} successfully`)}
