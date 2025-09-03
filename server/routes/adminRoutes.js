@@ -155,9 +155,11 @@ router.get('/users', adminAuth, async (req, res) => {
   try {
     const { q = '', verified, admin, role, page = 1, limit = 20, sort = '-createdAt' } = req.query;
 
+    // ------------------------------
+    // 1. Build Filters
+    // ------------------------------
     const filters = {};
     if (q) filters.$or = [{ name: new RegExp(q, 'i') }, { email: new RegExp(q, 'i') }];
-
     if (typeof verified !== 'undefined') filters.isVerified = verified === 'true';
     if (typeof admin !== 'undefined') filters.isAdmin = admin === 'true';
     if (role) filters.role = role;
@@ -165,11 +167,13 @@ router.get('/users', adminAuth, async (req, res) => {
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
-    // Fetch all users with their direct team populated
+    // ------------------------------
+    // 2. Fetch Users (Paginated)
+    // ------------------------------
     const [users, total] = await Promise.all([
       User.find(filters)
         .select('-password')
-        .populate('team', 'teamName') // ✅ Populate direct team reference
+        .populate('team', 'teamName') // ✅ Populate direct team reference if exists
         .sort(sort)
         .skip((pageNum - 1) * perPage)
         .limit(perPage)
@@ -177,10 +181,12 @@ router.get('/users', adminAuth, async (req, res) => {
       User.countDocuments(filters),
     ]);
 
-    // Fetch all teams (for members fallback)
+    // ------------------------------
+    // 3. Fetch Teams for Fallback
+    // ------------------------------
     const teams = await Team.find().select('teamName members').lean();
 
-    // Map userId -> teamName based on team members
+    // Create a map of userId -> teamName
     const userToTeamMap = {};
     teams.forEach(team => {
       team.members.forEach(memberId => {
@@ -188,15 +194,20 @@ router.get('/users', adminAuth, async (req, res) => {
       });
     });
 
-    // Final mapping with fallback
+    // ------------------------------
+    // 4. Final mapping: Attach Team
+    // ------------------------------
     const usersWithTeam = users.map(user => ({
       ...user,
       teamName:
-        user.team?.teamName || // ✅ Direct relationship
-        userToTeamMap[user._id.toString()] || // ✅ Fallback through members array
-        'N/A', // Default
+        user.team?.teamName || // Direct reference
+        userToTeamMap[user._id.toString()] || // Fallback through members array
+        'N/A', // Default if no team
     }));
 
+    // ------------------------------
+    // 5. Send Response
+    // ------------------------------
     res.json({
       items: usersWithTeam,
       pagination: {
@@ -211,6 +222,7 @@ router.get('/users', adminAuth, async (req, res) => {
     res.status(500).send('Server Error');
   }
 });
+
 
 
 // Export users
