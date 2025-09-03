@@ -337,4 +337,19 @@ router.get('/me', auth, (req, res) => {
   }
 });
 
+/**
+ * @route   GET /api/users
+ * @desc    Get all users
+ * @access  Admin (optional: make public if needed)
+ */
+router.get('/', async (req, res) => {
+  try {
+    const users = await User.find().select('-password'); // Exclude password
+    res.json(users);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
 module.exports = router;
