@@ -102,28 +102,41 @@ router.get('/', /* requireAdmin, */ async (req, res) => {
  */
 router.post('/', requireAdmin, async (req, res) => {
   try {
+    if (!req.body) {
+      return res.status(400).json({ msg: 'Request body is missing' });
+    }
+    
     const { title, summary, url, isPublic, pinned, publishedAt } = req.body;
 
-    // Basic validation
-    if (!title) {
-      return res.status(400).json({ msg: 'Title is required' });
+    if (!title || typeof title !== 'string' || title.trim() === '') {
+      return res.status(400).json({ msg: 'A valid title is required' });
     }
+    
+    // 2. Create a unique string from the update's content
+    const uniqueString = `${title.trim()}${url || ''}`;
+
+    // 3. Generate the hash using that unique string
+    const hash = crypto.createHash('sha256').update(uniqueString).digest('hex');
 
     const newUpdate = new Update({
-      title,
+      title: title.trim(),
       summary: summary || '',
       url: url || '',
-      isPublic: isPublic === true,
-      pinned: pinned === true,
-      publishedAt: publishedAt ? new Date(publishedAt) : new Date(), // Default to now if not provided
+      isPublic: !!isPublic,
+      pinned: !!pinned,
+      publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
+      hash: hash, // 4. Add the hash to the new document
     });
 
     const savedUpdate = await newUpdate.save();
     
-    // Respond with 201 Created and the new document
     res.status(201).json({ ok: true, item: savedUpdate });
   } catch (err) {
-    console.error('Admin create update error:', err);
+    // Check for duplicate key error (if the hash already exists)
+    if (err.code === 11000) {
+      return res.status(409).json({ msg: 'This update already exists.' });
+    }
+    console.error('Admin create update error:', err); 
     res.status(500).json({ msg: 'Server Error' });
   }
 });
