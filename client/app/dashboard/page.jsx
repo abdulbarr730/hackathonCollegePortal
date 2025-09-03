@@ -385,18 +385,34 @@ export default function DashboardPage() {
                   <div className="mb-6 rounded-lg bg-slate-800/50 p-6">
                     <h3 className="text-xl font-bold text-cyan-400 mb-4">You Have Team Invitations!</h3>
                     <ul className="space-y-3">
-                      {receivedInvites.map(invite => (
-                        <li key={invite._id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-slate-900/70 rounded-md gap-3">
-                          <p>
-                            <span className="font-semibold">{invite.teamId.name}</span>
-                            <span className="text-sm text-slate-400"> has invited you to join.</span>
-                          </p>
-                          <div className="flex gap-2 flex-shrink-0">
-                            <button onClick={() => handleAcceptInvite(invite._id)} className="rounded bg-green-600 px-3 py-1.5 text-xs font-semibold hover:bg-green-500">Accept</button>
-                            <button onClick={() => handleRejectInvite(invite._id)} className="rounded bg-red-600 px-3 py-1.5 text-xs font-semibold hover:bg-red-500">Decline</button>
-                          </div>
-                        </li>
-                      ))}
+                      {receivedInvites.map(invite => {
+                        // Find the full team object from the main 'teams' state using the ID from the invite
+                        const fullTeam = teams.find(t => t._id === invite.teamId?._id);
+
+                        return (
+                          <li key={invite._id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-slate-900/70 rounded-md gap-3">
+                            <p>
+                              <button
+                                onClick={() => {
+                                  if (fullTeam) {
+                                    setViewingTeam(fullTeam);
+                                  }
+                                }}
+                                className="font-semibold text-cyan-400 hover:underline disabled:text-gray-500 disabled:no-underline disabled:cursor-default"
+                                disabled={!fullTeam}
+                                title={fullTeam ? `Click to view details for ${fullTeam.teamName}` : 'Team details not available'}
+                              >
+                                {fullTeam?.teamName || invite.teamId?.name || 'A team'}
+                              </button>
+                              <span className="text-sm text-slate-400"> has invited you to join.</span>
+                            </p>
+                            <div className="flex gap-2 flex-shrink-0">
+                              <button onClick={() => handleAcceptInvite(invite._id)} className="rounded bg-green-600 px-3 py-1.5 text-xs font-semibold hover:bg-green-500">Accept</button>
+                              <button onClick={() => handleRejectInvite(invite._id)} className="rounded bg-red-600 px-3 py-1.5 text-xs font-semibold hover:bg-red-500">Decline</button>
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}
