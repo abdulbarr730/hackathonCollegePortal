@@ -39,6 +39,8 @@ export default function DashboardPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [viewingTeam, setViewingTeam] = useState(null);
+  const [sentInvites, setSentInvites] = useState([]);
+  const [receivedInvites, setReceivedInvites] = useState([]);
 
   const fetchTeams = async () => {
     try {
@@ -67,13 +69,39 @@ export default function DashboardPage() {
     } catch (error) { console.error('Failed to fetch users:', error); }
   };
 
+  const fetchSentInvites = async () => {
+    try {
+      const res = await fetch(`/api/invitations/sent`, { credentials: 'include' });
+      if (res.ok) setSentInvites(await res.json());
+    } catch (error) {
+      console.error('Failed to fetch sent invites:', error);
+    }
+  };
+
+  const fetchReceivedInvites = async () => {
+    try {
+      const res = await fetch(`/api/invitations/received`, { credentials: 'include' });
+      if (res.ok) setReceivedInvites(await res.json());
+    } catch (error) {
+      console.error('Failed to fetch received invites:', error);
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchTeams();
       fetchUpdates();
       fetchUsers();
+      
+      if (user?.team) {
+        // If user is in a team, they might be a leader, so fetch sent invites
+        fetchSentInvites();
+      } else {
+        // If user is NOT in a team, fetch invites they've received
+        fetchReceivedInvites();
+      }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   const handleDataUpdate = () => {
     fetchTeams();
@@ -145,6 +173,38 @@ export default function DashboardPage() {
       alert('Invitation sent!');
     } catch (err) {
       alert(err.message);
+    }
+  };
+
+  const handleCancelInvite = async (inviteId) => {
+    if (window.confirm('Are you sure you want to cancel this invitation?')) {
+      try {
+        const res = await fetch(`/api/invitations/${inviteId}/cancel`, { method: 'POST', credentials: 'include' });
+        if (!res.ok) throw new Error((await res.json())?.message || 'Failed to cancel');
+        fetchSentInvites(); // Refresh sent invites list
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+  };
+
+  const handleAcceptInvite = async (inviteId) => {
+    try {
+      const res = await fetch(`/api/invitations/${inviteId}/accept`, { method: 'POST', credentials: 'include' });
+      if (!res.ok) throw new Error((await res.json())?.message || 'Failed to accept');
+      handleDataUpdate(); // Refresh all data as user joins a team
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleRejectInvite = async (inviteId) => {
+    try {
+      const res = await fetch(`/api/invitations/${inviteId}/reject`, { method: 'POST', credentials: 'include' });
+      if (!res.ok) throw new Error((await res.json())?.message || 'Failed to reject');
+      fetchReceivedInvites(); // Refresh received invites list
+    } catch (error) {
+      alert(error.message);
     }
   };
 
@@ -298,11 +358,52 @@ export default function DashboardPage() {
                       </ul>
                     </div>
                   )}
+                  {String(user._id) === String(myTeam.leader._id) && sentInvites.length > 0 && (
+                    <div className="mt-4 border-t border-slate-700 pt-4">
+                      <p className="font-semibold text-yellow-400">Sent Invitations:</p>
+                      <ul className="mt-1 space-y-2">
+                        {sentInvites.map((invite) => (
+                          <li key={invite._id} className="flex items-center justify-between text-gray-400">
+                            <NameWithEmail user={invite.inviteeId} />
+                            <div className="space-x-2">
+                              <button 
+                                onClick={() => handleCancelInvite(invite._id)} 
+                                className="rounded bg-gray-600 px-2 py-1 text-xs hover:bg-gray-700">
+                                Cancel
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             ) : (
-              <div className="rounded-lg border border-dashed border-slate-700 bg-slate-800/50 p-6 text-center text-slate-400">
-                You are not part of a team yet. Create one or join an existing team!
+              <div>
+                {receivedInvites.length > 0 && (
+                  <div className="mb-6 rounded-lg bg-slate-800/50 p-6">
+                    <h3 className="text-xl font-bold text-cyan-400 mb-4">You Have Team Invitations!</h3>
+                    <ul className="space-y-3">
+                      {receivedInvites.map(invite => (
+                        <li key={invite._id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-slate-900/70 rounded-md gap-3">
+                          <p>
+                            <span className="font-semibold">{invite.teamId.name}</span>
+                            <span className="text-sm text-slate-400"> has invited you to join.</span>
+                          </p>
+                          <div className="flex gap-2 flex-shrink-0">
+                            <button onClick={() => handleAcceptInvite(invite._id)} className="rounded bg-green-600 px-3 py-1.5 text-xs font-semibold hover:bg-green-500">Accept</button>
+                            <button onClick={() => handleRejectInvite(invite._id)} className="rounded bg-red-600 px-3 py-1.5 text-xs font-semibold hover:bg-red-500">Decline</button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                <div className="rounded-lg border border-dashed border-slate-700 bg-slate-800/50 p-6 text-center text-slate-400">
+                  You are not part of a team yet. Create one or join an existing team from the list below.
+                </div>
               </div>
             )}
 
