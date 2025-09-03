@@ -341,30 +341,6 @@ export default function DashboardPage() {
                 })}
               </div>
             </div>
-
-            {/* All Users Section */}
-            <div className="mt-12">
-              <h2 className="mb-6 text-2xl font-bold">All Users</h2>
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {allUsers.map((u) => (
-                  <motion.div key={u._id} whileHover={{ scale: 1.02 }} className="flex flex-col rounded-lg p-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500">
-                    <div className="rounded-lg bg-slate-900/90 p-6 flex flex-col items-center text-center">
-                      <Avatar name={u.name} src={u.photoUrl} size={48} />
-                      <NameWithEmail user={u} className="mt-2" />
-                      <SocialBadges profiles={u.socialProfiles} className="mt-2" />
-                      {myTeam && String(user._id) === String(myTeam.leader._id) && (
-                        <button
-                          onClick={() => handleInvite(u._id)}
-                          className="mt-4 rounded bg-indigo-600 px-3 py-1.5 text-sm hover:bg-indigo-500"
-                        >
-                          Invite to Team
-                        </button>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
           </section>
         </div>
       </main>
