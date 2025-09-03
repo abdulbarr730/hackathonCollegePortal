@@ -10,7 +10,7 @@ import {
   Twitter,
   Globe,
   Link as LinkIcon
-} from 'lucide-react'; // Icon pack
+} from 'lucide-react';
 
 export default function AllUsersPage() {
   const router = useRouter();
@@ -18,6 +18,7 @@ export default function AllUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [myTeam, setMyTeam] = useState(null);
+  const [invitedUsers, setInvitedUsers] = useState(new Set()); // Track invited users
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,9 +46,15 @@ export default function AllUsersPage() {
   const fetchMyTeam = async () => {
     try {
       const res = await axios.get('/api/teams/my-team', { withCredentials: true });
-      setMyTeam(res.data || null);
+      setMyTeam(res.data ? { ...res.data, members: res.data.members || [] } : null);
+
+      // Optional: prefill invited users from pending invitations
+      const invitesRes = await axios.get('/api/invitations/me', { withCredentials: true });
+      const pendingInvitees = new Set(invitesRes.data.map(inv => inv.team._id === res.data?._id ? inv.inviter._id : null));
+      setInvitedUsers(pendingInvitees);
+
     } catch (err) {
-      console.error('Error fetching my team:', err);
+      console.error('Error fetching my team or invites:', err);
     }
   };
 
@@ -65,11 +72,12 @@ export default function AllUsersPage() {
     }
 
     try {
-      await axios.post(`/api/teams/${myTeam._id}/invite/${userId}`, {}, { withCredentials: true });
+      await axios.post('/api/invitations', { inviteeId: userId }, { withCredentials: true });
       alert('Invitation sent successfully');
+      setInvitedUsers(new Set([...invitedUsers, userId])); // Add user to invited list
     } catch (err) {
       console.error('Error sending invite:', err);
-      alert(err.response?.data?.message || 'Failed to send invite');
+      alert(err.response?.data?.msg || 'Failed to send invite');
     }
   };
 
@@ -110,7 +118,6 @@ export default function AllUsersPage() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-6">
-      {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">All Users</h1>
         <button
@@ -121,9 +128,7 @@ export default function AllUsersPage() {
         </button>
       </div>
 
-      {/* Search and Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
-        {/* Search Bar */}
         <input
           type="text"
           placeholder="Search by name or email..."
@@ -131,8 +136,6 @@ export default function AllUsersPage() {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full sm:w-1/2 rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
-
-        {/* Year Dropdown */}
         <select
           value={yearFilter}
           onChange={(e) => setYearFilter(e.target.value)}
@@ -146,18 +149,15 @@ export default function AllUsersPage() {
         </select>
       </div>
 
-      {/* Loading state */}
       {loading && <div className="text-center text-gray-400">Loading users...</div>}
-
-      {/* Empty state */}
       {!loading && filteredUsers.length === 0 && (
         <div className="text-center text-gray-400">No users match your search/filter.</div>
       )}
 
-      {/* User Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredUsers.map((u) => {
           const inTeam = Boolean(u.team);
+          const alreadyInvited = invitedUsers.has(u._id);
           const socialProfiles = u.socialProfiles || {};
 
           return (
@@ -166,7 +166,6 @@ export default function AllUsersPage() {
               whileHover={{ scale: 1.02 }}
               className="p-5 rounded-xl bg-slate-800 border border-slate-700 shadow-lg"
             >
-              {/* Profile Image */}
               <div className="flex items-center gap-3">
                 {u.photoUrl ? (
                   <img
@@ -179,7 +178,6 @@ export default function AllUsersPage() {
                     {u.name?.charAt(0).toUpperCase()}
                   </div>
                 )}
-
                 <div>
                   <p className="text-lg font-semibold text-white">{u.name}</p>
                   <p className="text-sm text-gray-400">{u.email}</p>
@@ -187,7 +185,6 @@ export default function AllUsersPage() {
                 </div>
               </div>
 
-              {/* Social Icons */}
               {Object.keys(socialProfiles).length > 0 && (
                 <div className="mt-3 flex gap-3">
                   {Object.entries(socialProfiles).map(([platform, url]) => {
@@ -208,9 +205,10 @@ export default function AllUsersPage() {
                 </div>
               )}
 
-              {/* Invite Button or Status */}
               {inTeam ? (
                 <div className="mt-4 text-center text-gray-400">Already in a team</div>
+              ) : alreadyInvited ? (
+                <div className="mt-4 text-center text-yellow-400">Invitation Sent</div>
               ) : (
                 <button
                   className="mt-4 w-full rounded bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500"

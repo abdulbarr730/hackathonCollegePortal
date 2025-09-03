@@ -8,31 +8,29 @@ const Team = require('../models/Team');
 // -------------------- Send an invite --------------------
 router.post('/', auth, async (req, res) => {
   const { inviteeId } = req.body;
-  const inviterId = req.user._id;
+  const inviterId = req.user.id; // use id consistently
 
   try {
-    // Fetch inviter with team info
-    const inviter = await User.findById(inviterId).select('team');
+    // Fetch inviter with populated team
+    const inviter = await User.findById(inviterId).populate('team');
     if (!inviter.team) {
-      return res.status(400).json({ msg: 'You must be in a team to invite' });
+      return res.status(400).json({ msg: 'You must create a team first before sending invites.' });
     }
 
-    const invitee = await User.findById(inviteeId).select('team');
+    const invitee = await User.findById(inviteeId);
     if (!invitee) return res.status(404).json({ msg: 'Invitee not found' });
     if (invitee.team) return res.status(400).json({ msg: 'User already in a team' });
 
     // Prevent duplicate invitations
     const existing = await Invitation.findOne({
-      teamId: inviter.team,
+      teamId: inviter.team._id,
       inviteeId,
       status: 'pending',
     });
-    if (existing) {
-      return res.status(400).json({ msg: 'Invitation already sent to this user' });
-    }
+    if (existing) return res.status(400).json({ msg: 'Invitation already sent to this user' });
 
     const invitation = new Invitation({
-      teamId: inviter.team,
+      teamId: inviter.team._id,
       inviterId,
       inviteeId,
     });
@@ -49,7 +47,7 @@ router.post('/', auth, async (req, res) => {
 router.get('/me', auth, async (req, res) => {
   try {
     const invites = await Invitation.find({
-      inviteeId: req.user._id,
+      inviteeId: req.user.id,
       status: 'pending',
     })
       .populate('inviterId', 'name email photoUrl')
@@ -59,8 +57,8 @@ router.get('/me', auth, async (req, res) => {
         populate: { path: 'leader', select: 'name email photoUrl' },
       });
 
-    // Map to include membersCount and leader info
-    const formattedInvites = invites.map((invite) => ({
+    // Format invites to include useful info
+    const formattedInvites = invites.map(invite => ({
       _id: invite._id,
       status: invite.status,
       inviter: invite.inviterId,
@@ -89,12 +87,9 @@ router.post('/:id/accept', auth, async (req, res) => {
       return res.status(404).json({ msg: 'Invitation not found' });
     }
 
-    const user = await User.findById(req.user._id);
-    if (user.team) {
-      return res.status(400).json({ msg: 'You are already in a team' });
-    }
+    const user = await User.findById(req.user.id);
+    if (user.team) return res.status(400).json({ msg: 'You are already in a team' });
 
-    // Add user to the team
     const team = await Team.findById(invite.teamId);
     if (!team) return res.status(404).json({ msg: 'Team not found' });
 
@@ -104,13 +99,12 @@ router.post('/:id/accept', auth, async (req, res) => {
     user.team = team._id;
     await user.save();
 
-    // Update invitation status
     invite.status = 'accepted';
     await invite.save();
 
     // Reject all other pending invitations
     await Invitation.updateMany(
-      { inviteeId: req.user._id, _id: { $ne: invite._id } },
+      { inviteeId: req.user.id, _id: { $ne: invite._id } },
       { status: 'rejected' }
     );
 
@@ -125,13 +119,8 @@ router.post('/:id/accept', auth, async (req, res) => {
 router.post('/:id/reject', auth, async (req, res) => {
   try {
     const invite = await Invitation.findById(req.params.id);
-    if (!invite || invite.status !== 'pending') {
-      return res.status(404).json({ msg: 'Invitation not found' });
-    }
-
-    if (invite.inviteeId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ msg: 'Not authorized' });
-    }
+    if (!invite || invite.status !== 'pending') return res.status(404).json({ msg: 'Invitation not found' });
+    if (invite.inviteeId.toString() !== req.user.id) return res.status(403).json({ msg: 'Not authorized' });
 
     invite.status = 'rejected';
     await invite.save();
@@ -147,7 +136,7 @@ router.post('/:id/reject', auth, async (req, res) => {
 router.get('/count', auth, async (req, res) => {
   try {
     const count = await Invitation.countDocuments({
-      inviteeId: req.user._id,
+      inviteeId: req.user.id,
       status: 'pending',
     });
     res.json({ count });
