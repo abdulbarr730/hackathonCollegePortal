@@ -142,28 +142,72 @@ export default function RegisterPage() {
           Join the Hackathon
         </h2>
         {isSuccess ? (
-          <div className="text-center">
-            <svg className="mx-auto h-16 w-16 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            {verificationResult ? (
-              <>
-                <h3 className="mt-4 text-2xl font-semibold text-white">College Student Verified!</h3>
-                <p className="mt-2 text-gray-400">Your account has been created and verified successfully.</p>
-                <button
-                  onClick={() => router.push('/login')}
-                  className="mt-6 w-full rounded-lg bg-blue-600 px-5 py-3 font-medium text-white transition-transform duration-200 hover:scale-105 active:scale-95"
-                >
-                  Login Here
-                </button>
-              </>
-            ) : (
-              <>
-                <h3 className="mt-4 text-2xl font-semibold text-white">Successfully Registered!</h3>
-                {/* MODIFIED: Updated success message */}
-                <p className="mt-2 text-gray-400">Your account is now pending approval from the admin.</p>
-              </>
-            )}
-          </div>
-        ) : (
+            <div className="text-center">
+              <svg
+                className="mx-auto h-16 w-16 text-green-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                ></path>
+              </svg>
+
+              {verificationResult ? (
+                <>
+                  <h3 className="mt-4 text-2xl font-semibold text-white">
+                    College Student Verified!
+                  </h3>
+                  <p className="mt-2 text-gray-400">
+                    Your account has been created and verified successfully.
+                  </p>
+                  <button
+                    onClick={() => router.push('/login')}
+                    className="mt-6 w-full rounded-lg bg-blue-600 px-5 py-3 font-medium text-white transition-transform duration-200 hover:scale-105 active:scale-95"
+                  >
+                    Login Here
+                  </button>
+                </>
+              ) : (
+                <>
+                  <h3 className="mt-4 text-2xl font-semibold text-white">
+                    Successfully Registered!
+                  </h3>
+                  <p className="mt-2 text-gray-400">
+                    Your account is now pending approval from the admin.
+                  </p>
+
+                  {/* ✅ Added urgent verification message */}
+                  <div className="mt-4 text-sm text-gray-300">
+                    <p>
+                      <span className="font-semibold text-yellow-400">
+                        Need to get verified ASAP?
+                      </span>{' '}
+                      Drop a message at{' '}
+                      <a
+                        href="tel:+917479934706"
+                        className="text-blue-400 hover:underline"
+                      >
+                        +91 7479934706
+                      </a>{' '}
+                      or{' '}
+                      <a
+                        href="mailto:abdulbarr730@gmail.com"
+                        className="text-blue-400 hover:underline"
+                      >
+                        abdulbarr730@gmail.com
+                      </a>
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
           <>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && <p ref={errorRef} className="rounded bg-red-500/50 p-3 text-center text-sm">{error}</p>}
