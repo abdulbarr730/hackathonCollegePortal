@@ -1,34 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 
 export default function AllUsersPage() {
   const router = useRouter();
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [myTeam, setMyTeam] = useState(null);
-  const [allowedPlatforms, setAllowedPlatforms] = useState([]);
+
+  // NEW: Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [yearFilter, setYearFilter] = useState('all');
 
   useEffect(() => {
-    fetchAllowedPlatforms();
     fetchUsers();
     fetchMyTeam();
   }, []);
 
-  // Fetch allowed social platforms (LinkedIn, GitHub, etc.)
-  const fetchAllowedPlatforms = async () => {
-    try {
-      const res = await axios.get('/api/social/config', { withCredentials: true });
-      setAllowedPlatforms(res.data.allowedPlatforms || []);
-    } catch (err) {
-      console.error('Error fetching allowed platforms:', err);
-    }
-  };
-
-  // Fetch all users
+  /** Fetch all users */
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -41,7 +34,7 @@ export default function AllUsersPage() {
     }
   };
 
-  // Fetch my current team
+  /** Fetch my current team */
   const fetchMyTeam = async () => {
     try {
       const res = await axios.get('/api/teams/my-team', { withCredentials: true });
@@ -51,7 +44,7 @@ export default function AllUsersPage() {
     }
   };
 
-  // Invite a user to my team
+  /** Invite a user to my team */
   const handleInviteUser = async (userId) => {
     if (!myTeam) {
       alert('You must create a team first before sending invites.');
@@ -73,6 +66,31 @@ export default function AllUsersPage() {
     }
   };
 
+  /** Helper function to display year properly */
+  const getYearLabel = (year) => {
+    switch (String(year)) {
+      case '1': return '1st Year';
+      case '2': return '2nd Year';
+      case '3': return '3rd Year';
+      case '4': return '4th Year';
+      default: return 'Year not set';
+    }
+  };
+
+  /** Filtered list of users */
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      const matchesSearch =
+        u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        u.email?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesYear =
+        yearFilter === 'all' ? true : String(u.year) === String(yearFilter);
+
+      return matchesSearch && matchesYear;
+    });
+  }, [users, searchQuery, yearFilter]);
+
   return (
     <div className="min-h-screen bg-slate-900 text-white p-6">
       {/* Header */}
@@ -86,17 +104,42 @@ export default function AllUsersPage() {
         </button>
       </div>
 
+      {/* Search and Filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+        {/* Search Bar */}
+        <input
+          type="text"
+          placeholder="Search by name or email..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full sm:w-1/2 rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+
+        {/* Year Dropdown */}
+        <select
+          value={yearFilter}
+          onChange={(e) => setYearFilter(e.target.value)}
+          className="w-full sm:w-40 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="all">All Years</option>
+          <option value="1">1st Year</option>
+          <option value="2">2nd Year</option>
+          <option value="3">3rd Year</option>
+          <option value="4">4th Year</option>
+        </select>
+      </div>
+
       {/* Loading state */}
       {loading && <div className="text-center text-gray-400">Loading users...</div>}
 
       {/* Empty state */}
-      {!loading && users.length === 0 && (
-        <div className="text-center text-gray-400">No users found.</div>
+      {!loading && filteredUsers.length === 0 && (
+        <div className="text-center text-gray-400">No users match your search/filter.</div>
       )}
 
-      {/* User grid */}
+      {/* User Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {users.map((u) => {
+        {filteredUsers.map((u) => {
           const inTeam = Boolean(u.team);
           const socialProfiles = u.socialProfiles || {};
 
@@ -123,18 +166,15 @@ export default function AllUsersPage() {
                 <div>
                   <p className="text-lg font-semibold text-white">{u.name}</p>
                   <p className="text-sm text-gray-400">{u.email}</p>
-                  <p className="text-xs text-gray-500">
-                    {u.year ? `${u.year}th Year` : 'Year not set'}
-                  </p>
+                  <p className="text-xs text-gray-500">{getYearLabel(u.year)}</p>
                 </div>
               </div>
 
               {/* Dynamic Social Links */}
               {Object.keys(socialProfiles).length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-3">
-                  {allowedPlatforms.map((platform) => {
-                    const url = socialProfiles[platform];
-                    if (!url) return null; // Skip empty ones
+                  {Object.entries(socialProfiles).map(([platform, url]) => {
+                    if (!url) return null;
                     return (
                       <a
                         key={platform}
@@ -150,7 +190,7 @@ export default function AllUsersPage() {
                 </div>
               )}
 
-              {/* Invite or status */}
+              {/* Invite Button or Status */}
               {inTeam ? (
                 <div className="mt-4 text-center text-gray-400">Already in a team</div>
               ) : (

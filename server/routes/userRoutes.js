@@ -7,9 +7,9 @@ const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const PreapprovedStudent = require('../models/PreapprovedStudent'); // Make sure this is imported
+const PreapprovedStudent = require('../models/PreapprovedStudent'); 
 const auth = require('../middleware/auth');
-const { validateSocial } = require('../utils/validators'); // Assuming this validator exists
+const { validateSocial } = require('../utils/validators');
 
 // --- Multer & Cloudinary Config ---
 const storage = multer.memoryStorage();
@@ -24,8 +24,6 @@ const uploadToCloudinary = (fileBuffer) => {
     uploadStream.end(fileBuffer);
   });
 };
-
-// --- ROUTES ---
 
 /**
  * @route   POST api/users/check-email
@@ -68,6 +66,7 @@ router.post('/register', upload.single('document'), async (req, res) => {
       }
     }
 
+    // Document upload verification
     if (verificationMethod === 'documentUpload') {
       if (!req.file) return res.status(400).json({ msg: 'ID card document is required.' });
       const cloudinaryResult = await uploadToCloudinary(req.file.buffer);
@@ -109,6 +108,7 @@ router.post('/login', async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
+
     const payload = {
       user: {
         id: user.id,
@@ -119,12 +119,12 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5h' });
 
     res.cookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'none',
-        path: "/",
-        maxAge: 5 * 60 * 60 * 1000,
-      }).json({ msg: 'Login successful' });
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
+      path: "/",
+      maxAge: 5 * 60 * 60 * 1000,
+    }).json({ msg: 'Login successful' });
   } catch (err) {
     console.error(`Error in /login: ${err.message}`);
     res.status(500).json({ error: 'Server Error' });
@@ -171,19 +171,19 @@ router.post('/forgot-password', async (req, res) => {
     const message = `You are receiving this email because you have requested a password reset. Please click the following link to complete the process:\n\n${resetUrl}`;
     
     let transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-        },
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
     });
 
     await transporter.sendMail({
-        from: '"SIH Portal" <no-reply@sihportal.com>',
-        to: user.email,
-        subject: 'Password Reset Request',
-        text: message,
+      from: '"SIH Portal" <no-reply@sihportal.com>',
+      to: user.email,
+      subject: 'Password Reset Request',
+      text: message,
     });
 
     res.json({ msg: 'If a user with that email exists, a reset link has been sent.' });
@@ -199,32 +199,32 @@ router.post('/forgot-password', async (req, res) => {
  * @access  Public
  */
 router.post('/reset-password/:token', async (req, res) => {
-    try {
-        const { password } = req.body;
-        const hashedToken = crypto
-            .createHash('sha256')
-            .update(req.params.token)
-            .digest('hex');
+  try {
+    const { password } = req.body;
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(req.params.token)
+      .digest('hex');
 
-        const user = await User.findOne({
-            passwordResetToken: hashedToken,
-            passwordResetExpires: { $gt: Date.now() },
-        });
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: Date.now() },
+    });
 
-        if (!user) {
-            return res.status(400).json({ msg: 'Token is invalid or has expired.' });
-        }
-
-        user.password = await bcrypt.hash(password, 10);
-        user.passwordResetToken = undefined;
-        user.passwordResetExpires = undefined;
-        await user.save();
-
-        res.json({ msg: 'Password has been reset successfully.' });
-    } catch (err) {
-        console.error(`Error in /reset-password: ${err.message}`);
-        res.status(500).send('Server Error');
+    if (!user) {
+      return res.status(400).json({ msg: 'Token is invalid or has expired.' });
     }
+
+    user.password = await bcrypt.hash(password, 10);
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    res.json({ msg: 'Password has been reset successfully.' });
+  } catch (err) {
+    console.error(`Error in /reset-password: ${err.message}`);
+    res.status(500).send('Server Error');
+  }
 });
 
 /**
@@ -277,7 +277,6 @@ router.put('/profile', auth, async (req, res) => {
 
     // Handle email update (unlimited)
     if (email && email !== user.email) {
-      // Check if the new email is already taken
       const emailExists = await User.findOne({ email });
       if (emailExists && emailExists.id !== user.id) {
         return res.status(400).json({ msg: 'Email is already in use.' });
@@ -287,7 +286,6 @@ router.put('/profile', auth, async (req, res) => {
     
     await user.save();
     res.json(user);
-
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -305,24 +303,22 @@ router.put('/change-password', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
 
-    // Check if the current password is correct
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
       return res.status(400).json({ msg: 'Incorrect current password.' });
     }
 
-    // Hash and save the new password
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
 
     res.json({ msg: 'Password updated successfully.' });
-
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
   }
 });
+
 /**
  * @route   GET api/users/me
  * @desc    Get current logged-in user's data
@@ -339,12 +335,32 @@ router.get('/me', auth, (req, res) => {
 
 /**
  * @route   GET /api/users
- * @desc    Get all users
- * @access  Admin (optional: make public if needed)
+ * @desc    Get all users with optional filters
+ * @query   year, search
+ * @access  Public or Admin
  */
 router.get('/', async (req, res) => {
   try {
-    const users = await User.find().select('-password'); // Exclude password
+    const { year, search } = req.query;
+    const filter = {};
+
+    // Filter by year
+    if (year) {
+      filter.year = Number(year);
+    }
+
+    // Search by name or email
+    if (search) {
+      filter.$or = [
+        { name: new RegExp(search, 'i') },
+        { email: new RegExp(search, 'i') },
+      ];
+    }
+
+    const users = await User.find(filter)
+      .select('name email year photoUrl team socialProfiles isVerified')
+      .lean();
+
     res.json(users);
   } catch (err) {
     console.error('Error fetching users:', err);
