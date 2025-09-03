@@ -5,6 +5,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Team = require('../models/Team');
 const User = require('../models/User');
+const Invitation = require('../models/Invitation');
 
 // -------------------- Helper: Female rule check --------------------
 function violatesFemaleRule(teamMembers, newUser) {
@@ -131,6 +132,10 @@ router.delete('/:id', auth, async (req, res) => {
     if (team.leader.toString() !== req.user.id) {
       return res.status(401).json({ msg: 'User not authorized' });
     }
+
+    // vvv ADD THIS BLOCK TO DELETE RELATED INVITATIONS vvv
+    await Invitation.deleteMany({ teamId: team._id });
+
     await User.updateMany({ _id: { $in: team.members } }, { $unset: { team: "" } });
     await team.deleteOne();
     res.json({ msg: 'Team removed' });
