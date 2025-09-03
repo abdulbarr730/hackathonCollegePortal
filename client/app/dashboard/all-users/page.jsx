@@ -18,7 +18,7 @@ export default function AllUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [myTeam, setMyTeam] = useState(null);
-  const [invitedUsers, setInvitedUsers] = useState(new Set()); // Track invited users
+  const [invitedUsers, setInvitedUsers] = useState(new Set()); // Track invited users persistently
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,7 +26,7 @@ export default function AllUsersPage() {
 
   useEffect(() => {
     fetchUsers();
-    fetchMyTeam();
+    fetchMyTeamAndInvites();
   }, []);
 
   /** Fetch all users */
@@ -42,16 +42,21 @@ export default function AllUsersPage() {
     }
   };
 
-  /** Fetch my current team */
-  const fetchMyTeam = async () => {
+  /** Fetch my current team and pending invitations */
+  const fetchMyTeamAndInvites = async () => {
     try {
       const res = await axios.get('/api/teams/my-team', { withCredentials: true });
       setMyTeam(res.data ? { ...res.data, members: res.data.members || [] } : null);
 
-      // Optional: prefill invited users from pending invitations
-      const invitesRes = await axios.get('/api/invitations/me', { withCredentials: true });
-      const pendingInvitees = new Set(invitesRes.data.map(inv => inv.team._id === res.data?._id ? inv.inviter._id : null));
-      setInvitedUsers(pendingInvitees);
+      if (res.data?._id) {
+        const invitesRes = await axios.get('/api/invitations/me', { withCredentials: true });
+        const pendingInvitees = new Set(
+          invitesRes.data
+            .filter(inv => inv.team._id === res.data._id) // only invitations for my team
+            .map(inv => inv.invitee._id) // mark invited users
+        );
+        setInvitedUsers(pendingInvitees);
+      }
 
     } catch (err) {
       console.error('Error fetching my team or invites:', err);

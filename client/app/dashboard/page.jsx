@@ -246,36 +246,38 @@ export default function DashboardPage() {
         <div className="grid gap-8 lg:grid-cols-[320px,1fr]">
           {/* Sidebar cards with invite badge */}
           <aside className="space-y-6">
-            {[{
-              title: '📢 Official Updates',
-              color: 'indigo',
-              description: 'Stay updated with the latest announcements.',
-              items: updates,
-              buttonText: 'View All Updates',
-              onClick: () => router.push('/updates'),
-              badge: pendingInvites.length,
-            },{
-              title: '💡 Got an Idea?',
-              color: 'purple',
-              description: 'Share proposals and track feedback.',
-              buttonText: 'Browse Ideas',
-              onClick: () => router.push('/ideas'),
-            },{
-              title: '📚 Resource Hub',
-              color: 'emerald',
-              description: 'Access curated study materials, guides, and references.',
-              buttonText: 'Go to Resource Hub',
-              onClick: () => router.push('/resources'),
-            }].map((card, idx) => (
+            {[
+              {
+                title: '📢 Official Updates',
+                color: 'indigo',
+                description: 'Stay updated with the latest announcements.',
+                items: updates,
+                buttonText: 'View All Updates',
+                onClick: () => router.push('/updates'),
+                badge: pendingInvites.length,
+              },
+              {
+                title: '💡 Got an Idea?',
+                color: 'purple',
+                description: 'Share proposals and track feedback.',
+                buttonText: 'Browse Ideas',
+                onClick: () => router.push('/ideas'),
+              },
+              {
+                title: '📚 Resource Hub',
+                color: 'emerald',
+                description: 'Access curated study materials, guides, and references.',
+                buttonText: 'Go to Resource Hub',
+                onClick: () => router.push('/resources'),
+              },
+            ].map((card, idx) => (
               <motion.div
                 key={idx}
                 whileHover={{ scale: 1.02 }}
                 className="relative rounded-xl p-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500 animate-border"
               >
                 <div className="rounded-xl bg-slate-900/90 p-6 relative">
-                  <h3 className={`text-lg font-semibold text-${card.color}-400`}>
-                    {card.title}
-                  </h3>
+                  <h3 className={`text-lg font-semibold text-${card.color}-400`}>{card.title}</h3>
                   {card.items ? (
                     card.items.length > 0 ? (
                       <ul className="mt-3 space-y-2">
@@ -309,12 +311,209 @@ export default function DashboardPage() {
           </aside>
 
           <section>
-            {/* Existing My Team, Pending Invites, Sent Invites, Other Teams unchanged */}
+            {/* My Team Section */}
+            <div className="mb-8 flex items-center justify-between">
+              <h2 className="text-2xl font-bold">My Team</h2>
+              {!myTeam && (
+                <button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500"
+                >
+                  + Create Team
+                </button>
+              )}
+            </div>
+
+            {myTeam ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="relative rounded-lg p-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500"
+              >
+                <div className="rounded-lg bg-slate-900/90 p-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-xl font-semibold text-cyan-400">{myTeam.teamName}</h3>
+                      <div className="mt-2 text-slate-400">
+                        Led by:
+                        <div className="mt-1 flex items-center gap-2">
+                          <Avatar name={myTeam.leader.name} src={myTeam.leader.photoUrl} size={36} />
+                          <NameWithEmail user={myTeam.leader} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setIsEditModalOpen(true)}
+                        className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium hover:bg-blue-500"
+                      >
+                        Edit
+                      </button>
+                      {String(user._id) === String(myTeam.leader._id) ? (
+                        <button
+                          onClick={() => handleDeleteClick(myTeam._id)}
+                          className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium hover:bg-red-500"
+                        >
+                          Delete
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleLeaveClick}
+                          className="rounded-md bg-yellow-600 px-3 py-1.5 text-sm font-medium hover:bg-yellow-500"
+                        >
+                          Leave
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="mt-4 font-medium text-gray-200">Problem Statement:</p>
+                  <p className="mt-1 text-slate-400">{myTeam.problemStatementTitle}</p>
+
+                  <p className="mt-4 font-medium text-gray-200">Members ({myMembers.length} / 6):</p>
+                  <ul className="mt-2 space-y-2">
+                    {myMembers.map((m) => (
+                      <li key={m._id} className="flex items-center gap-2">
+                        <Avatar name={m.name} src={m.photoUrl} size={28} />
+                        <NameWithEmail user={m} />
+                        <SocialBadges profiles={m.socialProfiles} className="ml-2" />
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* Pending Requests */}
+                  {String(user._id) === String(myTeam.leader._id) && myRequests.length > 0 && (
+                    <div className="mt-4 border-t border-slate-700 pt-4">
+                      <p className="font-semibold text-cyan-400">Pending Requests:</p>
+                      <ul className="mt-1 space-y-2">
+                        {myRequests.map((requestUser) => (
+                          <li key={requestUser._id} className="flex items-center justify-between text-gray-400">
+                            <NameWithEmail user={requestUser} />
+                            <div className="space-x-2">
+                              <button
+                                onClick={() => handleApprove(myTeam._id, requestUser._id)}
+                                className="rounded bg-green-600 px-2 py-1 text-xs hover:bg-green-700"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleReject(myTeam._id, requestUser._id)}
+                                className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Sent Invitations */}
+                  {String(user._id) === String(myTeam.leader._id) && sentInvites.length > 0 && (
+                    <div className="mt-4 border-t border-slate-700 pt-4">
+                      <p className="font-semibold text-purple-400">Sent Invitations:</p>
+                      <ul className="mt-1 space-y-2">
+                        {sentInvites.map((invite) => (
+                          <li key={invite._id} className="flex items-center justify-between text-gray-400">
+                            <NameWithEmail user={invite.invitee} />
+                            <button
+                              onClick={() => handleCancelSentInvite(invite._id)}
+                              className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700"
+                            >
+                              Cancel
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Pending Invitations for users */}
+                  {!myTeam && pendingInvites.length > 0 && (
+                    <div className="mt-4 border-t border-slate-700 pt-4">
+                      <p className="font-semibold text-yellow-400">Pending Invitations:</p>
+                      <ul className="mt-1 space-y-2">
+                        {pendingInvites.map((invite) => (
+                          <li key={invite._id} className="flex items-center justify-between text-gray-400">
+                            <span>{invite.team.teamName} (Invited by {invite.inviter.name})</span>
+                            <div className="space-x-2">
+                              <button
+                                onClick={() => handleAcceptInvite(invite._id)}
+                                className="rounded bg-green-600 px-2 py-1 text-xs hover:bg-green-700"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                onClick={() => handleRejectInvite(invite._id)}
+                                className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ) : (
+              <p className="text-slate-400 mb-6">You are not part of any team yet.</p>
+            )}
+
+            {/* View All Users Button */}
+            <div className="mt-6">
+              <button
+                onClick={() => router.push('/users')}
+                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500"
+              >
+                View All Users
+              </button>
+            </div>
+
+            {/* Other Teams Section */}
+            <div className="mt-8">
+              <h2 className="text-2xl font-bold mb-4">All Other Teams</h2>
+              <div className="space-y-4">
+                {otherTeams.map((team) => (
+                  <motion.div
+                    key={team._id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-lg bg-slate-900/90 p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-cyan-400">{team.teamName}</span>
+                      {team.pendingRequests.find((r) => String(r._id) === String(user._id)) ? (
+                        <button
+                          onClick={() => handleCancelJoin(team._id)}
+                          className="rounded bg-yellow-600 px-2 py-1 text-xs hover:bg-yellow-700"
+                        >
+                          Cancel Request
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleJoinClick(team._id)}
+                          className="rounded bg-green-600 px-2 py-1 text-xs hover:bg-green-700"
+                        >
+                          Join
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
           </section>
         </div>
       </main>
 
-      {/* Modals unchanged */}
+      {/* Modals */}
+      <CreateTeamModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSuccess={handleDataUpdate} />
+      {myTeam && <EditTeamModal isOpen={isEditModalOpen} team={myTeam} onClose={() => setIsEditModalOpen(false)} onSuccess={handleDataUpdate} />}
+      {viewingTeam && <TeamDetailsModal team={viewingTeam} onClose={() => setViewingTeam(null)} />}
     </div>
   );
 }
