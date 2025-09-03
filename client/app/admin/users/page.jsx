@@ -19,6 +19,8 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
   const pageSize = 15; // users per page
 
   // --- Fetch Users from Backend ---
@@ -26,6 +28,9 @@ export default function AdminUsersPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      params.append('page', currentPage);
+      params.append('limit', pageSize);
+
       if (search) params.append('q', search);
       if (filter === 'verified') params.append('verified', 'true');
       if (filter === 'unverified') params.append('verified', 'false');
@@ -37,7 +42,10 @@ export default function AdminUsersPage() {
 
       const data = await res.json();
       console.log('Fetched Users:', data.items); // Debugging team data
+
       setUsers(data.items || []);
+      setTotalPages(data.pagination.pages || 1);
+      setTotalUsers(data.pagination.total || 0);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -51,7 +59,7 @@ export default function AdminUsersPage() {
     } else if (user && user.isAdmin) {
       fetchUsers();
     }
-  }, [user, isAuthenticated, authLoading, search, filter, router]);
+  }, [user, isAuthenticated, authLoading, search, filter, currentPage, router]);
 
   // --- Update Single User ---
   const updateUser = async (userId, body, successMsg) => {
@@ -79,7 +87,7 @@ export default function AdminUsersPage() {
         credentials: 'include',
       });
       if (!res.ok) throw new Error('Failed to delete user');
-      setUsers(users.filter(u => u._id !== userId));
+      fetchUsers();
       alert('User deleted successfully');
     } catch (err) {
       alert(err.message);
@@ -136,15 +144,9 @@ export default function AdminUsersPage() {
     window.open(`/api/admin/users/export?${params.toString()}`, '_blank');
   };
 
-  // --- Filter + Search + Pagination ---
-  const filteredUsers = users; // Already filtered by backend
-  const totalPages = Math.ceil(filteredUsers.length / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + pageSize);
-
   // --- Select All in Current Page ---
   const toggleSelectAll = () => {
-    const idsOnPage = paginatedUsers.map(u => u._id);
+    const idsOnPage = users.map(u => u._id);
     const allSelected = idsOnPage.every(id => selected.includes(id));
     if (allSelected) {
       setSelected(selected.filter(id => !idsOnPage.includes(id)));
@@ -222,7 +224,7 @@ export default function AdminUsersPage() {
             <input
               type="checkbox"
               onChange={toggleSelectAll}
-              checked={paginatedUsers.length > 0 && paginatedUsers.every(u => selected.includes(u._id))}
+              checked={users.length > 0 && users.every(u => selected.includes(u._id))}
             />
           </div>
           <div className="col-span-3">User</div>
@@ -235,9 +237,9 @@ export default function AdminUsersPage() {
 
         {/* User Rows */}
         <div className="divide-y divide-slate-800">
-          {paginatedUsers.map((u, index) => (
+          {users.map((u, index) => (
             <div key={u._id} className="grid grid-cols-14 gap-4 p-4 items-center">
-              <div className="col-span-1 text-sm text-slate-300">{startIndex + index + 1}</div>
+              <div className="col-span-1 text-sm text-slate-300">{(currentPage - 1) * pageSize + index + 1}</div>
               <div className="col-span-1">
                 <input
                   type="checkbox"
@@ -320,6 +322,11 @@ export default function AdminUsersPage() {
             {i + 1}
           </button>
         ))}
+      </div>
+
+      {/* Total Users */}
+      <div className="text-center mt-2 text-slate-400">
+        Showing page {currentPage} of {totalPages} — Total users: {totalUsers}
       </div>
     </div>
   );
