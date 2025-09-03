@@ -18,7 +18,7 @@ export default function AllUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [myTeam, setMyTeam] = useState(null);
-  const [invitedUsers, setInvitedUsers] = useState(new Set()); // Track invited users persistently
+  const [invitedUsers, setInvitedUsers] = useState(new Set()); // Track already invited users
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,24 +42,21 @@ export default function AllUsersPage() {
     }
   };
 
-  /** Fetch my current team and pending invitations */
+  /** Fetch my current team and sent invitations */
   const fetchMyTeamAndInvites = async () => {
     try {
       const res = await axios.get('/api/teams/my-team', { withCredentials: true });
-      setMyTeam(res.data ? { ...res.data, members: res.data.members || [] } : null);
+      const team = res.data ? { ...res.data, members: res.data.members || [] } : null;
+      setMyTeam(team);
 
-      if (res.data?._id) {
-        const invitesRes = await axios.get('/api/invitations/me', { withCredentials: true });
-        const pendingInvitees = new Set(
-          invitesRes.data
-            .filter(inv => inv.team._id === res.data._id) // only invitations for my team
-            .map(inv => inv.invitee._id) // mark invited users
-        );
-        setInvitedUsers(pendingInvitees);
+      if (team) {
+        // Fetch sent invitations for this team
+        const sentRes = await axios.get('/api/invitations/sent', { withCredentials: true });
+        const pendingInviteeIds = new Set(sentRes.data.map(inv => inv.inviteeId._id));
+        setInvitedUsers(pendingInviteeIds);
       }
-
     } catch (err) {
-      console.error('Error fetching my team or invites:', err);
+      console.error('Error fetching team or sent invites:', err);
     }
   };
 
@@ -79,7 +76,7 @@ export default function AllUsersPage() {
     try {
       await axios.post('/api/invitations', { inviteeId: userId }, { withCredentials: true });
       alert('Invitation sent successfully');
-      setInvitedUsers(new Set([...invitedUsers, userId])); // Add user to invited list
+      setInvitedUsers(new Set([...invitedUsers, userId])); // Mark as invited
     } catch (err) {
       console.error('Error sending invite:', err);
       alert(err.response?.data?.msg || 'Failed to send invite');
@@ -213,10 +210,12 @@ export default function AllUsersPage() {
               {inTeam ? (
                 <div className="mt-4 text-center text-gray-400">Already in a team</div>
               ) : alreadyInvited ? (
-                <div className="mt-4 text-center text-yellow-400">Invitation Sent</div>
+                <div className="mt-4 text-center text-yellow-400 font-medium animate-pulse">
+                  Invitation Sent
+                </div>
               ) : (
                 <button
-                  className="mt-4 w-full rounded bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500"
+                  className="mt-4 w-full rounded bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition"
                   onClick={() => handleInviteUser(u._id)}
                 >
                   Invite to Team

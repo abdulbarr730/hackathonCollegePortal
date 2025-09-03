@@ -417,7 +417,7 @@ export default function DashboardPage() {
                       <ul className="mt-1 space-y-2">
                         {sentInvites.map((invite) => (
                           <li key={invite._id} className="flex items-center justify-between text-gray-400">
-                            <NameWithEmail user={invite.invitee} />
+                            <NameWithEmail user={invite.inviteeId} /> {/* ✅ use inviteeId */}
                             <button
                               onClick={() => handleCancelSentInvite(invite._id)}
                               className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700"
@@ -427,6 +427,7 @@ export default function DashboardPage() {
                           </li>
                         ))}
                       </ul>
+
                     </div>
                   )}
 
