@@ -165,10 +165,10 @@ router.get('/users', adminAuth, async (req, res) => {
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
-    const [items, total] = await Promise.all([
+    // Fetch all users
+    const [users, total] = await Promise.all([
       User.find(filters)
         .select('-password')
-        .populate('team', 'name') // populate team name
         .sort(sort)
         .skip((pageNum - 1) * perPage)
         .limit(perPage)
@@ -176,8 +176,25 @@ router.get('/users', adminAuth, async (req, res) => {
       User.countDocuments(filters),
     ]);
 
+    // Fetch teams to map users
+    const teams = await Team.find().select('name members').lean();
+
+    // Map userId -> teamName
+    const userToTeamMap = {};
+    teams.forEach(team => {
+      team.members.forEach(memberId => {
+        userToTeamMap[memberId.toString()] = team.name;
+      });
+    });
+
+    // Add teamName to each user
+    const usersWithTeam = users.map(user => ({
+      ...user,
+      teamName: userToTeamMap[user._id.toString()] || 'N/A',
+    }));
+
     res.json({
-      items,
+      items: usersWithTeam,
       pagination: {
         page: pageNum,
         limit: perPage,
@@ -201,10 +218,16 @@ router.get('/export/users', adminAuth, async (req, res) => {
     if (role) filters.role = role;
     if (excludeAdmin === 'true') filters.isAdmin = { $ne: true };
 
-    const users = await User.find(filters)
-      .select('-password')
-      .populate('team', 'name')
-      .lean();
+    const users = await User.find(filters).select('-password').lean();
+    const teams = await Team.find().select('name members').lean();
+
+    // Map userId -> teamName
+    const userToTeamMap = {};
+    teams.forEach(team => {
+      team.members.forEach(memberId => {
+        userToTeamMap[memberId.toString()] = team.name;
+      });
+    });
 
     const data = users.map(u => ({
       Name: u.name,
@@ -212,7 +235,7 @@ router.get('/export/users', adminAuth, async (req, res) => {
       RollNumber: u.rollNumber || '',
       Role: u.role,
       Verified: u.isVerified,
-      Team: u.team?.name || '',
+      Team: userToTeamMap[u._id.toString()] || '',
     }));
 
     const csv = json2csv(data);
@@ -306,7 +329,6 @@ router.put('/users/:id', adminAuth, async (req, res) => {
         isAdmin: target.isAdmin,
         isVerified: target.isVerified,
         role: target.role,
-        team: target.team?.name || '',
       },
     });
   } catch (err) {
