@@ -154,6 +154,39 @@ router.delete('/ideas/:id', adminAuth, async (req, res) => {
    ======================================================================== */
 
 // =============================
+// FIX: Verify / Update a Single User
+// =============================
+router.put('/users/:id', adminAuth, async (req, res) => {
+  try {
+    const { isVerified, isAdmin, role } = req.body;
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    if (typeof isVerified !== 'undefined') user.isVerified = isVerified;
+    if (typeof isAdmin !== 'undefined') user.isAdmin = isAdmin;
+    if (role) user.role = role;
+
+    await user.save();
+
+    await AdminLog.create({
+      actor: req.user.id,
+      action: 'USER_UPDATE',
+      targetType: 'User',
+      targetId: user._id,
+      meta: { isVerified, isAdmin, role },
+    });
+
+    res.json({ msg: 'User updated successfully', user });
+  } catch (err) {
+    console.error('Admin update user error:', err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// =============================
 // EXPORT USERS (Excel or CSV)
 // =============================
 router.get('/users/export', adminAuth, async (req, res) => {
