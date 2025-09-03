@@ -477,34 +477,95 @@ export default function DashboardPage() {
             {/* Other Teams Section */}
             <div className="mt-8">
               <h2 className="text-2xl font-bold mb-4">All Other Teams</h2>
-              <div className="space-y-4">
-                {otherTeams.map((team) => (
-                  <motion.div
-                    key={team._id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-lg bg-slate-900/90 p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-cyan-400">{team.teamName}</span>
-                      {team.pendingRequests.find((r) => String(r._id) === String(user._id)) ? (
-                        <button
-                          onClick={() => handleCancelJoin(team._id)}
-                          className="rounded bg-yellow-600 px-2 py-1 text-xs hover:bg-yellow-700"
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {otherTeams.map((team) => {
+                  const memberCount = team.members?.length || 0;
+                  const hasFemale = team.members?.some((m) => m.gender === 'female');
+                  const userAlreadyRequested = team.pendingRequests?.some(
+                    (r) => String(r._id) === String(user._id)
+                  );
+
+                  // Determine what to show for this user
+                  let actionButton;
+                  if (memberCount >= 6) {
+                    actionButton = (
+                      <span className="block w-full text-center text-xs text-gray-400 mt-1">
+                        Team Full
+                      </span>
+                    );
+                  } else if (userAlreadyRequested) {
+                    actionButton = (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCancelJoin(team._id);
+                        }}
+                        className="w-full rounded bg-yellow-600 px-3 py-1 text-xs hover:bg-yellow-700"
+                      >
+                        Cancel Request
+                      </button>
+                    );
+                  } else if (!hasFemale && user.gender !== 'female') {
+                    actionButton = (
+                      <span className="block w-full text-center text-xs text-red-400 mt-1">
+                        Female member required
+                      </span>
+                    );
+                  } else {
+                    actionButton = (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleJoinClick(team._id);
+                        }}
+                        className="w-full rounded bg-green-600 px-3 py-1 text-xs hover:bg-green-700"
+                      >
+                        Request to Join
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <motion.div
+                      key={team._id}
+                      whileHover={{ scale: 1.02 }}
+                      className="relative cursor-pointer rounded-xl border border-slate-700 bg-slate-800 p-4 shadow-lg flex flex-col justify-between"
+                      onClick={() => setViewingTeam(team)}
+                    >
+                      {/* Female Needed Badge */}
+                      {!hasFemale && (
+                        <motion.span
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.5, repeat: Infinity, repeatType: 'mirror' }}
+                          className="absolute top-2 right-2 inline-block rounded-full bg-pink-500 px-2 py-1 text-xs font-bold text-white shadow-lg"
                         >
-                          Cancel Request
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleJoinClick(team._id)}
-                          className="rounded bg-green-600 px-2 py-1 text-xs hover:bg-green-700"
-                        >
-                          Join
-                        </button>
+                          ♀ Needed
+                        </motion.span>
                       )}
-                    </div>
-                  </motion.div>
-                ))}
+
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-lg font-semibold text-cyan-400">{team.teamName}</h3>
+                          <span className="text-xs text-gray-400">{memberCount}/6 members</span>
+                        </div>
+                        <p className="text-sm text-slate-400 line-clamp-2">
+                          {team.problemStatementTitle || 'No problem statement provided'}
+                        </p>
+                        <div className="mt-3 flex items-center gap-2">
+                          <Avatar name={team.leader?.name} src={team.leader?.photoUrl} size={28} />
+                          <div className="flex flex-col">
+                            <span className="text-xs text-gray-300">Led by</span>
+                            <span className="text-sm text-white">{team.leader?.name || 'Unknown'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Join / Cancel Request Button */}
+                      <div className="mt-4">{actionButton}</div>
+                    </motion.div>
+                  );
+                })}
               </div>
             </div>
           </section>
