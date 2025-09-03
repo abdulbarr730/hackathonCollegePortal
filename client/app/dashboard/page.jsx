@@ -94,10 +94,8 @@ export default function DashboardPage() {
       fetchUsers();
       
       if (user?.team) {
-        // If user is in a team, they might be a leader, so fetch sent invites
         fetchSentInvites();
       } else {
-        // If user is NOT in a team, fetch invites they've received
         fetchReceivedInvites();
       }
     }
@@ -181,7 +179,7 @@ export default function DashboardPage() {
       try {
         const res = await fetch(`/api/invitations/${inviteId}/cancel`, { method: 'POST', credentials: 'include' });
         if (!res.ok) throw new Error((await res.json())?.message || 'Failed to cancel');
-        fetchSentInvites(); // Refresh sent invites list
+        fetchSentInvites();
       } catch (error) {
         alert(error.message);
       }
@@ -192,7 +190,7 @@ export default function DashboardPage() {
     try {
       const res = await fetch(`/api/invitations/${inviteId}/accept`, { method: 'POST', credentials: 'include' });
       if (!res.ok) throw new Error((await res.json())?.message || 'Failed to accept');
-      handleDataUpdate(); // Refresh all data as user joins a team
+      handleDataUpdate();
     } catch (error) {
       alert(error.message);
     }
@@ -202,7 +200,7 @@ export default function DashboardPage() {
     try {
       const res = await fetch(`/api/invitations/${inviteId}/reject`, { method: 'POST', credentials: 'include' });
       if (!res.ok) throw new Error((await res.json())?.message || 'Failed to reject');
-      fetchReceivedInvites(); // Refresh received invites list
+      fetchReceivedInvites();
     } catch (error) {
       alert(error.message);
     }
@@ -311,18 +309,25 @@ export default function DashboardPage() {
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="relative rounded-lg p-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500">
                 <div className="rounded-lg bg-slate-900/90 p-6">
                   <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-xl font-semibold text-cyan-400">{myTeam.teamName}</h3>
-                      <div className="mt-2 text-slate-400">
-                        Led by:
-                        <div className="mt-1 flex items-center gap-2">
-                          <Avatar name={myTeam.leader.name} src={myTeam.leader.photoUrl} size={36} />
-                          <NameWithEmail user={myTeam.leader} />
+                    <div className="flex items-center">
+                      {myTeam.logoUrl && (
+                        <img src={myTeam.logoUrl} alt={`${myTeam.teamName} logo`} className="w-16 h-16 rounded-lg mr-4 object-cover bg-slate-700" />
+                      )}
+                      <div>
+                        <h3 className="text-xl font-semibold text-cyan-400">{myTeam.teamName}</h3>
+                        <div className="mt-2 text-slate-400">
+                          Led by:
+                          <div className="mt-1 flex items-center gap-2">
+                            <Avatar name={myTeam.leader.name} src={myTeam.leader.photoUrl} size={36} />
+                            <NameWithEmail user={myTeam.leader} />
+                          </div>
                         </div>
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => setIsEditModalOpen(true)} className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium hover:bg-blue-500">Edit</button>
+                      <button onClick={() => setIsEditModalOpen(true)} className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium hover:bg-blue-500">
+                        {String(user._id) === String(myTeam.leader._id) ? 'Edit' : 'Read Details'}
+                      </button>
                       {String(user._id) === String(myTeam.leader._id) ? (
                         <button onClick={() => handleDeleteClick(myTeam._id)} className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium hover:bg-red-500">Delete</button>
                       ) : (
@@ -386,9 +391,7 @@ export default function DashboardPage() {
                     <h3 className="text-xl font-bold text-cyan-400 mb-4">You Have Team Invitations!</h3>
                     <ul className="space-y-3">
                       {receivedInvites.map(invite => {
-                        // Find the full team object from the main 'teams' state using the ID from the invite
                         const fullTeam = teams.find(t => t._id === invite.teamId?._id);
-
                         return (
                           <li key={invite._id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-slate-900/70 rounded-md gap-3">
                             <p>
@@ -434,7 +437,12 @@ export default function DashboardPage() {
                     <motion.div key={team._id} whileHover={{ scale: 1.02 }} className="flex flex-col justify-between rounded-lg p-[1px] bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 cursor-pointer" onClick={() => setViewingTeam(team)}>
                       <div className="rounded-lg bg-slate-900/90 p-6 h-full flex flex-col justify-between">
                         <div>
-                          <h3 className="text-lg font-semibold text-indigo-400">{team.teamName}</h3>
+                          <div className="flex items-center mb-2">
+                            {team.logoUrl && (
+                              <img src={team.logoUrl} alt={`${team.teamName} logo`} className="w-10 h-10 rounded-md mr-3 object-cover bg-slate-700" />
+                            )}
+                            <h3 className="text-lg font-semibold text-indigo-400">{team.teamName}</h3>
+                          </div>
                           <p className="mt-2 text-slate-400 text-sm">Led by {team.leader.name}</p>
                           <p className="mt-4 text-sm text-slate-300">Members: {team.members?.length || 0} / 6</p>
                         </div>

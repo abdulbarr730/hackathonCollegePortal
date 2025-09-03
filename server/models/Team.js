@@ -28,6 +28,8 @@ const teamSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'User',
   }],
+  logoUrl: { type: String, default: '' },
+  logoPublicId: { type: String, default: '' },
 }, {
   timestamps: true,
 });

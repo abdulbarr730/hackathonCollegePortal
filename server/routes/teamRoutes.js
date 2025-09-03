@@ -6,6 +6,28 @@ const auth = require('../middleware/auth');
 const Team = require('../models/Team');
 const User = require('../models/User');
 const Invitation = require('../models/Invitation');
+const multer = require('multer');
+const cloudinary = require('../config/cloudinary');
+
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+// Helper function to upload to Cloudinary
+const uploadToCloudinary = (fileBuffer) => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream({ resource_type: 'auto' }, (error, result) => {
+      if (error) reject(error);
+      else resolve(result);
+    });
+    uploadStream.end(fileBuffer);
+  });
+};
+
+// Helper function to delete from Cloudinary
+const deleteFromCloudinary = (publicId) => {
+    return cloudinary.uploader.destroy(publicId);
+};
 
 // -------------------- Helper: Female rule check --------------------
 function violatesFemaleRule(teamMembers, newUser) {
@@ -18,8 +40,8 @@ function violatesFemaleRule(teamMembers, newUser) {
   return false;
 }
 
-// -------------------- Create a Team --------------------
-router.post('/', auth, async (req, res) => {
+// -------------------- Create a Team (Handles Logo Upload) --------------------
+router.post('/', auth, upload.single('logo'), async (req, res) => {
   const { teamName, problemStatementTitle, problemStatementDescription } = req.body;
   if (!teamName) {
     return res.status(400).json({ msg: 'Team name is required.' });
@@ -29,18 +51,29 @@ router.post('/', auth, async (req, res) => {
     if (user.team) {
       return res.status(400).json({ msg: 'You are already in a team.' });
     }
-    let team = await Team.findOne({ teamName });
-    if (team) {
+    let teamExists = await Team.findOne({ teamName });
+    if (teamExists) {
       return res.status(400).json({ msg: 'Team name is already taken.' });
     }
-    team = new Team({
+
+    const teamFields = {
       teamName,
       problemStatementTitle,
       problemStatementDescription,
       leader: req.user.id,
       members: [req.user.id],
-    });
+    };
+
+    // If a logo file was uploaded, handle it
+    if (req.file) {
+      const cloudinaryResult = await uploadToCloudinary(req.file.buffer);
+      teamFields.logoUrl = cloudinaryResult.secure_url;
+      teamFields.logoPublicId = cloudinaryResult.public_id;
+    }
+
+    let team = new Team(teamFields);
     await team.save();
+
     user.team = team.id;
     await user.save();
     res.status(201).json(team);
@@ -102,8 +135,8 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// -------------------- Edit a team's details --------------------
-router.put('/:id', auth, async (req, res) => {
+// -------------------- Edit a team's details (Handles Logo Update) --------------------
+router.put('/:id', auth, upload.single('logo'), async (req, res) => {
   const { teamName, problemStatementTitle, problemStatementDescription } = req.body;
   try {
     let team = await Team.findById(req.params.id);
@@ -112,6 +145,18 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(401).json({ msg: 'User not authorized' });
     }
     
+    // If a new logo is uploaded
+    if (req.file) {
+      // First, delete the old logo from Cloudinary if it exists
+      if (team.logoPublicId) {
+        await deleteFromCloudinary(team.logoPublicId);
+      }
+      // Upload the new one
+      const cloudinaryResult = await uploadToCloudinary(req.file.buffer);
+      team.logoUrl = cloudinaryResult.secure_url;
+      team.logoPublicId = cloudinaryResult.public_id;
+    }
+
     team.teamName = teamName;
     team.problemStatementTitle = problemStatementTitle;
     team.problemStatementDescription = problemStatementDescription;
@@ -124,7 +169,7 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// -------------------- Delete a team --------------------
+// -------------------- Delete a team (Handles Logo Deletion) --------------------
 router.delete('/:id', auth, async (req, res) => {
   try {
     const team = await Team.findById(req.params.id);
@@ -132,8 +177,13 @@ router.delete('/:id', auth, async (req, res) => {
     if (team.leader.toString() !== req.user.id) {
       return res.status(401).json({ msg: 'User not authorized' });
     }
+    
+    // Delete the logo from Cloudinary if it exists
+    if (team.logoPublicId) {
+      await deleteFromCloudinary(team.logoPublicId);
+    }
 
-    // vvv ADD THIS BLOCK TO DELETE RELATED INVITATIONS vvv
+    // Delete related invitations
     await Invitation.deleteMany({ teamId: team._id });
 
     await User.updateMany({ _id: { $in: team.members } }, { $unset: { team: "" } });
