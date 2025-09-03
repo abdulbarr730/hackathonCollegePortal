@@ -4,6 +4,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import {
+  Github,
+  Linkedin,
+  Twitter,
+  Globe,
+  Link as LinkIcon
+} from 'lucide-react'; // Icon pack
 
 export default function AllUsersPage() {
   const router = useRouter();
@@ -12,7 +19,7 @@ export default function AllUsersPage() {
   const [loading, setLoading] = useState(true);
   const [myTeam, setMyTeam] = useState(null);
 
-  // NEW: Filters
+  // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [yearFilter, setYearFilter] = useState('all');
 
@@ -66,7 +73,7 @@ export default function AllUsersPage() {
     }
   };
 
-  /** Helper function to display year properly */
+  /** Helper to return proper year label */
   const getYearLabel = (year) => {
     switch (String(year)) {
       case '1': return '1st Year';
@@ -75,6 +82,16 @@ export default function AllUsersPage() {
       case '4': return '4th Year';
       default: return 'Year not set';
     }
+  };
+
+  /** Choose icon based on platform name */
+  const getPlatformIcon = (platform) => {
+    const key = platform.toLowerCase();
+    if (key.includes('github')) return <Github className="w-5 h-5" />;
+    if (key.includes('linkedin')) return <Linkedin className="w-5 h-5" />;
+    if (key.includes('twitter') || key.includes('x')) return <Twitter className="w-5 h-5" />;
+    if (key.includes('portfolio') || key.includes('website')) return <Globe className="w-5 h-5" />;
+    return <LinkIcon className="w-5 h-5" />;
   };
 
   /** Filtered list of users */
@@ -170,9 +187,9 @@ export default function AllUsersPage() {
                 </div>
               </div>
 
-              {/* Dynamic Social Links */}
+              {/* Social Icons */}
               {Object.keys(socialProfiles).length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-3">
+                <div className="mt-3 flex gap-3">
                   {Object.entries(socialProfiles).map(([platform, url]) => {
                     if (!url) return null;
                     return (
@@ -181,9 +198,10 @@ export default function AllUsersPage() {
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-indigo-400 hover:text-indigo-300 underline capitalize"
+                        className="text-indigo-400 hover:text-indigo-300 transition-colors duration-200"
+                        title={platform}
                       >
-                        {platform}
+                        {getPlatformIcon(platform)}
                       </a>
                     );
                   })}
