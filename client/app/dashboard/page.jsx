@@ -35,6 +35,7 @@ export default function DashboardPage() {
 
   const [teams, setTeams] = useState([]);
   const [updates, setUpdates] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [viewingTeam, setViewingTeam] = useState(null);
@@ -48,7 +49,7 @@ export default function DashboardPage() {
 
   const fetchUpdates = async () => {
     try {
-      const res = await fetch(`/api/updates`); // Public route, no credentials needed
+      const res = await fetch(`/api/updates`);
       if (res.ok) {
         const data = await res.json();
         setUpdates(data || []);
@@ -56,10 +57,21 @@ export default function DashboardPage() {
     } catch (error) { console.error('Failed to fetch updates:', error); }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(`/api/users`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setAllUsers(data || []);
+      }
+    } catch (error) { console.error('Failed to fetch users:', error); }
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchTeams();
       fetchUpdates();
+      fetchUsers();
     }
   }, [isAuthenticated]);
 
@@ -121,6 +133,21 @@ export default function DashboardPage() {
     } catch (error) { console.error('Failed to reject request:', error); }
   };
 
+  const handleInvite = async (inviteeId) => {
+    try {
+      const res = await fetch(`/api/invitations`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamId: user.team, inviteeId }),
+      });
+      if (!res.ok) throw new Error((await res.json())?.msg || 'Invite failed');
+      alert('Invitation sent!');
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   if (loading || !user) {
     return <div className="flex min-h-screen items-center justify-center"><h1 className="text-3xl font-bold">Loading...</h1></div>;
   }
@@ -141,7 +168,7 @@ export default function DashboardPage() {
         </motion.div>
 
         <div className="grid gap-8 lg:grid-cols-[320px,1fr]">
-          {/* ADDED: Sidebar cards for Updates, Ideas, and Resources */}
+          {/* Sidebar */}
           <aside className="space-y-6">
             {[
               {
@@ -165,6 +192,13 @@ export default function DashboardPage() {
                 description: "Access curated study materials, guides, and references.",
                 buttonText: "Go to Resource Hub",
                 onClick: () => router.push('/resources'),
+              },
+              {
+                title: "👥 View All Users",
+                color: "cyan",
+                description: "Browse all participants and invite them to your team.",
+                buttonText: "View Users",
+                onClick: () => router.push('/dashboard/all-users'),
               }
             ].map((card, idx) => (
               <motion.div
@@ -203,7 +237,9 @@ export default function DashboardPage() {
             ))}
           </aside>
 
+          {/* Main section */}
           <section>
+            {/* My Team */}
             <div className="mb-8 flex items-center justify-between">
               <h2 className="text-2xl font-bold">My Team</h2>
               {!myTeam && (
@@ -247,20 +283,20 @@ export default function DashboardPage() {
                     ))}
                   </ul>
                   {String(user._id) === String(myTeam.leader._id) && myRequests.length > 0 && (
-                     <div className="mt-4 border-t border-slate-700 pt-4">
-                       <p className="font-semibold text-cyan-400">Pending Requests:</p>
-                       <ul className="mt-1 space-y-2">
-                         {myRequests.map((requestUser) => (
-                           <li key={requestUser._id} className="flex items-center justify-between text-gray-400">
-                             <NameWithEmail user={requestUser} />
-                             <div className="space-x-2">
-                               <button onClick={() => handleApprove(myTeam._id, requestUser._id)} className="rounded bg-green-600 px-2 py-1 text-xs hover:bg-green-700">Approve</button>
-                               <button onClick={() => handleReject(myTeam._id, requestUser._id)} className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700">Reject</button>
-                             </div>
-                           </li>
-                         ))}
-                       </ul>
-                     </div>
+                    <div className="mt-4 border-t border-slate-700 pt-4">
+                      <p className="font-semibold text-cyan-400">Pending Requests:</p>
+                      <ul className="mt-1 space-y-2">
+                        {myRequests.map((requestUser) => (
+                          <li key={requestUser._id} className="flex items-center justify-between text-gray-400">
+                            <NameWithEmail user={requestUser} />
+                            <div className="space-x-2">
+                              <button onClick={() => handleApprove(myTeam._id, requestUser._id)} className="rounded bg-green-600 px-2 py-1 text-xs hover:bg-green-700">Approve</button>
+                              <button onClick={() => handleReject(myTeam._id, requestUser._id)} className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700">Reject</button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </div>
               </motion.div>
@@ -270,6 +306,7 @@ export default function DashboardPage() {
               </div>
             )}
 
+            {/* Other Teams */}
             <div className="mt-12">
               <h2 className="mb-6 text-2xl font-bold">All Other Teams</h2>
               <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -284,7 +321,6 @@ export default function DashboardPage() {
                           <p className="mt-2 text-slate-400 text-sm">Led by {team.leader.name}</p>
                           <p className="mt-4 text-sm text-slate-300">Members: {team.members?.length || 0} / 6</p>
                         </div>
-                        {/* ADDED: Conditional "Request to Join" / "Cancel Request" buttons */}
                         <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center justify-between">
                           <span className="text-xs text-slate-500">Click to view members</span>
                           {!myTeam && (
@@ -303,6 +339,30 @@ export default function DashboardPage() {
                     </motion.div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* All Users Section */}
+            <div className="mt-12">
+              <h2 className="mb-6 text-2xl font-bold">All Users</h2>
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {allUsers.map((u) => (
+                  <motion.div key={u._id} whileHover={{ scale: 1.02 }} className="flex flex-col rounded-lg p-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500">
+                    <div className="rounded-lg bg-slate-900/90 p-6 flex flex-col items-center text-center">
+                      <Avatar name={u.name} src={u.photoUrl} size={48} />
+                      <NameWithEmail user={u} className="mt-2" />
+                      <SocialBadges profiles={u.socialProfiles} className="mt-2" />
+                      {myTeam && String(user._id) === String(myTeam.leader._id) && (
+                        <button
+                          onClick={() => handleInvite(u._id)}
+                          className="mt-4 rounded bg-indigo-600 px-3 py-1.5 text-sm hover:bg-indigo-500"
+                        >
+                          Invite to Team
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             </div>
           </section>
