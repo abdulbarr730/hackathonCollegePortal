@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-const API = '' || 'http://localhost:5001';
+
 export default function EditTeamModal({ 
   isOpen, 
   onClose, 
@@ -14,6 +14,7 @@ export default function EditTeamModal({
     problemStatementTitle: '',
     problemStatementDescription: '',
   });
+  const [logo, setLogo] = useState(null); // State for the new logo file
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [removingMember, setRemovingMember] = useState(null);
@@ -25,13 +26,20 @@ export default function EditTeamModal({
         problemStatementTitle: teamData.problemStatementTitle || '',
         problemStatementDescription: teamData.problemStatementDescription || '',
       });
+      setLogo(null); // Reset logo state when modal opens
     }
   }, [teamData]);
 
   if (!isOpen) return null;
 
-  const handleChange = (e) => {
+  const handleTextChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setLogo(e.target.files[0]);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -42,12 +50,22 @@ export default function EditTeamModal({
       return;
     }
     setLoading(true);
+
+    // Use FormData to be able to send a file
+    const dataToSubmit = new FormData();
+    dataToSubmit.append('teamName', formData.teamName);
+    dataToSubmit.append('problemStatementTitle', formData.problemStatementTitle);
+    dataToSubmit.append('problemStatementDescription', formData.problemStatementDescription);
+    if (logo) {
+      dataToSubmit.append('logo', logo);
+    }
+
     try {
       const res = await fetch(`/api/teams/${teamData._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(formData),
+        // Do not set 'Content-Type' header; browser sets it for FormData
+        body: dataToSubmit,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg || 'Failed to update team.');
@@ -82,7 +100,7 @@ export default function EditTeamModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-2xl rounded-2xl bg-slate-800 p-8 text-white shadow-xl border border-slate-700">
-        <h2 className="text-2xl font-bold text-center">Edit Team</h2>
+        <h2 className="text-2xl font-bold text-center">{isLeader ? 'Edit Team' : 'Team Details'}</h2>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           {error && (
@@ -90,6 +108,34 @@ export default function EditTeamModal({
               {error}
             </p>
           )}
+
+          {/* Team Logo Section */}
+          <div className="flex items-center gap-4">
+            {(teamData.logoUrl || logo) && (
+              <img 
+                src={logo ? URL.createObjectURL(logo) : teamData.logoUrl} 
+                alt="Team logo" 
+                className="w-16 h-16 rounded-lg object-cover bg-slate-700" 
+              />
+            )}
+            {isLeader && (
+              <div>
+                <label
+                  htmlFor="logo-edit"
+                  className="block text-sm font-medium text-slate-300 mb-1"
+                >
+                  {teamData.logoUrl ? 'Change Team Logo' : 'Upload Team Logo'} (Optional)
+                </label>
+                <input
+                  id="logo-edit"
+                  type="file"
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-500"
+                />
+              </div>
+            )}
+          </div>
 
           {/* Team Name */}
           <div>
@@ -104,9 +150,10 @@ export default function EditTeamModal({
               name="teamName"
               type="text"
               value={formData.teamName}
-              onChange={handleChange}
-              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={handleTextChange}
+              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
               required
+              disabled={!isLeader}
             />
           </div>
 
@@ -123,8 +170,9 @@ export default function EditTeamModal({
               name="problemStatementTitle"
               type="text"
               value={formData.problemStatementTitle}
-              onChange={handleChange}
-              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              onChange={handleTextChange}
+              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+              disabled={!isLeader}
             />
           </div>
 
@@ -141,8 +189,9 @@ export default function EditTeamModal({
               name="problemStatementDescription"
               rows="4"
               value={formData.problemStatementDescription}
-              onChange={handleChange}
-              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              onChange={handleTextChange}
+              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+              disabled={!isLeader}
             ></textarea>
           </div>
 
@@ -161,7 +210,7 @@ export default function EditTeamModal({
                     <img
                       src={member.photoUrl || '/default-avatar.png'}
                       alt={member.name}
-                      className="h-8 w-8 rounded-full"
+                      className="h-8 w-8 rounded-full object-cover"
                     />
                     <span className="text-slate-200 text-sm">
                       {member.name}
@@ -175,9 +224,10 @@ export default function EditTeamModal({
 
                   {isLeader && member._id !== currentUser._id && (
                     <button
+                      type="button"
                       onClick={() => handleRemoveMember(member._id)}
                       disabled={removingMember === member._id}
-                      className="text-red-400 hover:text-red-300 text-xs font-medium"
+                      className="text-red-400 hover:text-red-300 text-xs font-medium disabled:opacity-50"
                     >
                       {removingMember === member._id ? 'Removing...' : 'Remove'}
                     </button>
@@ -194,7 +244,7 @@ export default function EditTeamModal({
               onClick={onClose}
               className="rounded-lg px-5 py-2.5 text-sm font-medium bg-slate-600 hover:bg-slate-500"
             >
-              Cancel
+              {isLeader ? 'Cancel' : 'Close'}
             </button>
             {isLeader && (
               <button

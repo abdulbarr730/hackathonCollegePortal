@@ -6,12 +6,19 @@ export default function CreateTeamModal({ isOpen, onClose, onTeamCreated }) {
   const [teamName, setTeamName] = useState('');
   const [problemStatementTitle, setProblemStatementTitle] = useState('');
   const [problemStatementDescription, setProblemStatementDescription] = useState('');
+  const [logo, setLogo] = useState(null); // State for the logo file
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) {
     return null;
   }
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setLogo(e.target.files[0]);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,12 +29,21 @@ export default function CreateTeamModal({ isOpen, onClose, onTeamCreated }) {
     }
     setLoading(true);
 
+    // Use FormData to send file and text fields together
+    const formData = new FormData();
+    formData.append('teamName', teamName);
+    formData.append('problemStatementTitle', problemStatementTitle);
+    formData.append('problemStatementDescription', problemStatementDescription);
+    if (logo) {
+      formData.append('logo', logo); // The key 'logo' must match the backend
+    }
+
     try {
       const res = await fetch('/api/teams', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ teamName, problemStatementTitle, problemStatementDescription }),
+        // DO NOT set Content-Type header, the browser does it automatically for FormData
+        body: formData,
       });
       const data = await res.json();
       if (!res.ok) {
@@ -63,6 +79,21 @@ export default function CreateTeamModal({ isOpen, onClose, onTeamCreated }) {
               required
             />
           </div>
+
+          {/* Team Logo Input */}
+          <div>
+            <label htmlFor="logo" className="block text-sm font-medium text-slate-300 mb-1">
+              Team Logo (Optional)
+            </label>
+            <input
+              id="logo"
+              type="file"
+              onChange={handleFileChange}
+              accept="image/*"
+              className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-500"
+            />
+          </div>
+          
           <div>
             <label htmlFor="problemStatementTitle" className="block text-sm font-medium text-slate-300 mb-1">Problem Statement Title</label>
             <input
