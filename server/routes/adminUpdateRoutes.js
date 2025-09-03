@@ -98,6 +98,37 @@ router.get('/', /* requireAdmin, */ async (req, res) => {
 });
 
 /**
+ * Create a new update
+ */
+router.post('/', requireAdmin, async (req, res) => {
+  try {
+    const { title, summary, url, isPublic, pinned, publishedAt } = req.body;
+
+    // Basic validation
+    if (!title) {
+      return res.status(400).json({ msg: 'Title is required' });
+    }
+
+    const newUpdate = new Update({
+      title,
+      summary: summary || '',
+      url: url || '',
+      isPublic: isPublic === true,
+      pinned: pinned === true,
+      publishedAt: publishedAt ? new Date(publishedAt) : new Date(), // Default to now if not provided
+    });
+
+    const savedUpdate = await newUpdate.save();
+    
+    // Respond with 201 Created and the new document
+    res.status(201).json({ ok: true, item: savedUpdate });
+  } catch (err) {
+    console.error('Admin create update error:', err);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
+/**
  * Edit update (pin/publish/edit fields)
  */
 router.put('/:id', /* requireAdmin, */ async (req, res) => {
