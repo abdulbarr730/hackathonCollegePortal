@@ -63,25 +63,25 @@ export default function AllUsersPage() {
   /** Invite a user to my team */
   const handleInviteUser = async (userId) => {
     if (!myTeam) {
-      alert('You must create a team first before sending invites.');
-      return;
+        alert('You must create a team first before sending invites.');
+        return;
     }
 
     const remainingSpots = 6 - (myTeam.members?.length || 0);
     if (remainingSpots <= 0) {
-      alert('Your team is full. You cannot invite more members.');
-      return;
+        alert('Your team is full. You cannot invite more members.');
+        return;
     }
 
     try {
-      await axios.post('/api/invitations', { inviteeId: userId }, { withCredentials: true });
-      alert('Invitation sent successfully');
-      setInvitedUsers(new Set([...invitedUsers, userId])); // Mark as invited
+        await axios.post(`/api/invitations/${myTeam._id}/${userId}`, {}, { withCredentials: true });
+        alert('Invitation sent successfully');
+        setInvitedUsers(new Set([...invitedUsers, userId]));
     } catch (err) {
-      console.error('Error sending invite:', err);
-      alert(err.response?.data?.msg || 'Failed to send invite');
+        console.error('Error sending invite:', err);
+        alert(err.response?.data?.message || 'Failed to send invite');
     }
-  };
+    };
 
   /** Helper to return proper year label */
   const getYearLabel = (year) => {
