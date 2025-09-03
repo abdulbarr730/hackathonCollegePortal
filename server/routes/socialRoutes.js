@@ -10,65 +10,66 @@ const router = express.Router();
 const PLATFORM_META = {
   linkedin: {
     label: 'LinkedIn',
-    pattern: /^https?:\/\/(www\.)?linkedin\.com\/.+$/i,
+    pattern: /^(https?:\/\/)?(www\.)?linkedin\.com\/in\/[A-Za-z0-9_-]+\/?$/i,
     template: (u) => `https://www.linkedin.com/in/${u}`,
     example: 'https://www.linkedin.com/in/your-username'
   },
   github: {
     label: 'GitHub',
-    pattern: /^https?:\/\/(www\.)?github\.com\/.+$/i,
+    pattern: /^(https?:\/\/)?(www\.)?github\.com\/[A-Za-z0-9_-]+\/?$/i,
     template: (u) => `https://github.com/${u}`,
     example: 'https://github.com/your-username'
   },
   stackoverflow: {
     label: 'Stack Overflow',
-    pattern: /^https?:\/\/(www\.)?stackoverflow\.com\/.+$/i,
+    pattern: /^(https?:\/\/)?(www\.)?stackoverflow\.com\/users\/[0-9]+\/[A-Za-z0-9_-]+\/?$/i,
     template: (u) => `https://stackoverflow.com/users/${u}`,
-    example: 'https://stackoverflow.com/users/your-id'
+    example: 'https://stackoverflow.com/users/123456/your-name'
   },
   devto: {
     label: 'Dev.to',
-    pattern: /^https?:\/\/(dev\.to|www\.dev\.to)\/.+$/i,
+    pattern: /^(https?:\/\/)?(www\.)?dev\.to\/[A-Za-z0-9_-]+\/?$/i,
     template: (u) => `https://dev.to/${u}`,
     example: 'https://dev.to/your-username'
   },
   medium: {
     label: 'Medium',
-    pattern: /^https?:\/\/(www\.)?medium\.com\/.+$/i,
+    pattern: /^(https?:\/\/)?(www\.)?medium\.com\/@?[A-Za-z0-9_-]+\/?$/i,
     template: (u) => `https://medium.com/@${u}`,
     example: 'https://medium.com/@your-username'
   },
   leetcode: {
     label: 'LeetCode',
-    pattern: /^https?:\/\/(www\.)?leetcode\.com\/.+$/i,
+    pattern: /^(https?:\/\/)?(www\.)?leetcode\.com\/[A-Za-z0-9_-]+\/?$/i,
     template: (u) => `https://leetcode.com/${u}`,
     example: 'https://leetcode.com/your-username'
   },
   geeksforgeeks: {
     label: 'GeeksforGeeks',
-    pattern: /^https?:\/\/(www\.)?geeksforgeeks\.org\/.+$/i,
+    pattern: /^(https?:\/\/)?(www\.)?geeksforgeeks\.org\/user\/[A-Za-z0-9_-]+\/?$/i,
     template: (u) => `https://www.geeksforgeeks.org/user/${u}`,
     example: 'https://www.geeksforgeeks.org/user/your-username'
   },
   kaggle: {
     label: 'Kaggle',
-    pattern: /^https?:\/\/(www\.)?kaggle\.com\/.+$/i,
+    pattern: /^(https?:\/\/)?(www\.)?kaggle\.com\/[A-Za-z0-9_-]+\/?$/i,
     template: (u) => `https://www.kaggle.com/${u}`,
     example: 'https://www.kaggle.com/your-username'
   },
   codeforces: {
     label: 'Codeforces',
-    pattern: /^https?:\/\/(www\.)?codeforces\.com\/.+$/i,
+    pattern: /^(https?:\/\/)?(www\.)?codeforces\.com\/profile\/[A-Za-z0-9_-]+\/?$/i,
     template: (u) => `https://codeforces.com/profile/${u}`,
     example: 'https://codeforces.com/profile/your-username'
   },
   codechef: {
     label: 'CodeChef',
-    pattern: /^https?:\/\/(www\.)?codechef\.com\/.+$/i,
+    pattern: /^(https?:\/\/)?(www\.)?codechef\.com\/users\/[A-Za-z0-9_-]+\/?$/i,
     template: (u) => `https://www.codechef.com/users/${u}`,
     example: 'https://www.codechef.com/users/your-username'
   },
 };
+
 
 const DEFAULT_ALLOWED = Object.keys(PLATFORM_META);
 
