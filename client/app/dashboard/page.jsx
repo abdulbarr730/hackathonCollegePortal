@@ -10,6 +10,9 @@ import TeamDetailsModal from '../components/TeamDetailsModal';
 import SocialBadges from '../components/SocialBadges';
 import Avatar from '../components/Avatar';
 
+/**
+ * Utility: de-duplicate arrays of Mongo docs by _id
+ */
 function dedupeById(list = []) {
   const map = new Map();
   for (const item of Array.isArray(list) ? list : []) {
@@ -19,6 +22,9 @@ function dedupeById(list = []) {
   return Array.from(map.values());
 }
 
+/**
+ * Small presentational component for a user's name + email.
+ */
 function NameWithEmail({ user, className }) {
   if (!user) return null;
   return (
@@ -33,12 +39,16 @@ export default function DashboardPage() {
   const { user, isAuthenticated, loading, recheckUser } = useAuth();
   const router = useRouter();
 
+  // --- State ---
   const [teams, setTeams] = useState([]);
   const [updates, setUpdates] = useState([]);
+  const [allUsers, setAllUsers] = useState([]); // NEW: users list for the "All Users" tab
+  const [activeTab, setActiveTab] = useState('teams'); // NEW: 'teams' | 'users'
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [viewingTeam, setViewingTeam] = useState(null);
 
+  // --- Data fetchers ---
   const fetchTeams = async () => {
     try {
       const res = await fetch(`/api/teams`, { credentials: 'include' });
@@ -56,18 +66,34 @@ export default function DashboardPage() {
     } catch (error) { console.error('Failed to fetch updates:', error); }
   };
 
+  const fetchAllUsers = async () => {
+    // NEW: fetch the global users list to enable inviting from the dashboard
+    try {
+      const res = await fetch(`/api/users`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setAllUsers(data || []);
+      }
+    } catch (error) { console.error('Failed to fetch users:', error); }
+  };
+
+  // Load everything after auth resolves
   useEffect(() => {
     if (isAuthenticated) {
       fetchTeams();
       fetchUpdates();
+      fetchAllUsers(); // NEW
     }
   }, [isAuthenticated]);
 
+  // Refresh local data + user object after any mutation
   const handleDataUpdate = () => {
     fetchTeams();
+    fetchAllUsers(); // NEW
     recheckUser();
   };
 
+  // --- Actions on my team ---
   const handleDeleteClick = async (teamId) => {
     if (window.confirm('Are you sure you want to delete this team?')) {
       try {
@@ -87,6 +113,7 @@ export default function DashboardPage() {
     }
   };
 
+  // --- Join request flows for viewing other teams ---
   const handleJoinClick = async (teamId) => {
     try {
       const res = await fetch(`/api/teams/${teamId}/join`, { method: 'POST', credentials: 'include' });
@@ -117,22 +144,44 @@ export default function DashboardPage() {
   const handleReject = async (teamId, userId) => {
     try {
       await fetch(`/api/teams/${teamId}/reject/${userId}`, { method: 'POST', credentials: 'include' });
-      handleDataUpdate();
     } catch (error) { console.error('Failed to reject request:', error); }
+    finally { handleDataUpdate(); }
   };
 
+  // NEW: Invite users from the All Users tab
+  const handleInviteUser = async (inviteeId) => {
+    // NOTE: Per your spec, the Invite button should NOT be disabled (except when the invitee is already in a team).
+    // If inviter has no team, we'll show an alert from here.
+    if (!user?.team) {
+      alert('You must have a team to invite users. Create a team first.');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/teams/${user.team}/invite/${inviteeId}`, { method: 'POST', credentials: 'include' });
+      if (!res.ok) throw new Error((await res.json())?.msg || 'Invite failed');
+      handleDataUpdate();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  // --- Early return while loading ---
   if (loading || !user) {
     return <div className="flex min-h-screen items-center justify-center"><h1 className="text-3xl font-bold">Loading...</h1></div>;
   }
 
+  // --- Derived data ---
   const myTeam = user.team ? teams.find((t) => String(t._id) === String(user.team)) : null;
   const otherTeams = dedupeById(teams.filter((t) => !user.team || String(t._id) !== String(user.team)));
   const myMembers = myTeam ? dedupeById(myTeam.members) : [];
   const myRequests = myTeam ? dedupeById(myTeam.pendingRequests) : [];
 
+  const usersWithoutMe = (allUsers || []).filter(u => String(u._id) !== String(user._id));
+
   return (
     <div className="min-h-screen w-full">
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Header */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-10 text-center">
           <h1 className="text-4xl font-bold tracking-tight text-slate-100">
             Welcome, <span className="bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">{user.name}</span>
@@ -141,7 +190,7 @@ export default function DashboardPage() {
         </motion.div>
 
         <div className="grid gap-8 lg:grid-cols-[320px,1fr]">
-          {/* ADDED: Sidebar cards for Updates, Ideas, and Resources */}
+          {/* Sidebar cards for Updates, Ideas, and Resources */}
           <aside className="space-y-6">
             {[
               {
@@ -204,6 +253,23 @@ export default function DashboardPage() {
           </aside>
 
           <section>
+            {/* NEW: Toggle between All Teams and All Users */}
+            <div className="mb-6 flex gap-4">
+              <button
+                onClick={() => setActiveTab('teams')}
+                className={`px-4 py-2 rounded ${activeTab==='teams'?'bg-indigo-600 text-white':'bg-slate-700 text-gray-300'}`}
+              >
+                All Teams
+              </button>
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`px-4 py-2 rounded ${activeTab==='users'?'bg-indigo-600 text-white':'bg-slate-700 text-gray-300'}`}
+              >
+                All Users
+              </button>
+            </div>
+
+            {/* My Team Section (unchanged) */}
             <div className="mb-8 flex items-center justify-between">
               <h2 className="text-2xl font-bold">My Team</h2>
               {!myTeam && (
@@ -246,21 +312,22 @@ export default function DashboardPage() {
                       </li>
                     ))}
                   </ul>
+                  {/* Pending Requests (unchanged) */}
                   {String(user._id) === String(myTeam.leader._id) && myRequests.length > 0 && (
-                     <div className="mt-4 border-t border-slate-700 pt-4">
-                       <p className="font-semibold text-cyan-400">Pending Requests:</p>
-                       <ul className="mt-1 space-y-2">
-                         {myRequests.map((requestUser) => (
-                           <li key={requestUser._id} className="flex items-center justify-between text-gray-400">
-                             <NameWithEmail user={requestUser} />
-                             <div className="space-x-2">
-                               <button onClick={() => handleApprove(myTeam._id, requestUser._id)} className="rounded bg-green-600 px-2 py-1 text-xs hover:bg-green-700">Approve</button>
-                               <button onClick={() => handleReject(myTeam._id, requestUser._id)} className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700">Reject</button>
-                             </div>
-                           </li>
-                         ))}
-                       </ul>
-                     </div>
+                    <div className="mt-4 border-t border-slate-700 pt-4">
+                      <p className="font-semibold text-cyan-400">Pending Requests:</p>
+                      <ul className="mt-1 space-y-2">
+                        {myRequests.map((requestUser) => (
+                          <li key={requestUser._id} className="flex items-center justify-between text-gray-400">
+                            <NameWithEmail user={requestUser} />
+                            <div className="space-x-2">
+                              <button onClick={() => handleApprove(myTeam._id, requestUser._id)} className="rounded bg-green-600 px-2 py-1 text-xs hover:bg-green-700">Approve</button>
+                              <button onClick={() => handleReject(myTeam._id, requestUser._id)} className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700">Reject</button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </div>
               </motion.div>
@@ -270,45 +337,87 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <div className="mt-12">
-              <h2 className="mb-6 text-2xl font-bold">All Other Teams</h2>
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {otherTeams.map((team) => {
-                  const hasRequested = (team.pendingRequests || []).some(req => String(req._id || req) === String(user._id));
-                  const isFull = (team.members || []).length >= 6;
-                  return (
-                    <motion.div key={team._id} whileHover={{ scale: 1.02 }} className="flex flex-col justify-between rounded-lg p-[1px] bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 cursor-pointer" onClick={() => setViewingTeam(team)}>
-                      <div className="rounded-lg bg-slate-900/90 p-6 h-full flex flex-col justify-between">
-                        <div>
-                          <h3 className="text-lg font-semibold text-indigo-400">{team.teamName}</h3>
-                          <p className="mt-2 text-slate-400 text-sm">Led by {team.leader.name}</p>
-                          <p className="mt-4 text-sm text-slate-300">Members: {team.members?.length || 0} / 6</p>
+            {/* TOGGLE CONTENT */}
+            {activeTab === 'teams' ? (
+              // --- All Other Teams ---
+              <div className="mt-12">
+                <h2 className="mb-6 text-2xl font-bold">All Other Teams</h2>
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                  {otherTeams.map((team) => {
+                    const hasRequested = (team.pendingRequests || []).some(req => String(req._id || req) === String(user._id));
+                    const isFull = (team.members || []).length >= 6;
+                    return (
+                      <motion.div key={team._id} whileHover={{ scale: 1.02 }} className="flex flex-col justify-between rounded-lg p-[1px] bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 cursor-pointer" onClick={() => setViewingTeam(team)}>
+                        <div className="rounded-lg bg-slate-900/90 p-6 h-full flex flex-col justify-between">
+                          <div>
+                            <h3 className="text-lg font-semibold text-indigo-400">{team.teamName}</h3>
+                            <p className="mt-2 text-slate-400 text-sm">Led by {team.leader.name}</p>
+                            <p className="mt-4 text-sm text-slate-300">Members: {team.members?.length || 0} / 6</p>
+                          </div>
+                          {/* Conditional "Request to Join" / "Cancel Request" */}
+                          <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center justify-between">
+                            <span className="text-xs text-slate-500">Click to view members</span>
+                            {!myTeam && (
+                              hasRequested ? (
+                                <button onClick={(e) => { e.stopPropagation(); handleCancelJoin(team._id); }} className="rounded bg-slate-600 px-3 py-1.5 text-xs text-white hover:bg-slate-500">
+                                  Cancel Request
+                                </button>
+                              ) : (
+                                <button onClick={(e) => { e.stopPropagation(); handleJoinClick(team._id); }} className="rounded bg-indigo-600 px-3 py-1.5 text-xs text-white hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed" disabled={isFull}>
+                                  {isFull ? 'Full' : 'Request to Join'}
+                                </button>
+                              )
+                            )}
+                          </div>
                         </div>
-                        {/* ADDED: Conditional "Request to Join" / "Cancel Request" buttons */}
-                        <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center justify-between">
-                          <span className="text-xs text-slate-500">Click to view members</span>
-                          {!myTeam && (
-                            hasRequested ? (
-                              <button onClick={(e) => { e.stopPropagation(); handleCancelJoin(team._id); }} className="rounded bg-slate-600 px-3 py-1.5 text-xs text-white hover:bg-slate-500">
-                                Cancel Request
-                              </button>
-                            ) : (
-                              <button onClick={(e) => { e.stopPropagation(); handleJoinClick(team._id); }} className="rounded bg-indigo-600 px-3 py-1.5 text-xs text-white hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed" disabled={isFull}>
-                                {isFull ? 'Full' : 'Request to Join'}
-                              </button>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            ) : (
+              // --- All Users (NEW) ---
+              <div className="mt-12">
+                <h2 className="mb-6 text-2xl font-bold">All Users</h2>
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                  {usersWithoutMe.map((u) => {
+                    const alreadyInTeam = !!u.team; // Business rule: Only disable if the invitee is already in a team
+                    return (
+                      <motion.div key={u._id} whileHover={{ scale: 1.02 }} className="flex flex-col justify-between rounded-lg p-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500">
+                        <div className="rounded-lg bg-slate-900/90 p-6 h-full flex flex-col justify-between">
+                          <div className="flex items-start gap-3">
+                            <Avatar name={u.name} src={u.photoUrl} size={36} />
+                            <div className="flex-1">
+                              <NameWithEmail user={u} />
+                              {u.nameWithYear && (
+                                <p className="mt-0.5 text-xs text-slate-500">{u.nameWithYear}</p>
+                              )}
+                              <SocialBadges profiles={u.socialProfiles} className="mt-2" />
+                            </div>
+                          </div>
+                          <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center justify-between">
+                            <span className="text-xs text-slate-500">{alreadyInTeam ? 'Already in a team' : 'Invite this user'}</span>
+                            <button
+                              onClick={() => handleInviteUser(u._id)}
+                              className={`rounded px-3 py-1.5 text-xs text-white ${alreadyInTeam ? 'bg-slate-600 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                              disabled={alreadyInTeam}
+                              title={alreadyInTeam ? 'User is already in a team' : 'Send team invite'}
+                            >
+                              {alreadyInTeam ? 'In a Team' : 'Invite'}
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </section>
         </div>
       </main>
 
+      {/* Modals */}
       <CreateTeamModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onTeamCreated={handleDataUpdate} />
       {myTeam && (
         <EditTeamModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onTeamUpdated={handleDataUpdate} teamData={myTeam} currentUser={user} />
