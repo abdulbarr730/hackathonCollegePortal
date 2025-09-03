@@ -5,55 +5,38 @@ const Invitation = require('../models/Invitation');
 const Team = require('../models/Team');
 const User = require('../models/User');
 
-// @route   POST /api/invitations/:teamId/:userId
-// @desc    Send invitation from leader to user
-// @access  Private (leader only)
-router.post('/:teamId/:userId', requireAuth, async (req, res) => {
+// CORRECT ROUTE ORDER
+// Specific GET routes must come before general parameterized routes.
+
+// @route   GET /api/invitations/sent
+// @desc    Get invites sent by current leader
+// @access  Private
+router.get('/sent', requireAuth, async (req, res) => {
   try {
-    const { teamId, userId } = req.params;
-
-    const team = await Team.findById(teamId).populate('members');
-    if (!team) return res.status(404).json({ message: 'Team not found' });
-
-    // Only leader can send invites
-    if (team.leader.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'Only leader can send invites' });
-    }
-
-    // Check if team already full
-    if (team.members.length >= 6) {
-      return res.status(400).json({ message: 'Team already has 6 members' });
-    }
-
-    // Check if invitee already in a team
-    const invitee = await User.findById(userId);
-    if (invitee.team) {
-      return res.status(400).json({ message: 'User is already in a team' });
-    }
-
-    // Prevent duplicate invites
-    const existingInvite = await Invitation.findOne({
-      teamId,
-      inviteeId: userId,
-      status: 'pending',
-    });
-    if (existingInvite) {
-      return res.status(400).json({ message: 'Invite already sent to this user' });
-    }
-
-    const invitation = new Invitation({
-      teamId,
-      inviterId: req.user.id,
-      inviteeId: userId,
-    });
-
-    await invitation.save();
-    res.json(invitation);
+    const invites = await Invitation.find({ inviterId: req.user.id, status: 'pending' })
+      .populate('inviteeId', 'name email');
+    res.json(invites);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
   }
 });
+
+// @route   GET /api/invitations/received
+// @desc    Get invites received by current user
+// @access  Private
+router.get('/received', requireAuth, async (req, res) => {
+  try {
+    const invites = await Invitation.find({ inviteeId: req.user.id, status: 'pending' })
+      .populate('teamId', 'name');
+    res.json(invites);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// Specific POST routes with keywords (accept, reject, cancel) must come before general ones.
 
 // @route   POST /api/invitations/:id/accept
 // @desc    Accept invitation
@@ -68,7 +51,11 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
     }
 
     const team = await Team.findById(invitation.teamId).populate('members');
-    if (!team) return res.status(404).json({ message: 'Team not found' });
+    // **MODIFIED BLOCK** Handles cases where the team was deleted after invite was sent.
+    if (!team) {
+      await invitation.deleteOne(); // Clean up the stale invitation.
+      return res.status(404).json({ message: 'This invitation is no longer valid as the team has been deleted.' });
+    }
 
     const user = await User.findById(req.user.id);
 
@@ -76,14 +63,10 @@ router.post('/:id/accept', requireAuth, async (req, res) => {
     if (user.team) {
       return res.status(400).json({ message: 'You are already in a team' });
     }
-
     if (team.members.length >= 6) {
       return res.status(400).json({ message: 'Team already has 6 members' });
     }
-
     const femaleExists = team.members.some((m) => m.gender === 'female');
-    const malesCount = team.members.filter((m) => m.gender === 'male').length;
-
     if (team.members.length === 5 && !femaleExists && user.gender === 'male') {
       return res
         .status(400)
@@ -152,34 +135,55 @@ router.post('/:id/cancel', requireAuth, async (req, res) => {
   }
 });
 
-// @route   GET /api/invitations/sent
-// @desc    Get invites sent by current leader
-// @access  Private
-router.get('/sent', requireAuth, async (req, res) => {
-  try {
-    const invites = await Invitation.find({ inviterId: req.user.id, status: 'pending' })
-      .populate('inviteeId', 'name email');
+// The most general, parameterized POST route must come LAST.
 
-    res.json(invites);
+// @route   POST /api/invitations/:teamId/:userId
+// @desc    Send invitation from leader to user
+// @access  Private (leader only)
+router.post('/:teamId/:userId', requireAuth, async (req, res) => {
+  try {
+    const { teamId, userId } = req.params;
+
+    const team = await Team.findById(teamId).populate('members');
+    if (!team) return res.status(404).json({ message: 'Team not found' });
+
+    // Only leader can send invites
+    if (team.leader.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Only leader can send invites' });
+    }
+    // Check if team already full
+    if (team.members.length >= 6) {
+      return res.status(400).json({ message: 'Team already has 6 members' });
+    }
+    // Check if invitee already in a team
+    const invitee = await User.findById(userId);
+    if (!invitee) {
+      return res.status(404).json({ message: 'User to invite not found' });
+    }
+    if (invitee.team) {
+      return res.status(400).json({ message: 'User is already in a team' });
+    }
+    // Prevent duplicate invites
+    const existingInvite = await Invitation.findOne({
+      teamId,
+      inviteeId: userId,
+      status: 'pending',
+    });
+    if (existingInvite) {
+      return res.status(400).json({ message: 'Invite already sent to this user' });
+    }
+    const invitation = new Invitation({
+      teamId,
+      inviterId: req.user.id,
+      inviteeId: userId,
+    });
+    await invitation.save();
+    res.json(invitation);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
   }
 });
 
-// @route   GET /api/invitations/received
-// @desc    Get invites received by current user
-// @access  Private
-router.get('/received', requireAuth, async (req, res) => {
-  try {
-    const invites = await Invitation.find({ inviteeId: req.user.id, status: 'pending' })
-      .populate('teamId', 'name');
-
-    res.json(invites);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
-});
 
 module.exports = router;
