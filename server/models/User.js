@@ -115,18 +115,7 @@ userSchema.index({ team: 1 });
 userSchema.index({ createdAt: -1 });
 userSchema.index({ name: 'text', email: 'text' });
 
-// -------------------- Hooks --------------------
-// Hash password before saving (only if modified)
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
+
 
 // Ensure email is always lowercase
 userSchema.pre('save', function (next) {
