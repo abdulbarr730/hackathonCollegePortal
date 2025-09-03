@@ -168,8 +168,18 @@ export default function AdminUsersPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <h1 className="text-3xl font-bold text-white">Manage Users</h1>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => handleExport('csv')} className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-600">Export CSV</button>
-          <button onClick={() => handleExport('xlsx')} className="rounded-lg bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-600">Export Excel</button>
+          <button
+            onClick={() => handleExport('csv')}
+            className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-600"
+          >
+            Export CSV
+          </button>
+          <button
+            onClick={() => handleExport('xlsx')}
+            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
+          >
+            Export Excel
+          </button>
         </div>
       </div>
 
@@ -250,9 +260,11 @@ export default function AdminUsersPage() {
                   {u.isVerified ? 'Verified' : 'Not Verified'}
                 </span>
               </div>
-              <div className="col-span-2 text-sm text-slate-300 capitalize">{u.role || (u.isAdmin ? 'admin' : 'student')}</div>
+              <div className="col-span-2 text-sm text-slate-300 capitalize">
+                {u.role || (u.isAdmin ? 'admin' : 'student')}
+              </div>
               <div className="col-span-2 text-sm text-slate-300">
-                {u.team && u.team.name ? u.team.name : 'No Team'}
+                {u.teamName || 'No Team'}
               </div>
               <div className="col-span-2 flex flex-wrap gap-2 justify-end">
                 <button
