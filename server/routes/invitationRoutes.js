@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Invitation = require('../models/Invitation');
 const User = require('../models/User');
+const Team = require('../models/Team');
 
 // -------------------- Send an invite --------------------
 router.post('/', auth, async (req, res) => {
@@ -21,8 +22,8 @@ router.post('/', auth, async (req, res) => {
 
     // Prevent duplicate invitations
     const existing = await Invitation.findOne({
-      team: inviter.team,
-      invitee: inviteeId,
+      teamId: inviter.team,
+      inviteeId: inviteeId,
       status: 'pending',
     });
     if (existing) {
@@ -30,9 +31,9 @@ router.post('/', auth, async (req, res) => {
     }
 
     const invitation = new Invitation({
-      team: inviter.team,
-      inviter: inviterId,
-      invitee: inviteeId,
+      teamId: inviter.team,
+      inviterId: inviterId,
+      inviteeId: inviteeId,
     });
 
     await invitation.save();
@@ -47,12 +48,32 @@ router.post('/', auth, async (req, res) => {
 router.get('/me', auth, async (req, res) => {
   try {
     const invites = await Invitation.find({
-      invitee: req.user._id,
+      inviteeId: req.user._id,
       status: 'pending',
     })
-      .populate('inviter', 'email')
-      .populate('team', 'name');
-    res.json(invites);
+      .populate('inviterId', 'name email photoUrl')
+      .populate({
+        path: 'teamId',
+        select: 'teamName problemStatementTitle leader members',
+        populate: { path: 'leader', select: 'name email photoUrl' },
+      });
+
+    // Map to include membersCount and leader info
+    const formattedInvites = invites.map((invite) => ({
+      _id: invite._id,
+      status: invite.status,
+      inviter: invite.inviterId,
+      team: {
+        _id: invite.teamId._id,
+        teamName: invite.teamId.teamName,
+        problemStatementTitle: invite.teamId.problemStatementTitle,
+        membersCount: invite.teamId.members.length,
+        leader: invite.teamId.leader,
+      },
+      createdAt: invite.createdAt,
+    }));
+
+    res.json(formattedInvites);
   } catch (err) {
     console.error(err);
     res.status(500).json({ msg: 'Server error' });
@@ -67,21 +88,28 @@ router.post('/:id/accept', auth, async (req, res) => {
       return res.status(404).json({ msg: 'Invitation not found' });
     }
 
-    // Add user to team
     const user = await User.findById(req.user._id);
     if (user.team) {
       return res.status(400).json({ msg: 'You are already in a team' });
     }
 
-    user.team = invite.team;
+    // Add user to the team
+    const team = await Team.findById(invite.teamId);
+    if (!team) return res.status(404).json({ msg: 'Team not found' });
+
+    team.members.push(user._id);
+    await team.save();
+
+    user.team = team._id;
     await user.save();
 
+    // Update invitation status
     invite.status = 'accepted';
     await invite.save();
 
-    // Reject all other invitations
+    // Reject all other pending invitations
     await Invitation.updateMany(
-      { invitee: req.user._id, _id: { $ne: invite._id } },
+      { inviteeId: req.user._id, _id: { $ne: invite._id } },
       { status: 'rejected' }
     );
 
@@ -100,7 +128,7 @@ router.post('/:id/reject', auth, async (req, res) => {
       return res.status(404).json({ msg: 'Invitation not found' });
     }
 
-    if (invite.invitee.toString() !== req.user._id.toString()) {
+    if (invite.inviteeId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ msg: 'Not authorized' });
     }
 
@@ -118,7 +146,7 @@ router.post('/:id/reject', auth, async (req, res) => {
 router.get('/count', auth, async (req, res) => {
   try {
     const count = await Invitation.countDocuments({
-      invitee: req.user._id,
+      inviteeId: req.user._id,
       status: 'pending',
     });
     res.json({ count });
