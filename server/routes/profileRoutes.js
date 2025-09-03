@@ -18,7 +18,7 @@ const upload = multer({
 });
 
 // ------------------ Upload Photo ------------------
-router.post('/photo', requireAuth, upload.single('avatar'), async (req, res) => {
+router.post('/photo', requireAuth, upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ ok: false, msg: 'No file uploaded' });
