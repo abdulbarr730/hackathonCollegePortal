@@ -1,4 +1,4 @@
-// in routes/teamRoutes.js
+// routes/teamRoutes.js
 
 const express = require('express');
 const router = express.Router();
@@ -6,7 +6,7 @@ const auth = require('../middleware/auth');
 const Team = require('../models/Team');
 const User = require('../models/User');
 
-// ... (Create Team route is unchanged) ...
+// -------------------- Create a Team --------------------
 router.post('/', auth, async (req, res) => {
   const { teamName, problemStatementTitle, problemStatementDescription } = req.body;
   if (!teamName) {
@@ -38,8 +38,7 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// GET all teams
-// MODIFIED: Explicitly added 'year' to ensure it's always fetched
+// -------------------- GET all teams --------------------
 router.get('/', auth, async (req, res) => {
   try {
     const teams = await Team.find()
@@ -53,8 +52,27 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// GET a single team by ID
-// MODIFIED: Explicitly added 'year' to ensure it's always fetched
+// -------------------- GET my team for logged-in user --------------------
+router.get('/my-team', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).populate({
+      path: 'team',
+      populate: [
+        { path: 'members', select: 'name email gender' },
+        { path: 'leader', select: 'name email gender' }
+      ]
+    });
+
+    if (!user.team) return res.json(null);
+
+    res.json(user.team);
+  } catch (err) {
+    console.error(`Error in GET /api/teams/my-team: ${err.message}`);
+    res.status(500).send('Server Error');
+  }
+});
+
+// -------------------- GET a single team by ID --------------------
 router.get('/:id', auth, async (req, res) => {
   try {
     const team = await Team.findById(req.params.id)
@@ -72,9 +90,7 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-
-// ... (The rest of your routes file is correct and remains the same) ...
-// 3. Edit a team's details
+// -------------------- Edit a team's details --------------------
 router.put('/:id', auth, async (req, res) => {
   const { teamName, problemStatementTitle, problemStatementDescription } = req.body;
   try {
@@ -96,7 +112,7 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// 4. Delete a team
+// -------------------- Delete a team --------------------
 router.delete('/:id', auth, async (req, res) => {
   try {
     const team = await Team.findById(req.params.id);
@@ -113,7 +129,7 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// 5. Request to join a team
+// -------------------- Request to join a team --------------------
 router.post('/:id/join', auth, async (req, res) => {
   try {
     const team = await Team.findById(req.params.id).populate('members', 'gender');
@@ -149,7 +165,7 @@ router.post('/:id/join', auth, async (req, res) => {
   }
 });
 
-// 6. Cancel a join request
+// -------------------- Cancel a join request --------------------
 router.post('/:id/cancel-request', auth, async (req, res) => {
   try {
     const team = await Team.findById(req.params.id).select('pendingRequests members').lean();
@@ -173,7 +189,7 @@ router.post('/:id/cancel-request', auth, async (req, res) => {
   }
 });
 
-// 7. Approve a join request
+// -------------------- Approve a join request --------------------
 router.post('/:id/approve/:userId', auth, async (req, res) => {
     try {
         const { id: teamId, userId } = req.params;
@@ -212,7 +228,7 @@ router.post('/:id/approve/:userId', auth, async (req, res) => {
     }
 });
 
-// 8. Reject a join request
+// -------------------- Reject a join request --------------------
 router.post('/:id/reject/:userId', auth, async (req, res) => {
     try {
         const result = await Team.updateOne(
@@ -230,7 +246,7 @@ router.post('/:id/reject/:userId', auth, async (req, res) => {
     }
 });
 
-// 9. Leave the current team
+// -------------------- Leave the current team --------------------
 router.delete('/members/leave', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('team').lean();
@@ -259,7 +275,7 @@ router.delete('/members/leave', auth, async (req, res) => {
   }
 });
 
-// 10. Remove a member from a team
+// -------------------- Remove a member from a team --------------------
 router.delete('/:teamId/members/:memberId', auth, async (req, res) => {
   try {
     const { teamId, memberId } = req.params;
@@ -284,26 +300,5 @@ router.delete('/:teamId/members/:memberId', auth, async (req, res) => {
     res.status(500).send('Server Error');
   }
 });
-
-// GET my team for logged-in user
-router.get('/my-team', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).populate({
-      path: 'team',
-      populate: [
-        { path: 'members', select: 'name email gender' },
-        { path: 'leader', select: 'name email gender' }
-      ]
-    });
-
-    if (!user.team) return res.json(null);
-
-    res.json(user.team);
-  } catch (err) {
-    console.error(`Error in GET /api/teams/my-team: ${err.message}`);
-    res.status(500).send('Server Error');
-  }
-});
-
 
 module.exports = router;
