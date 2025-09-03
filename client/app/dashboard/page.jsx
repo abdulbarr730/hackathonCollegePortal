@@ -466,7 +466,7 @@ export default function DashboardPage() {
             {/* View All Users Button */}
             <div className="mt-6">
               <button
-                onClick={() => router.push('/users')}
+                onClick={() => router.push('/dashboard/all-users')}
                 className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500"
               >
                 View All Users
