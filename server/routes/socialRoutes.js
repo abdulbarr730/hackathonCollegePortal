@@ -6,17 +6,48 @@ const requireAuth = require('../middleware/auth');
 const router = express.Router();
 
 const PLATFORM_META = {
-  linkedin: { label: 'LinkedIn', pattern: /^https:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9-_.~%]+\/?$/ },
-  github: { label: 'GitHub', pattern: /^https:\/\/(www\.)?github\.com\/[a-zA-Z0-9-_.~%]+\/?$/ },
-  stackoverflow: { label: 'Stack Overflow', pattern: /^https:\/\/(www\.)?stackoverflow\.com\/users\/[0-9]+\/[a-zA-Z0-9-_.~%]+\/?$/ },
-  devto: { label: 'Dev.to', pattern: /^https:\/\/(www\.)?dev\.to\/[a-zA-Z0-9-_.~%]+\/?$/ },
-  medium: { label: 'Medium', pattern: /^https:\/\/(www\.)?medium\.com\/@?[a-zA-Z0-9-_.~%]+\/?$/ },
-  leetcode: { label: 'LeetCode', pattern: /^https:\/\/(www\.)?leetcode\.com\/[a-zA-Z0-9-_.~%]+\/?$/ },
-  geeksforgeeks: { label: 'GeeksforGeeks', pattern: /^https:\/\/(www\.)?geeksforgeeks\.org\/user\/[a-zA-Z0-9-_.~%]+\/?$/ },
-  kaggle: { label: 'Kaggle', pattern: /^https:\/\/(www\.)?kaggle\.com\/[a-zA-Z0-9-_.~%]+\/?$/ },
-  codeforces: { label: 'Codeforces', pattern: /^https:\/\/(www\.)?codeforces\.com\/profile\/[a-zA-Z0-9-_.~%]+\/?$/ },
-  codechef: { label: 'CodeChef', pattern: /^https:\/\/(www\.)?codechef\.com\/users\/[a-zA-Z0-9-_.~%]+\/?$/ },
+  linkedin: { 
+    label: 'LinkedIn', 
+    pattern: /^https?:\/\/(www\.)?linkedin\.com\/.*$/i 
+  },
+  github: { 
+    label: 'GitHub', 
+    pattern: /^https?:\/\/(www\.)?github\.com\/.*$/i 
+  },
+  stackoverflow: { 
+    label: 'Stack Overflow', 
+    pattern: /^https?:\/\/(www\.)?stackoverflow\.com\/.*$/i 
+  },
+  devto: { 
+    label: 'Dev.to', 
+    pattern: /^https?:\/\/(www\.)?dev\.to\/.*$/i 
+  },
+  medium: { 
+    label: 'Medium', 
+    pattern: /^https?:\/\/(www\.)?medium\.com\/.*$/i 
+  },
+  leetcode: { 
+    label: 'LeetCode', 
+    pattern: /^https?:\/\/(www\.)?leetcode\.com\/.*$/i 
+  },
+  geeksforgeeks: { 
+    label: 'GeeksforGeeks', 
+    pattern: /^https?:\/\/(www\.)?geeksforgeeks\.org\/.*$/i 
+  },
+  kaggle: { 
+    label: 'Kaggle', 
+    pattern: /^https?:\/\/(www\.)?kaggle\.com\/.*$/i 
+  },
+  codeforces: { 
+    label: 'Codeforces', 
+    pattern: /^https?:\/\/(www\.)?codeforces\.com\/.*$/i 
+  },
+  codechef: { 
+    label: 'CodeChef', 
+    pattern: /^https?:\/\/(www\.)?codechef\.com\/.*$/i 
+  },
 };
+
 
 const DEFAULT_ALLOWED = Object.keys(PLATFORM_META);
 
