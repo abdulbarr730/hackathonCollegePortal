@@ -156,7 +156,7 @@ export default function ProfilePage() {
   async function saveLinks() {
     setLinksMsg('');
     try {
-      const res = await fetch(`/api/users/social`, {
+      const res = await fetch(`/api/social/me`, { // Corrected URL
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
