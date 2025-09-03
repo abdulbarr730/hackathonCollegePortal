@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const json2csv = require('json2csv').parse;
+const ExcelJS = require('exceljs'); // ✅ Excel export
 
 // MODELS
 const User = require('../models/User');
@@ -151,13 +152,90 @@ router.delete('/ideas/:id', adminAuth, async (req, res) => {
 /* ========================================================================
    USERS MANAGEMENT
    ======================================================================== */
+
+// =============================
+// EXPORT USERS (Excel or CSV)
+// =============================
+router.get('/users/export', adminAuth, async (req, res) => {
+  try {
+    const { q = '', verified, role, excludeAdmin = 'true', format = 'excel' } = req.query;
+
+    // Filters
+    const filters = {};
+    if (q) filters.$or = [{ name: new RegExp(q, 'i') }, { email: new RegExp(q, 'i') }];
+    if (typeof verified !== 'undefined') filters.isVerified = verified === 'true';
+    if (role) filters.role = role;
+    if (excludeAdmin === 'true') filters.isAdmin = { $ne: true };
+
+    // Fetch users
+    const users = await User.find(filters).select('-password').populate('team', 'teamName').lean();
+
+    // Fetch all teams for fallback mapping
+    const teams = await Team.find().select('teamName members').lean();
+    const userToTeamMap = {};
+    teams.forEach(team => {
+      team.members.forEach(memberId => {
+        userToTeamMap[memberId.toString()] = team.teamName;
+      });
+    });
+
+    // Format user data
+    const formattedUsers = users.map(u => ({
+      Name: u.name,
+      Email: u.email,
+      RollNumber: u.rollNumber || '',
+      Role: u.role,
+      Verified: u.isVerified ? 'Yes' : 'No',
+      Team: u.team?.teamName || userToTeamMap[u._id.toString()] || 'N/A',
+      CreatedAt: new Date(u.createdAt).toLocaleString(),
+    }));
+
+    if (format === 'csv') {
+      // CSV Export
+      const csv = json2csv(formattedUsers);
+      res.header('Content-Type', 'text/csv');
+      res.attachment('users.csv');
+      return res.send(csv);
+    } else {
+      // Excel Export
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Users');
+
+      worksheet.columns = [
+        { header: 'Name', key: 'Name', width: 30 },
+        { header: 'Email', key: 'Email', width: 30 },
+        { header: 'Roll Number', key: 'RollNumber', width: 20 },
+        { header: 'Role', key: 'Role', width: 15 },
+        { header: 'Verified', key: 'Verified', width: 10 },
+        { header: 'Team', key: 'Team', width: 25 },
+        { header: 'Created At', key: 'CreatedAt', width: 20 },
+      ];
+
+      formattedUsers.forEach(user => worksheet.addRow(user));
+
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+      res.setHeader('Content-Disposition', 'attachment; filename=users.xlsx');
+
+      await workbook.xlsx.write(res);
+      return res.end();
+    }
+  } catch (err) {
+    console.error('Export users error:', err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// =============================
+// GET USERS WITH PAGINATION
+// =============================
 router.get('/users', adminAuth, async (req, res) => {
   try {
     const { q = '', verified, admin, role, page = 1, limit = 20, sort = '-createdAt' } = req.query;
 
-    // ------------------------------
-    // 1. Build Filters
-    // ------------------------------
+    // Filters
     const filters = {};
     if (q) filters.$or = [{ name: new RegExp(q, 'i') }, { email: new RegExp(q, 'i') }];
     if (typeof verified !== 'undefined') filters.isVerified = verified === 'true';
@@ -167,13 +245,10 @@ router.get('/users', adminAuth, async (req, res) => {
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
-    // ------------------------------
-    // 2. Fetch Users (Paginated)
-    // ------------------------------
     const [users, total] = await Promise.all([
       User.find(filters)
         .select('-password')
-        .populate('team', 'teamName') // ✅ Populate direct team reference if exists
+        .populate('team', 'teamName')
         .sort(sort)
         .skip((pageNum - 1) * perPage)
         .limit(perPage)
@@ -181,12 +256,7 @@ router.get('/users', adminAuth, async (req, res) => {
       User.countDocuments(filters),
     ]);
 
-    // ------------------------------
-    // 3. Fetch Teams for Fallback
-    // ------------------------------
     const teams = await Team.find().select('teamName members').lean();
-
-    // Create a map of userId -> teamName
     const userToTeamMap = {};
     teams.forEach(team => {
       team.members.forEach(memberId => {
@@ -194,20 +264,14 @@ router.get('/users', adminAuth, async (req, res) => {
       });
     });
 
-    // ------------------------------
-    // 4. Final mapping: Attach Team
-    // ------------------------------
     const usersWithTeam = users.map(user => ({
       ...user,
       teamName:
-        user.team?.teamName || // Direct reference
-        userToTeamMap[user._id.toString()] || // Fallback through members array
-        'N/A', // Default if no team
+        user.team?.teamName ||
+        userToTeamMap[user._id.toString()] ||
+        'N/A',
     }));
 
-    // ------------------------------
-    // 5. Send Response
-    // ------------------------------
     res.json({
       items: usersWithTeam,
       pagination: {
@@ -223,49 +287,9 @@ router.get('/users', adminAuth, async (req, res) => {
   }
 });
 
-
-
-// Export users
-router.get('/export/users', adminAuth, async (req, res) => {
-  try {
-    const { q = '', verified, role, excludeAdmin = 'true' } = req.query;
-    const filters = {};
-    if (q) filters.$or = [{ name: new RegExp(q, 'i') }, { email: new RegExp(q, 'i') }];
-    if (typeof verified !== 'undefined') filters.isVerified = verified === 'true';
-    if (role) filters.role = role;
-    if (excludeAdmin === 'true') filters.isAdmin = { $ne: true };
-
-    const users = await User.find(filters).select('-password').lean();
-    const teams = await Team.find().select('name members').lean();
-
-    // Map userId -> teamName
-    const userToTeamMap = {};
-    teams.forEach(team => {
-      team.members.forEach(memberId => {
-        userToTeamMap[memberId.toString()] = team.name;
-      });
-    });
-
-    const data = users.map(u => ({
-      Name: u.name,
-      Email: u.email,
-      RollNumber: u.rollNumber || '',
-      Role: u.role,
-      Verified: u.isVerified,
-      Team: userToTeamMap[u._id.toString()] || '',
-    }));
-
-    const csv = json2csv(data);
-    res.header('Content-Type', 'text/csv');
-    res.attachment('users.csv');
-    return res.send(csv);
-  } catch (err) {
-    console.error('Export users error:', err);
-    res.status(500).send('Server Error');
-  }
-});
-
-// GET user by ID
+// =============================
+// GET USER BY ID
+// =============================
 router.get('/users/:id', adminAuth, async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
@@ -275,81 +299,6 @@ router.get('/users/:id', adminAuth, async (req, res) => {
     res.json(user);
   } catch (err) {
     console.error('Admin get user error:', err);
-    res.status(500).send('Server Error');
-  }
-});
-
-// PUT user updates
-router.put('/users/:id', adminAuth, async (req, res) => {
-  try {
-    const { isVerified, isAdmin, role, password } = req.body;
-    const target = await User.findById(req.params.id);
-    if (!target) return res.status(404).json({ msg: 'User not found' });
-
-    const allowedRoles = ['student', 'spoc', 'judge', 'admin'];
-    const changes = {};
-    const logs = [];
-
-    if (typeof isVerified !== 'undefined') {
-      const from = target.isVerified;
-      target.isVerified = !!isVerified;
-      changes.isVerified = { from, to: target.isVerified };
-      logs.push({ action: 'USER_VERIFY', meta: { from, to: target.isVerified } });
-    }
-
-    if (typeof isAdmin !== 'undefined') {
-      const from = target.isAdmin;
-      target.isAdmin = !!isAdmin;
-      changes.isAdmin = { from, to: target.isAdmin };
-      logs.push({ action: 'USER_ADMIN_TOGGLE', meta: { from, to: target.isAdmin } });
-    }
-
-    if (typeof role !== 'undefined') {
-      if (!allowedRoles.includes(role)) {
-        return res.status(400).json({ msg: `Invalid role. Allowed: ${allowedRoles.join(', ')}` });
-      }
-      const from = target.role;
-      target.role = role;
-      changes.role = { from, to: role };
-      logs.push({ action: 'USER_ROLE_UPDATE', meta: { from, to: role } });
-    }
-
-    if (typeof password !== 'undefined') {
-      if (!password || password.length < 8) {
-        return res.status(400).json({ msg: 'Password must be at least 8 characters' });
-      }
-      const salt = await bcrypt.genSalt(10);
-      target.password = await bcrypt.hash(password, salt);
-      changes.password = { changed: true };
-      logs.push({ action: 'USER_PASSWORD_RESET', meta: {} });
-    }
-
-    if (Object.keys(changes).length === 0) return res.status(400).json({ msg: 'No valid update fields provided' });
-
-    await target.save();
-
-    for (const l of logs) {
-      await AdminLog.create({
-        actor: req.user.id,
-        action: l.action,
-        targetType: 'User',
-        targetId: target._id,
-        meta: l.meta || {},
-      });
-    }
-
-    res.json({
-      msg: 'User updated successfully',
-      user: {
-        _id: target._id,
-        email: target.email,
-        isAdmin: target.isAdmin,
-        isVerified: target.isVerified,
-        role: target.role,
-      },
-    });
-  } catch (err) {
-    console.error('Admin update user error:', err);
     res.status(500).send('Server Error');
   }
 });
