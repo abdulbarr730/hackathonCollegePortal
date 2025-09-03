@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -51,7 +50,7 @@ export default function DashboardPage() {
   // --- Data fetchers ---
   const fetchTeams = async () => {
     try {
-      const res = await fetch(`/api/teams`, { credentials: 'include' });
+      const res = await fetch('/api/teams', { credentials: 'include' });
       if (res.ok) setTeams(await res.json());
     } catch (error) {
       console.error('Failed to fetch teams:', error);
@@ -60,7 +59,7 @@ export default function DashboardPage() {
 
   const fetchUpdates = async () => {
     try {
-      const res = await fetch(`/api/updates`);
+      const res = await fetch('/api/updates');
       if (res.ok) {
         const data = await res.json();
         setUpdates(data || []);
@@ -72,7 +71,7 @@ export default function DashboardPage() {
 
   const fetchPendingInvites = async () => {
     try {
-      const res = await fetch(`/api/invitations/me`, { credentials: 'include' });
+      const res = await fetch('/api/invitations/me', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setPendingInvites(data);
@@ -84,7 +83,7 @@ export default function DashboardPage() {
 
   const fetchSentInvites = async () => {
     try {
-      const res = await fetch(`/api/invitations/sent`, { credentials: 'include' });
+      const res = await fetch('/api/invitations/sent', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setSentInvites(data);
@@ -127,7 +126,7 @@ export default function DashboardPage() {
   const handleLeaveClick = async () => {
     if (window.confirm('Leave your current team?')) {
       try {
-        const res = await fetch(`/api/teams/members/leave`, { method: 'DELETE', credentials: 'include' });
+        const res = await fetch('/api/teams/members/leave', { method: 'DELETE', credentials: 'include' });
         if (!res.ok) throw new Error((await res.json())?.msg || 'Leave failed');
         handleDataUpdate();
       } catch (error) {
@@ -218,64 +217,33 @@ export default function DashboardPage() {
 
   // --- Derived data ---
   const myTeam = user.team ? teams.find((t) => String(t._id) === String(user.team)) : null;
-  const otherTeams = dedupeById(teams.filter((t) => !user.team || String(t._id) !== String(user.team)));
-  const myMembers = myTeam ? dedupeById(myTeam.members) : [];
-  const myRequests = myTeam ? dedupeById(myTeam.pendingRequests) : [];
+  const myMembers = myTeam && Array.isArray(myTeam.members) ? dedupeById(myTeam.members) : [];
+  const myRequests = myTeam && Array.isArray(myTeam.pendingRequests) ? dedupeById(myTeam.pendingRequests) : [];
+  const otherTeams = dedupeById(teams.filter((t) => !myTeam || String(t._id) !== String(user.team)));
 
   return (
     <div className="min-h-screen w-full">
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-10 text-center"
-        >
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-10 text-center">
           <h1 className="text-4xl font-bold tracking-tight text-slate-100">
             Welcome,{' '}
             <span className="bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">
               {user.name}
             </span>
           </h1>
-          <p className="mt-2 text-slate-400">
-            Manage your team, track updates, and explore ideas.
-          </p>
+          <p className="mt-2 text-slate-400">Manage your team, track updates, and explore ideas.</p>
         </motion.div>
 
         <div className="grid gap-8 lg:grid-cols-[320px,1fr]">
-          {/* Sidebar cards with invite badge */}
+          {/* Sidebar cards */}
           <aside className="space-y-6">
-            {[
-              {
-                title: '📢 Official Updates',
-                color: 'indigo',
-                description: 'Stay updated with the latest announcements.',
-                items: updates,
-                buttonText: 'View All Updates',
-                onClick: () => router.push('/updates'),
-                badge: pendingInvites.length,
-              },
-              {
-                title: '💡 Got an Idea?',
-                color: 'purple',
-                description: 'Share proposals and track feedback.',
-                buttonText: 'Browse Ideas',
-                onClick: () => router.push('/ideas'),
-              },
-              {
-                title: '📚 Resource Hub',
-                color: 'emerald',
-                description: 'Access curated study materials, guides, and references.',
-                buttonText: 'Go to Resource Hub',
-                onClick: () => router.push('/resources'),
-              },
+            {[ 
+              { title: '📢 Official Updates', color: 'indigo', description: 'Stay updated with the latest announcements.', items: updates, buttonText: 'View All Updates', onClick: () => router.push('/updates'), badge: pendingInvites.length }, 
+              { title: '💡 Got an Idea?', color: 'purple', description: 'Share proposals and track feedback.', buttonText: 'Browse Ideas', onClick: () => router.push('/ideas') }, 
+              { title: '📚 Resource Hub', color: 'emerald', description: 'Access curated study materials, guides, and references.', buttonText: 'Go to Resource Hub', onClick: () => router.push('/resources') } 
             ].map((card, idx) => (
-              <motion.div
-                key={idx}
-                whileHover={{ scale: 1.02 }}
-                className="relative rounded-xl p-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500 animate-border"
-              >
+              <motion.div key={idx} whileHover={{ scale: 1.02 }} className="relative rounded-xl p-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500 animate-border">
                 <div className="rounded-xl bg-slate-900/90 p-6 relative">
                   <h3 className={`text-lg font-semibold text-${card.color}-400`}>{card.title}</h3>
                   {card.items ? (
@@ -294,10 +262,7 @@ export default function DashboardPage() {
                   ) : (
                     <p className="mt-2 text-sm text-slate-400">{card.description}</p>
                   )}
-                  <button
-                    onClick={card.onClick}
-                    className={`mt-4 w-full rounded-md bg-${card.color}-600 px-4 py-2 text-sm font-medium hover:bg-${card.color}-500 transition`}
-                  >
+                  <button onClick={card.onClick} className={`mt-4 w-full rounded-md bg-${card.color}-600 px-4 py-2 text-sm font-medium hover:bg-${card.color}-500 transition`}>
                     {card.buttonText}
                   </button>
                   {card.badge > 0 && (
@@ -310,27 +275,19 @@ export default function DashboardPage() {
             ))}
           </aside>
 
+          {/* ------------------- My Team Section ------------------- */}
           <section>
-            {/* My Team Section */}
             <div className="mb-8 flex items-center justify-between">
               <h2 className="text-2xl font-bold">My Team</h2>
               {!myTeam && (
-                <button
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500"
-                >
+                <button onClick={() => setIsCreateModalOpen(true)} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500">
                   + Create Team
                 </button>
               )}
             </div>
 
             {myTeam ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="relative rounded-lg p-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500"
-              >
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="relative rounded-lg p-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500">
                 <div className="rounded-lg bg-slate-900/90 p-6">
                   <div className="flex items-start justify-between">
                     <div>
@@ -344,24 +301,15 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => setIsEditModalOpen(true)}
-                        className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium hover:bg-blue-500"
-                      >
+                      <button onClick={() => setIsEditModalOpen(true)} className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium hover:bg-blue-500">
                         Edit
                       </button>
                       {String(user._id) === String(myTeam.leader._id) ? (
-                        <button
-                          onClick={() => handleDeleteClick(myTeam._id)}
-                          className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium hover:bg-red-500"
-                        >
+                        <button onClick={() => handleDeleteClick(myTeam._id)} className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium hover:bg-red-500">
                           Delete
                         </button>
                       ) : (
-                        <button
-                          onClick={handleLeaveClick}
-                          className="rounded-md bg-yellow-600 px-3 py-1.5 text-sm font-medium hover:bg-yellow-500"
-                        >
+                        <button onClick={handleLeaveClick} className="rounded-md bg-yellow-600 px-3 py-1.5 text-sm font-medium hover:bg-yellow-500">
                           Leave
                         </button>
                       )}
@@ -373,13 +321,13 @@ export default function DashboardPage() {
 
                   <p className="mt-4 font-medium text-gray-200">Members ({myMembers.length} / 6):</p>
                   <ul className="mt-2 space-y-2">
-                    {myMembers.map((m) => (
+                    {myMembers.length > 0 ? myMembers.map((m) => (
                       <li key={m._id} className="flex items-center gap-2">
                         <Avatar name={m.name} src={m.photoUrl} size={28} />
                         <NameWithEmail user={m} />
                         <SocialBadges profiles={m.socialProfiles} className="ml-2" />
                       </li>
-                    ))}
+                    )) : <p className="text-sm text-slate-400">No members yet</p>}
                   </ul>
 
                   {/* Pending Requests */}
@@ -391,16 +339,10 @@ export default function DashboardPage() {
                           <li key={requestUser._id} className="flex items-center justify-between text-gray-400">
                             <NameWithEmail user={requestUser} />
                             <div className="space-x-2">
-                              <button
-                                onClick={() => handleApprove(myTeam._id, requestUser._id)}
-                                className="rounded bg-green-600 px-2 py-1 text-xs hover:bg-green-700"
-                              >
+                              <button onClick={() => handleApprove(myTeam._id, requestUser._id)} className="rounded bg-green-600 px-2 py-1 text-xs hover:bg-green-700">
                                 Approve
                               </button>
-                              <button
-                                onClick={() => handleReject(myTeam._id, requestUser._id)}
-                                className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700"
-                              >
+                              <button onClick={() => handleReject(myTeam._id, requestUser._id)} className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700">
                                 Reject
                               </button>
                             </div>
@@ -417,17 +359,13 @@ export default function DashboardPage() {
                       <ul className="mt-1 space-y-2">
                         {sentInvites.map((invite) => (
                           <li key={invite._id} className="flex items-center justify-between text-gray-400">
-                            <NameWithEmail user={invite.inviteeId} /> {/* ✅ use inviteeId */}
-                            <button
-                              onClick={() => handleCancelSentInvite(invite._id)}
-                              className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700"
-                            >
+                            <NameWithEmail user={invite.inviteeId} />
+                            <button onClick={() => handleCancelSentInvite(invite._id)} className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700">
                               Cancel
                             </button>
                           </li>
                         ))}
                       </ul>
-
                     </div>
                   )}
 
@@ -440,16 +378,10 @@ export default function DashboardPage() {
                           <li key={invite._id} className="flex items-center justify-between text-gray-400">
                             <span>{invite.team.teamName} (Invited by {invite.inviter.name})</span>
                             <div className="space-x-2">
-                              <button
-                                onClick={() => handleAcceptInvite(invite._id)}
-                                className="rounded bg-green-600 px-2 py-1 text-xs hover:bg-green-700"
-                              >
+                              <button onClick={() => handleAcceptInvite(invite._id)} className="rounded bg-green-600 px-2 py-1 text-xs hover:bg-green-700">
                                 Accept
                               </button>
-                              <button
-                                onClick={() => handleRejectInvite(invite._id)}
-                                className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700"
-                              >
+                              <button onClick={() => handleRejectInvite(invite._id)} className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700">
                                 Reject
                               </button>
                             </div>
@@ -466,10 +398,7 @@ export default function DashboardPage() {
 
             {/* View All Users Button */}
             <div className="mt-6">
-              <button
-                onClick={() => router.push('/dashboard/all-users')}
-                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500"
-              >
+              <button onClick={() => router.push('/dashboard/all-users')} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500">
                 View All Users
               </button>
             </div>
@@ -479,67 +408,29 @@ export default function DashboardPage() {
               <h2 className="text-2xl font-bold mb-4">All Other Teams</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {otherTeams.map((team) => {
-                  const members = team.members || [];
+                  const members = Array.isArray(team.members) ? team.members : [];
                   const memberCount = members.length;
                   const hasFemale = members.some((m) => m.gender === 'female');
-                  const userAlreadyRequested = team.pendingRequests?.some(
-                    (r) => String(r._id) === String(user._id)
-                  );
+                  const userAlreadyRequested = team.pendingRequests?.some((r) => String(r._id) === String(user._id));
 
-                  // Determine what to show for the action area
                   let actionArea;
                   if (memberCount >= 6) {
-                    actionArea = (
-                      <span className="block w-full text-center text-xs text-gray-400 mt-1">
-                        Team Full
-                      </span>
-                    );
+                    actionArea = <span className="block w-full text-center text-xs text-gray-400 mt-1">Team Full</span>;
                   } else if (userAlreadyRequested) {
-                    actionArea = (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCancelJoin(team._id);
-                        }}
-                        className="w-full rounded bg-yellow-600 px-3 py-1 text-xs hover:bg-yellow-700"
-                      >
-                        Cancel Request
-                      </button>
-                    );
+                    actionArea = <button onClick={(e) => { e.stopPropagation(); handleCancelJoin(team._id); }} className="w-full rounded bg-yellow-600 px-3 py-1 text-xs hover:bg-yellow-700">Cancel Request</button>;
                   } else if (memberCount === 5 && !hasFemale && user.gender !== 'female') {
-                    actionArea = (
-                      <span className="block w-full text-center text-xs text-red-400 mt-1">
-                        Female member required
-                      </span>
-                    );
+                    actionArea = <span className="block w-full text-center text-xs text-red-400 mt-1">Female member required</span>;
                   } else {
-                    actionArea = (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleJoinClick(team._id);
-                        }}
-                        className="w-full rounded bg-green-600 px-3 py-1 text-xs hover:bg-green-700"
-                      >
-                        Request to Join
-                      </button>
-                    );
+                    actionArea = <button onClick={(e) => { e.stopPropagation(); handleJoinClick(team._id); }} className="w-full rounded bg-green-600 px-3 py-1 text-xs hover:bg-green-700">Request to Join</button>;
                   }
 
                   return (
-                    <motion.div
-                      key={team._id}
-                      whileHover={{ scale: 1.02 }}
-                      className="relative cursor-pointer rounded-xl border border-slate-700 bg-slate-800 p-4 shadow-lg flex flex-col justify-between"
-                      onClick={() => setViewingTeam(team)} // open team details
-                    >
+                    <motion.div key={team._id} whileHover={{ scale: 1.02 }} className="relative cursor-pointer rounded-xl border border-slate-700 bg-slate-800 p-4 shadow-lg flex flex-col justify-between" onClick={() => setViewingTeam(team)}>
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-lg font-semibold text-cyan-400">{team.teamName}</h3>
                         <span className="text-xs text-gray-400">{memberCount}/6 members</span>
                       </div>
-                      <p className="text-sm text-slate-400 line-clamp-2">
-                        {team.problemStatementTitle || 'No problem statement provided'}
-                      </p>
+                      <p className="text-sm text-slate-400 line-clamp-2">{team.problemStatementTitle || 'No problem statement provided'}</p>
                       <div className="mt-3 flex items-center gap-2">
                         <Avatar name={team.leader?.name} src={team.leader?.photoUrl} size={28} />
                         <div className="flex flex-col">
@@ -547,8 +438,6 @@ export default function DashboardPage() {
                           <span className="text-sm text-white">{team.leader?.name || 'Unknown'}</span>
                         </div>
                       </div>
-
-                      {/* Action button / message */}
                       <div className="mt-4">{actionArea}</div>
                     </motion.div>
                   );
