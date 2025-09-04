@@ -339,7 +339,6 @@ router.get('/', auth, async (req, res) => {
 
     const users = await User.find(filter)
       .select('name email year course photoUrl team socialProfiles isVerified role') // Add course to select
-      .lean();
 
     // If the logged-in user has a team, mark already invited users
     const currentUser = await User.findById(req.user.id).populate('team');

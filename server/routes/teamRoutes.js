@@ -87,9 +87,9 @@ router.post('/', auth, upload.single('logo'), async (req, res) => {
 router.get('/', auth, async (req, res) => {
   try {
     const teams = await Team.find()
-      .populate('leader', 'name email photoUrl socialProfiles nameWithYear year')
-      .populate('members', 'name email photoUrl socialProfiles nameWithYear year')
-      .populate('pendingRequests', 'name email photoUrl socialProfiles nameWithYear year');
+      .populate('leader', 'name email photoUrl socialProfiles course year')
+      .populate('members', 'name email photoUrl socialProfiles course year')
+      .populate('pendingRequests', 'name email photoUrl socialProfiles course year');
     res.json(teams);
   } catch (err) {
     console.error(`Error in GET /api/teams: ${err.message}`);
@@ -103,9 +103,9 @@ router.get('/my-team', auth, async (req, res) => {
     const user = await User.findById(req.user.id).populate({
       path: 'team',
       populate: [
-        { path: 'members', select: 'name email gender' },
-        { path: 'leader', select: 'name email gender' }
-      ]
+        { path: 'members', select: 'name email gender photoUrl socialProfiles course year' },
+        { path: 'leader', select: 'name email gender photoUrl socialProfiles course year' }
+      ]
     });
 
     if (!user.team) return res.json(null);
@@ -121,9 +121,9 @@ router.get('/my-team', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const team = await Team.findById(req.params.id)
-      .populate('leader', 'name email photoUrl socialProfiles nameWithYear year')
-      .populate('members', 'name email photoUrl socialProfiles nameWithYear year')
-      .populate('pendingRequests', 'name email photoUrl socialProfiles nameWithYear year');
+      .populate('leader', 'name email photoUrl socialProfiles course year')
+      .populate('members', 'name email photoUrl socialProfiles course year')
+      .populate('pendingRequests', 'name email photoUrl socialProfiles course year');
 
     if (!team) {
       return res.status(404).json({ msg: 'Team not found' });
