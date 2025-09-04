@@ -12,13 +12,14 @@ const Icon = ({ path, className = 'w-5 h-5' }) => (
 );
 
 const ICONS = {
-  verify: "M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.052-.143z",
-  unverify: "M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z",
-  makeAdmin: "M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.095a1.23 1.23 0 00.41-1.412A9.957 9.957 0 0010 12c-2.31 0-4.438.784-6.131 2.095z",
-  removeAdmin: "M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.095a1.23 1.23 0 00.41-1.412A9.957 9.957 0 0010 12c-2.31 0-4.438.784-6.131 2.095z",
-  changeRole: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125",
-  resetPass: "M15.75 5.25a3 3 0 013 3m3 0a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9h.008v.008H9.75V9z",
-  delete: "M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+  // New icons for clarity
+  verify: "M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.59L7.3 9.07a.75.75 0 00-1.06 1.06l3.25 3.25a.75.75 0 001.06 0l4.5-4.5a.75.75 0 00-1.06-1.06L10.75 11.3V6.75z", // Checkmark inside a circle
+  unverify: "M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z", // X-mark inside a circle
+  makeAdmin: "M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.095a1.23 1.23 0 00.41-1.412A9.957 9.957 0 0010 12c-2.31 0-4.438.784-6.131 2.095zM17.25 8.5a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5a.75.75 0 01.75-.75zM19 9.25a.75.75 0 00-1.5 0v1.5a.75.75 0 001.5 0v-1.5z", // User icon with a plus for "make admin"
+  removeAdmin: "M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.095a1.23 1.23 0 00.41-1.412A9.957 9.957 0 0010 12c-2.31 0-4.438.784-6.131 2.095zM17.25 9a.75.75 0 01-.75-.75V7.5a.75.75 0 011.5 0v.75A.75.75 0 0117.25 9z", // User icon with a minus for "remove admin"
+  changeRole: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125", // Pencil icon for editing
+  resetPass: "M15.75 5.25a3 3 0 013 3m3 0a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9h.008v.008H9.75V9z", // Key icon for password reset
+  delete: "M14.74 9l-.346 9.102a2.25 2.25 0 01-2.247 2.047H7.74a2.25 2.25 0 01-2.247-2.047L5.26 9m1.454-.472a.75.75 0 01.996-.528l.738.349 1.458-1.564a.75.75 0 011.171 0l1.458 1.564.737-.349a.75.75 0 01.996.528L15.346 9H4.654zM9.25 10a.75.75 0 01.75.75V15a.75.75 0 01-1.5 0v-4.25a.75.75 0 01.75-.75z" // Trash can icon for delete
 };
 
 
@@ -305,10 +306,10 @@ export default function AdminUsersPage() {
                 <div className="col-span-2 text-sm text-slate-300 capitalize">{u.role || (u.isAdmin ? 'Admin' : 'Student')}</div>
                 <div className="col-span-3 text-sm text-slate-300 truncate">{u.teamName || 'No Team'}</div>
                 <div className="col-span-2 flex items-center gap-2 justify-end">
-                  <button onClick={() => updateUser(u._id, { isVerified: !u.isVerified }, `User ${u.isVerified ? 'un-verified' : 'verified'}`)} title={u.isVerified ? 'Un-verify' : 'Verify'} className={`p-1 rounded-full text-slate-300 hover:text-white transition-colors ${u.isVerified ? 'hover:bg-yellow-500/20' : 'hover:bg-green-500/20'}`}><Icon path={u.isVerified ? ICONS.unverify : ICONS.verify} /></button>
-                  <button onClick={() => updateUser(u._id, { isAdmin: !u.isAdmin }, `User ${u.isAdmin ? 'demoted' : 'promoted'}`)} title={u.isAdmin ? 'Remove Admin' : 'Make Admin'} className="p-1 rounded-full text-slate-300 hover:text-white hover:bg-blue-500/20 transition-colors"><Icon path={u.isAdmin ? ICONS.removeAdmin : ICONS.makeAdmin} /></button>
-                  <button onClick={() => { const newRole = prompt('Enter new role:', u.role || 'student'); if (newRole) updateUser(u._id, { role: newRole }, `Role updated`); }} title="Change Role" className="p-1 rounded-full text-slate-300 hover:text-white hover:bg-purple-500/20 transition-colors"><Icon path={ICONS.changeRole} /></button>
-                  <button onClick={() => { const newPass = prompt('Enter new password:'); if (newPass) updateUser(u._id, { password: newPass }, 'Password reset'); }} title="Reset Password" className="p-1 rounded-full text-slate-300 hover:text-white hover:bg-amber-500/20 transition-colors"><Icon path={ICONS.resetPass} /></button>
+                  <button onClick={() => updateUser(u._id, { isVerified: !u.isVerified }, `User ${u.isVerified ? 'un-verified' : 'verified'}`)} title={u.isVerified ? 'Un-verify User' : 'Verify User'} className={`p-1 rounded-full text-slate-300 hover:text-white transition-colors ${u.isVerified ? 'hover:bg-yellow-500/20' : 'hover:bg-green-500/20'}`}><Icon path={u.isVerified ? ICONS.unverify : ICONS.verify} /></button>
+                  <button onClick={() => updateUser(u._id, { isAdmin: !u.isAdmin }, `User ${u.isAdmin ? 'demoted from admin' : 'promoted to admin'}`)} title={u.isAdmin ? 'Remove Admin Status' : 'Make Admin'} className="p-1 rounded-full text-slate-300 hover:text-white hover:bg-blue-500/20 transition-colors"><Icon path={u.isAdmin ? ICONS.removeAdmin : ICONS.makeAdmin} /></button>
+                  <button onClick={() => { const newRole = prompt('Enter new role (student, spoc, judge, admin):', u.role || 'student'); if (newRole) updateUser(u._id, { role: newRole }, `Role updated to ${newRole}`); }} title="Change User Role" className="p-1 rounded-full text-slate-300 hover:text-white hover:bg-purple-500/20 transition-colors"><Icon path={ICONS.changeRole} /></button>
+                  <button onClick={() => { const newPass = prompt('Enter new password for this user:'); if (newPass) updateUser(u._id, { password: newPass }, 'Password reset successfully'); }} title="Reset User Password" className="p-1 rounded-full text-slate-300 hover:text-white hover:bg-amber-500/20 transition-colors"><Icon path={ICONS.resetPass} /></button>
                   <button onClick={() => handleDeleteUser(u._id)} title="Delete User" className="p-1 rounded-full text-slate-300 hover:text-white hover:bg-red-500/20 transition-colors"><Icon path={ICONS.delete} /></button>
                 </div>
               </div>
