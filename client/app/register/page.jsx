@@ -273,9 +273,9 @@ export default function RegisterPage() {
                 </div>
               )}
               <div>
-                <label htmlFor="password" className="mb-2 block text-sm font-medium text-gray-300">Create a Password</label>
+                <label htmlFor="password" className="mb-2 block text-sm font-medium text-gray-00">Create a Password</label>
                 <div className="relative">
-                  <input type={showPassword ? 'text' : 'password'} id="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full rounded-md border-none bg-black/30 p-3 ring-1 ring-white/10 placeholder:text-gray-400 focus:ring-purple-500"/>
+                  <input type={showPassword ? 'text' : 'password'} id="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full rounded-md border-none bg-black/30 p-3 ring-1 ring-white/10 placeholder:text-gray-700 focus:ring-purple-500"/>
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-white" aria-label="Toggle password visibility">
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
