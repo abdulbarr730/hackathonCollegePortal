@@ -245,7 +245,7 @@ export default function ProfilePage() {
               </select>
               {/* Optional: Show remaining changes */}
               <p className="text-xs text-slate-500 mt-1">
-                Changes remaining: {Math.max(0, 1 - (user?.courseUpdateCount || 0))}
+                Changes remaining: {Math.max(0, 4 - (user?.courseUpdateCount || 0))}
               </p>
             </div>
 
