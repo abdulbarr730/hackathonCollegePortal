@@ -262,62 +262,86 @@ router.get('/users/export', adminAuth, async (req, res) => {
 });
 
 // =============================
-// GET USERS WITH PAGINATION
+// GET USERS WITH PAGINATION (CORRECTED)
 // =============================
 router.get('/users', adminAuth, async (req, res) => {
-  try {
-    const { q = '', verified, admin, role, page = 1, limit = 20, sort = '-createdAt' } = req.query;
+  try {
+    const { q = '', verified, admin, role, teamId, page = 1, limit = 15, sort = '-createdAt' } = req.query;
 
-    // Filters
-    const filters = {};
-    if (q) filters.$or = [{ name: new RegExp(q, 'i') }, { email: new RegExp(q, 'i') }];
-    if (typeof verified !== 'undefined') filters.isVerified = verified === 'true';
-    if (typeof admin !== 'undefined') filters.isAdmin = admin === 'true';
-    if (role) filters.role = role;
+    // Start with an empty filter object
+    const filters = {};
 
-    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
-    const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    // Apply text search filters
+    if (q) {
+        filters.$or = [
+            { name: new RegExp(q, 'i') }, 
+            { email: new RegExp(q, 'i') },
+            { rollNumber: new RegExp(q, 'i') }
+        ];
+    }
+    
+    // Apply status filters
+    if (typeof verified !== 'undefined') filters.isVerified = verified === 'true';
+    if (typeof admin !== 'undefined') filters.isAdmin = admin === 'true';
+    if (role) filters.role = role;
+    
+    // --- THIS IS THE CORRECTED TEAM FILTER LOGIC ---
+    if (teamId) {
+      // Find the team by its ID to get the list of its members
+      const team = await Team.findById(teamId).select('members').lean();
+      if (team && team.members) {
+        // If the team is found, add a condition to the main filter:
+        // Only find users whose '_id' is in the team's 'members' array.
+        filters._id = { $in: team.members };
+      } else {
+        // If an invalid teamId is sent, return no users.
+        return res.json({ items: [], pagination: { total: 0, pages: 1 } });
+      }
+    }
 
-    const [users, total] = await Promise.all([
-      User.find(filters)
-        .select('-password')
-        .populate('team', 'teamName')
-        .sort(sort)
-        .skip((pageNum - 1) * perPage)
-        .limit(perPage)
-        .lean(),
-      User.countDocuments(filters),
-    ]);
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const perPage = Math.min(Math.max(parseInt(limit, 10) || 15, 1), 100);
 
-    const teams = await Team.find().select('teamName members').lean();
-    const userToTeamMap = {};
-    teams.forEach(team => {
-      team.members.forEach(memberId => {
-        userToTeamMap[memberId.toString()] = team.teamName;
-      });
-    });
+    // Both User.find and User.countDocuments will now use the combined 'filters' object
+    const [users, total] = await Promise.all([
+      User.find(filters)
+        .select('-password')
+        .populate('team', 'teamName')
+        .sort(sort)
+        .skip((pageNum - 1) * perPage)
+        .limit(perPage)
+        .lean(),
+      User.countDocuments(filters),
+    ]);
 
-    const usersWithTeam = users.map(user => ({
-      ...user,
-      teamName:
-        user.team?.teamName ||
-        userToTeamMap[user._id.toString()] ||
-        'N/A',
-    }));
+    // This part correctly maps team names for display and remains the same
+    const teams = await Team.find().select('teamName members').lean();
+    const userToTeamMap = {};
+    teams.forEach(team => {
+      team.members.forEach(memberId => {
+        userToTeamMap[memberId.toString()] = team.teamName;
+      });
+    });
 
-    res.json({
-      items: usersWithTeam,
-      pagination: {
-        page: pageNum,
-        limit: perPage,
-        total,
-        pages: Math.ceil(total / perPage),
-      },
-    });
-  } catch (err) {
-    console.error('Admin list users error:', err);
-    res.status(500).send('Server Error');
-  }
+    const usersWithTeam = users.map(user => ({
+      ...user,
+      teamName: user.team?.teamName || userToTeamMap[user._id.toString()] || 'No Team',
+      nameWithYear: user.year ? `${user.name} (Year ${user.year})` : user.name,
+    }));
+
+    res.json({
+      items: usersWithTeam,
+      pagination: {
+        page: pageNum,
+        limit: perPage,
+        total,
+        pages: Math.ceil(total / perPage),
+      },
+    });
+  } catch (err) {
+    console.error('Admin list users error:', err);
+    res.status(500).send('Server Error');
+  }
 });
 
 // =============================
