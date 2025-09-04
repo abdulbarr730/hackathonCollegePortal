@@ -46,7 +46,10 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      router.push('/dashboard'); 
+      
+      // --- MODIFIED: Changed to a full page reload/navigation ---
+      window.location.href = '/dashboard'; 
+
     } catch (err) {
       if (err.message.includes('USER_NOT_FOUND')) {
         setIsUserNotFound(true);
@@ -89,7 +92,6 @@ export default function LoginPage() {
   }, []);
 
   return (
-    // --- MODIFIED: Added padding (p-4) to prevent stretching on the main container ---
     <div
       className="relative flex min-h-screen w-full items-center justify-center bg-cover bg-center bg-fixed p-4"
       style={{ backgroundImage: "url('/coding-background.jpg')" }}
@@ -156,7 +158,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-md border-none bg-black/30 p-3 pr-10 ring-1 ring-white/10 placeholder:text-gray-700 focus:ring-blue-500"
+                className="w-full rounded-md border-none bg-black/30 p-3 pr-10 ring-1 ring-white/10 placeholder:text-gray-600 focus:ring-blue-500"
                 required
               />
               <button
