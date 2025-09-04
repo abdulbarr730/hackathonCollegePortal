@@ -85,33 +85,53 @@ router.post('/register', upload.single('document'), async (req, res) => {
 });
 
 /**
- * @route   POST api/users/login
- * @desc    Authenticate user & get token
- * @access  Public
- */
+ * @route   POST api/users/login
+ * @desc    Authenticate user & get token
+ * @access  Public
+ */
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ msg: 'Invalid credentials' });
-    if (!user.isVerified) return res.status(400).json({ msg: 'Your account has not been verified by an admin yet.' });
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ msg: 'Invalid credentials' });
+  const { email, password } = req.body;
+  try {
+    // 1. Find user by email
+    const user = await User.findOne({ email });
 
-    const payload = { user: { id: user.id, isAdmin: user.isAdmin } };
-    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5h' });
+    // 2. Handle Case: User's email is not found in the database
+    if (!user) {
+      // Send the specific error code the frontend is looking for
+      return res.status(404).json({ msg: 'USER_NOT_FOUND' });
+    }
 
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
-      path: "/",
-      maxAge: 5 * 60 * 60 * 1000,
-    }).json({ msg: 'Login successful' });
-  } catch (err) {
-    console.error(`Error in /login: ${err.message}`);
-    res.status(500).json({ error: 'Server Error' });
-  }
+    // 3. Handle Case: User exists but their account is not yet verified
+    if (!user.isVerified) {
+      // You can also create a custom message for this on the frontend
+      return res.status(403).json({ msg: 'ACCOUNT_NOT_VERIFIED' });
+    }
+
+    // 4. Compare the provided password with the stored hash
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    // 5. Handle Case: Password does not match
+    if (!isMatch) {
+      // Send the specific error code for an invalid password
+      return res.status(400).json({ msg: 'INVALID_PASSWORD' });
+    }
+
+    // --- Success Case: Credentials are valid ---
+    const payload = { user: { id: user.id, isAdmin: user.isAdmin } };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5h' });
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
+      path: "/",
+      maxAge: 5 * 60 * 60 * 1000,
+    }).json({ msg: 'Login successful' });
+
+  } catch (err) {
+    console.error(`Error in /login: ${err.message}`);
+    res.status(500).json({ error: 'Server Error' });
+  }
 });
 
 /**
