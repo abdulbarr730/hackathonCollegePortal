@@ -24,7 +24,7 @@ export default function ProfilePage() {
   // State for Forms
   const [file, setFile] = useState(null);
   const [links, setLinks] = useState({});
-  const [profileData, setProfileData] = useState({ name: '', email: '', year: '' });
+  const [profileData, setProfileData] = useState({ name: '', email: '', year: '', course: '' });
   const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
 
@@ -39,6 +39,7 @@ export default function ProfilePage() {
       setProfileData({
         name: user.name || '',
         email: user.email || '',
+        course: user.course || '',
         year: user.year || '',
       });
       setLinks(user.socialProfiles || {});
@@ -228,6 +229,25 @@ export default function ProfilePage() {
                 className="w-full rounded border border-slate-700 bg-slate-800 px-3 py-2 text-sm" 
               />
             </div>
+
+            <div>
+              <label className="block text-sm text-slate-300 mb-1">Course</label>
+              <select 
+                name="course" 
+                value={profileData.course} 
+                onChange={handleProfileChange}
+                disabled={user?.courseUpdateCount >= 4} // Optional: uncomment if you limit changes
+                className="w-full rounded border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white disabled:opacity-50"
+              >
+                <option value="B.Tech">B.Tech</option>
+                <option value="BCA">BCA</option>
+                <option value="Diploma">Diploma</option>
+              </select>
+              {/* Optional: Show remaining changes */}
+              <p className="text-xs text-slate-500 mt-1">
+                Changes remaining: {Math.max(0, 1 - (user?.courseUpdateCount || 0))}
+              </p>
+            </div>
 
             <div>
               <label className="block text-sm text-slate-300 mb-1">Academic Year</label>

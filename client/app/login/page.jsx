@@ -35,33 +35,33 @@ export default function LoginPage() {
   const formRef = useRef(null);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setIsUserNotFound(false);
+    e.preventDefault();
+    setError('');
+    setIsUserNotFound(false);
 
-    if (!email || !password) {
-      setError('Please enter both email and password.');
-      return;
-    }
-    setLoading(true);
-    try {
-      await login(email, password);
-      
-      // --- MODIFIED: Changed to a full page reload/navigation ---
-      window.location.href = '/dashboard'; 
-
-    } catch (err) {
-      if (err.message.includes('USER_NOT_FOUND')) {
-        setIsUserNotFound(true);
-      } else if (err.message.includes('INVALID_PASSWORD')) {
-        setError('Invalid password. Please try again.');
-      } else {
-        setError('An unexpected error occurred. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (!email || !password) {
+      setError('Please enter both email and password.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await login(email, password);
+      window.location.href = '/dashboard'; 
+    } catch (err) {
+      // --- MODIFIED CATCH BLOCK ---
+      if (err.message.includes('USER_NOT_FOUND')) {
+        setIsUserNotFound(true);
+      } else if (err.message.includes('INVALID_PASSWORD')) {
+        setError('Invalid password. Please try again.');
+      } else if (err.message.includes('ACCOUNT_NOT_VERIFIED')) { // <-- ADDED THIS BLOCK
+        setError('Your account is awaiting admin verification. Need it faster? Contact us at +91 7479934706 or email at abdulbarr730@gmail.com');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const formElement = formRef.current;

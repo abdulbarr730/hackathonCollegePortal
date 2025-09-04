@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-// --- MODIFIED: Removed icons that are now handled by SocialBadges ---
-// --- ADDED: Import the SocialBadges component ---
+import useDebounce from '../../hooks/useDebounce'; // A common custom hook for debouncing
 import SocialBadges from '../../components/SocialBadges';
 
 export default function AllUsersPage() {
@@ -16,25 +15,41 @@ export default function AllUsersPage() {
   const [myTeam, setMyTeam] = useState(null);
   const [invitedUsers, setInvitedUsers] = useState(new Set());
 
+  // --- MODIFIED: State for all filters ---
   const [searchQuery, setSearchQuery] = useState('');
   const [yearFilter, setYearFilter] = useState('all');
+  const [courseFilter, setCourseFilter] = useState('all'); // <-- ADDED: Course filter state
 
-  useEffect(() => {
-    fetchUsers();
-    fetchMyTeamAndInvites();
-  }, []);
+  // --- ADDED: Debounce search query to prevent excessive API calls ---
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
-  const fetchUsers = async () => {
+  // --- MODIFIED: fetchUsers now accepts filters and sends them to the backend ---
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/users', { withCredentials: true });
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.append('search', debouncedSearch);
+      if (yearFilter !== 'all') params.append('year', yearFilter);
+      if (courseFilter !== 'all') params.append('course', courseFilter);
+
+      const res = await axios.get(`/api/users?${params.toString()}`, { withCredentials: true });
       setUsers(res.data || []);
     } catch (err) {
       console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, yearFilter, courseFilter]); // Dependencies for useCallback
+
+  // --- MODIFIED: useEffect now re-fetches users when filters change ---
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]); // The dependency is the memoized fetchUsers function
+
+  useEffect(() => {
+    fetchMyTeamAndInvites();
+  }, []);
+
 
   const fetchMyTeamAndInvites = async () => {
     try {
@@ -54,53 +69,26 @@ export default function AllUsersPage() {
 
   const handleInviteUser = async (userId) => {
     if (!myTeam) {
-        alert('You must create a team first before sending invites.');
-        return;
+      alert('You must create a team first before sending invites.');
+      return;
     }
     const remainingSpots = 6 - (myTeam.members?.length || 0);
     if (remainingSpots <= 0) {
-        alert('Your team is full. You cannot invite more members.');
-        return;
+      alert('Your team is full. You cannot invite more members.');
+      return;
     }
     try {
-        await axios.post(`/api/invitations/${myTeam._id}/${userId}`, {}, { withCredentials: true });
-        alert('Invitation sent successfully');
-        setInvitedUsers(new Set([...invitedUsers, userId]));
+      await axios.post(`/api/invitations`, { teamId: myTeam._id, inviteeId: userId }, { withCredentials: true });
+      alert('Invitation sent successfully');
+      setInvitedUsers(new Set([...invitedUsers, userId]));
     } catch (err) {
-        console.error('Error sending invite:', err);
-        alert(err.response?.data?.message || 'Failed to send invite');
+      console.error('Error sending invite:', err);
+      alert(err.response?.data?.message || 'Failed to send invite');
     }
   };
 
-  const getYearLabel = (year) => {
-    switch (String(year)) {
-      case '1': return '1st Year';
-      case '2': return '2nd Year';
-      case '3': return '3rd Year';
-      case '4': return '4th Year';
-      default: return 'Year not set';
-    }
-  };
-
-  // --- REMOVED: The getPlatformIcon function is now handled by the SocialBadges component ---
-
-  /** Filtered list of users */
-  const filteredUsers = useMemo(() => {
-    return users.filter((u) => {
-      // --- ADDED: Permanent filter to only show users with the 'student' role ---
-      const isStudent = u.role === 'student';
-
-      const matchesSearch =
-        u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.email?.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesYear =
-        yearFilter === 'all' ? true : String(u.year) === String(yearFilter);
-        
-      // A user must be a student AND match other filters to be displayed.
-      return isStudent && matchesSearch && matchesYear;
-    });
-  }, [users, searchQuery, yearFilter]);
+  // --- REMOVED: getYearLabel is no longer needed ---
+  // --- REMOVED: useMemo for filteredUsers is no longer needed as backend handles filtering ---
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-6">
@@ -114,18 +102,29 @@ export default function AllUsersPage() {
         </button>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <input
           type="text"
           placeholder="Search by name or email..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full sm:w-1/2 rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="md:col-span-1 rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
+        {/* --- ADDED: New Course Filter Dropdown --- */}
+        <select
+          value={courseFilter}
+          onChange={(e) => setCourseFilter(e.target.value)}
+          className="rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="all">All Courses</option>
+          <option value="B.Tech">B.Tech</option>
+          <option value="BCA">BCA</option>
+          <option value="Diploma">Diploma</option>
+        </select>
         <select
           value={yearFilter}
           onChange={(e) => setYearFilter(e.target.value)}
-          className="w-full sm:w-40 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="all">All Years</option>
           <option value="1">1st Year</option>
@@ -136,12 +135,13 @@ export default function AllUsersPage() {
       </div>
 
       {loading && <div className="text-center text-gray-400">Loading users...</div>}
-      {!loading && filteredUsers.length === 0 && (
+      {!loading && users.length === 0 && (
         <div className="text-center text-gray-400">No users match your search/filter.</div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredUsers.map((u) => {
+        {/* --- MODIFIED: Map over 'users' directly, not 'filteredUsers' --- */}
+        {users.map((u) => {
           const inTeam = Boolean(u.team);
           const alreadyInvited = invitedUsers.has(u._id);
 
@@ -149,51 +149,45 @@ export default function AllUsersPage() {
             <motion.div
               key={u._id}
               whileHover={{ scale: 1.02 }}
-              // Added flex classes for better layout with the button at the bottom
               className="p-5 rounded-xl bg-slate-800 border border-slate-700 shadow-lg flex flex-col justify-between"
             >
-              {/* Wrapper for the top content */}
-              <div>
-                <div className="flex items-center gap-3">
-                  {u.photoUrl ? (
-                    <img
-                      src={u.photoUrl}
-                      alt={u.name}
-                      className="w-12 h-12 rounded-full object-cover border border-slate-600"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
-                      {u.name?.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-lg font-semibold text-white">{u.name}</p>
-                    <p className="text-sm text-gray-400">{u.email}</p>
-                    <p className="text-xs text-gray-500">{getYearLabel(u.year)}</p>
-                  </div>
-                </div>
-
-                {/* --- REPLACED: The old social link logic with the new SocialBadges component --- */}
-                <SocialBadges profiles={u.socialProfiles} className="mt-4" />
-              </div>
-
-              {/* Wrapper for the bottom content (button) */}
-              <div>
-                {inTeam ? (
-                  <div className="mt-4 text-center text-gray-400">Already in a team</div>
-                ) : alreadyInvited ? (
-                  <div className="mt-4 text-center text-yellow-400 font-medium animate-pulse">
-                    Invitation Sent
-                  </div>
-                ) : (
-                  <button
-                    className="mt-4 w-full rounded bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition"
-                    onClick={() => handleInviteUser(u._id)}
-                  >
-                    Invite to Team
-                  </button>
-                )}
-              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  {u.photoUrl ? (
+                    <img
+                      src={u.photoUrl}
+                      alt={u.name}
+                      className="w-12 h-12 rounded-full object-cover border border-slate-600"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
+                      {u.name?.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {/* --- MODIFIED: Corrected user name/email display --- */}
+                  <div>
+                    <p className="text-lg font-semibold text-white">{u.nameWithYear || u.name}</p>
+                    <p className="text-sm text-gray-400">{u.email}</p>
+                  </div>
+                </div>
+                <SocialBadges profiles={u.socialProfiles} className="mt-4" />
+              </div>
+              <div>
+                {inTeam ? (
+                  <div className="mt-4 text-center text-gray-400">Already in a team</div>
+                ) : alreadyInvited ? (
+                  <div className="mt-4 text-center text-yellow-400 font-medium animate-pulse">
+                    Invitation Sent
+                  </div>
+                ) : (
+                  <button
+                    className="mt-4 w-full rounded bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition"
+                    onClick={() => handleInviteUser(u._id)}
+                  >
+                    Invite to Team
+                  </button>
+                )}
+              </div>
             </motion.div>
           );
         })}

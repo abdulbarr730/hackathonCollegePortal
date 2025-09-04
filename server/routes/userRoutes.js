@@ -46,7 +46,7 @@ router.post('/check-email', async (req, res) => {
  * @access  Public
  */
 router.post('/register', upload.single('document'), async (req, res) => {
-  const { name, email, password, rollNumber, verificationMethod, gender, year } = req.body;
+  const { name, email, password, rollNumber, verificationMethod, gender, year, course } = req.body;
   try {
     const orQuery = [{ email }];
     if (rollNumber) orQuery.push({ rollNumber });
@@ -55,7 +55,7 @@ router.post('/register', upload.single('document'), async (req, res) => {
       return res.status(400).json({ msg: 'User with this email or Roll Number already exists.' });
     }
 
-    const newUserFields = { name, email, password, verificationMethod, gender, year, rollNumber };
+    const newUserFields = { name, email, password, verificationMethod, gender, year, course, rollNumber };
 
     if (rollNumber) {
       const preapproved = await PreapprovedStudent.findOne({ rollNumber });
@@ -246,7 +246,7 @@ router.put('/social', auth, async (req, res) => {
  * @access  Private
  */
 router.put('/profile', auth, async (req, res) => {
-  const { name, email, year } = req.body;
+  const { name, email, year, course } = req.body;
   
   try {
     const user = await User.findById(req.user.id);
@@ -256,6 +256,13 @@ router.put('/profile', auth, async (req, res) => {
       user.name = name;
       user.nameUpdateCount += 1;
     }
+
+    if (course && course !== user.course) {
+      // Optional: Limit how many times they can change the course
+      if (user.courseUpdateCount >= 4) return res.status(403).json({ msg: 'You can no longer change your course.' });
+      user.course = course;
+      user.courseUpdateCount += 1;
+    }
 
     if (year && year !== user.year) {
       if (user.yearUpdateCount >= 4) return res.status(403).json({ msg: 'You can no longer change your academic year.' });
@@ -323,14 +330,15 @@ router.get('/me', auth, (req, res) => {
  */
 router.get('/', auth, async (req, res) => {
   try {
-    const { year, search } = req.query;
-    const filter = {};
+    const { year, search, course } = req.query; // Add course to query params
+    const filter = {};
 
-    if (year) filter.year = Number(year);
-    if (search) filter.$or = [{ name: new RegExp(search, 'i') }, { email: new RegExp(search, 'i') }];
+    if (year) filter.year = Number(year);
+    if (course) filter.course = course; // Add course to filter
+    if (search) filter.$or = [{ name: new RegExp(search, 'i') }, { email: new RegExp(search, 'i') }];
 
-    const users = await User.find(filter)
-      .select('name email year photoUrl team socialProfiles isVerified role')
+    const users = await User.find(filter)
+      .select('name email year course photoUrl team socialProfiles isVerified role') // Add course to select
       .lean();
 
     // If the logged-in user has a team, mark already invited users

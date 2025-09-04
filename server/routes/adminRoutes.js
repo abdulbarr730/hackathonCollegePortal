@@ -214,14 +214,16 @@ router.get('/users/export', adminAuth, async (req, res) => {
 
     // Format user data
     const formattedUsers = users.map(u => ({
-      Name: u.name,
-      Email: u.email,
-      RollNumber: u.rollNumber || '',
-      Role: u.role,
-      Verified: u.isVerified ? 'Yes' : 'No',
-      Team: u.team?.teamName || userToTeamMap[u._id.toString()] || 'N/A',
-      CreatedAt: new Date(u.createdAt).toLocaleString(),
-    }));
+      Name: u.name,
+      Email: u.email,
+      Course: u.course || 'N/A', // <-- ADDED
+      Year: u.year || 'N/A',     // <-- ADDED
+      RollNumber: u.rollNumber || '',
+      Role: u.role,
+      Verified: u.isVerified ? 'Yes' : 'No',
+      Team: u.team?.teamName || userToTeamMap[u._id.toString()] || 'N/A',
+      CreatedAt: new Date(u.createdAt).toLocaleString(),
+    }));
 
     if (format === 'csv') {
       // CSV Export
@@ -235,14 +237,16 @@ router.get('/users/export', adminAuth, async (req, res) => {
       const worksheet = workbook.addWorksheet('Users');
 
       worksheet.columns = [
-        { header: 'Name', key: 'Name', width: 30 },
-        { header: 'Email', key: 'Email', width: 30 },
-        { header: 'Roll Number', key: 'RollNumber', width: 20 },
-        { header: 'Role', key: 'Role', width: 15 },
-        { header: 'Verified', key: 'Verified', width: 10 },
-        { header: 'Team', key: 'Team', width: 25 },
-        { header: 'Created At', key: 'CreatedAt', width: 20 },
-      ];
+        { header: 'Name', key: 'Name', width: 30 },
+        { header: 'Email', key: 'Email', width: 30 },
+        { header: 'Course', key: 'Course', width: 15 },       // <-- ADDED
+        { header: 'Year', key: 'Year', width: 10 },           // <-- ADDED
+        { header: 'Roll Number', key: 'RollNumber', width: 20 },
+        { header: 'Role', key: 'Role', width: 15 },
+        { header: 'Verified', key: 'Verified', width: 10 },
+        { header: 'Team', key: 'Team', width: 25 },
+        { header: 'Created At', key: 'CreatedAt', width: 20 },
+      ];
 
       formattedUsers.forEach(user => worksheet.addRow(user));
 
@@ -323,11 +327,24 @@ router.get('/users', adminAuth, async (req, res) => {
       });
     });
 
-    const usersWithTeam = users.map(user => ({
-      ...user,
-      teamName: user.team?.teamName || userToTeamMap[user._id.toString()] || 'No Team',
-      nameWithYear: user.year ? `${user.name} (Year ${user.year})` : user.name,
-    }));
+    const usersWithTeam = users.map(user => {
+      // Recreate the correct display string, including the course
+      const yearMap = { 1: '1st year', 2: '2nd year', 3: '3rd year', 4: '4th year' };
+      const yearString = user.year ? (yearMap[user.year] || `${user.year}th year`) : '';
+      let nameWithCourseAndYear = user.name;
+
+      if (user.course && yearString) {
+        nameWithCourseAndYear = `${user.name} (${user.course} ${yearString})`;
+      } else if (yearString) {
+        nameWithCourseAndYear = `${user.name} (${yearString})`;
+      }
+      
+      return {
+        ...user,
+        teamName: user.team?.teamName || userToTeamMap[user._id.toString()] || 'No Team',
+        nameWithYear: nameWithCourseAndYear, // Use the new, correct variable
+      };
+    });
 
     res.json({
       items: usersWithTeam,
