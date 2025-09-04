@@ -11,14 +11,20 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // New state to handle the specific "user not found" case
+  const [isUserNotFound, setIsUserNotFound] = useState(false);
+
   const { login } = useAuth();
   const router = useRouter();
-
   const formRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Reset both error states on a new submission
     setError('');
+    setIsUserNotFound(false);
+
     if (!email || !password) {
       setError('Please enter both email and password.');
       return;
@@ -26,9 +32,18 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      window.location.href = '/dashboard';
+      // Use router.push for Next.js navigation instead of a full page reload
+      router.push('/dashboard'); 
     } catch (err) {
-      setError(err.message);
+      // Check for the specific error messages from the backend
+      if (err.message.includes('USER_NOT_FOUND')) {
+        setIsUserNotFound(true);
+      } else if (err.message.includes('INVALID_PASSWORD')) {
+        setError('Invalid password. Please try again.');
+      } else {
+        // Generic error for any other issue (e.g., server down)
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -79,11 +94,23 @@ export default function LoginPage() {
           Welcome Back
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <p className="rounded bg-red-500/50 p-3 text-center text-sm">
-              {error}
-            </p>
+          
+          {/* Unified Error Display Area */}
+          {(error || isUserNotFound) && (
+            <div className="rounded bg-red-500/50 p-3 text-center text-sm text-white">
+              {isUserNotFound ? (
+                <span>
+                  Email not found. Have you registered?{' '}
+                  <Link href="/register" className="font-bold underline hover:text-red-100">
+                    Register here
+                  </Link>
+                </span>
+              ) : (
+                <span>{error}</span>
+              )}
+            </div>
           )}
+
           <div>
             <label
               htmlFor="email"
@@ -130,7 +157,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-blue-600 px-5 py-3 font-medium text-white transition-transform duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
+              className="w-full rounded-lg bg-blue-600 px-5 py-3 font-medium text-white transition-transform duration-200 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? 'Logging In...' : 'Login'}
             </button>
