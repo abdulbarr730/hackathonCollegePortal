@@ -336,6 +336,51 @@ router.get('/users/:id', adminAuth, async (req, res) => {
   }
 });
 
+// =============================
+// DELETE A SINGLE USER
+// =============================
+router.delete('/users/:id', adminAuth, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    // Important: Check if the user is a team leader
+    const ledTeam = await Team.findOne({ leader: userId });
+    if (ledTeam) {
+      return res.status(400).json({ 
+        msg: `Cannot delete user. They are the leader of team "${ledTeam.teamName}". Please change leadership or disband the team first.` 
+      });
+    }
+
+    // Remove the user from any team they are a member of
+    await Team.updateMany({ members: userId }, { $pull: { members: userId } });
+
+    // Now, delete the user
+    await User.findByIdAndDelete(userId);
+
+    // Log the administrative action
+    await AdminLog.create({
+      actor: req.user.id,
+      action: 'USER_DELETE',
+      targetType: 'User',
+      targetId: userId,
+      meta: { name: user.name, email: user.email },
+    });
+
+    res.json({ msg: 'User deleted successfully.' });
+  } catch (err) {
+    console.error('Admin delete user error:', err);
+    if (err.kind === 'ObjectId') {
+        return res.status(404).json({ msg: 'User not found' });
+    }
+    res.status(500).send('Server Error');
+  }
+});
+
 /* ========================================================================
    BULK USER ACTIONS
    ======================================================================== */
@@ -406,67 +451,91 @@ router.post('/users/bulk-admin', adminAuth, async (req, res) => {
 });
 
 /* ========================================================================
-   TEAMS MANAGEMENT
-   ======================================================================== */
+   TEAMS MANAGEMENT
+   ======================================================================== */
 router.get('/teams', adminAuth, async (req, res) => {
-  try {
-    const { leader, page = 1, limit = 20, sort = '-createdAt' } = req.query;
-    const filters = {};
+  try {
+    // MODIFIED: Added `q` to accept a search query
+    const { leader, q, page = 1, limit = 20, sort = '-createdAt' } = req.query;
+    const filters = {};
+    
     if (leader) filters.leader = leader;
 
-    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
-    const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    // ADDED: Logic to filter by team name if a search query `q` is provided
+    if (q) {
+      filters.teamName = new RegExp(q, 'i'); // 'i' makes it case-insensitive
+    }
 
-    const query = Team.find(filters)
-      .sort(sort)
-      .skip((pageNum - 1) * perPage)
-      .limit(perPage)
-      .populate('leader', 'name email photoUrl')
-      .populate('members', 'name email photoUrl')
-      .lean();
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
-    const [items, total] = await Promise.all([query.exec(), Team.countDocuments(filters)]);
+    const query = Team.find(filters)
+      .sort(sort)
+      .skip((pageNum - 1) * perPage)
+      .limit(perPage)
+      .populate('leader', 'name email photoUrl')
+      .populate('members', 'name email photoUrl')
+      .lean();
 
-    const mapped = items.map((t) => ({
-      ...t,
-      memberCount: Array.isArray(t.members) ? t.members.length : 0,
-      pendingCount: Array.isArray(t.pendingRequests) ? t.pendingRequests.length : 0,
-    }));
+    const [items, total] = await Promise.all([query.exec(), Team.countDocuments(filters)]);
 
-    res.json({
-      items: mapped,
-      pagination: {
-        page: pageNum,
-        limit: perPage,
-        total,
-        pages: Math.ceil(total / perPage),
-      },
-    });
-  } catch (err) {
-    console.error('Admin list teams error:', err);
-    res.status(500).send('Server Error');
-  }
+    const mapped = items.map((t) => ({
+      ...t,
+      memberCount: Array.isArray(t.members) ? t.members.length : 0,
+      pendingCount: Array.isArray(t.pendingRequests) ? t.pendingRequests.length : 0,
+    }));
+
+    res.json({
+      items: mapped,
+      pagination: {
+      page: pageNum,
+        limit: perPage,
+        total,
+        pages: Math.ceil(total / perPage),
+      },
+    });
+  } catch (err) {
+    console.error('Admin list teams error:', err);
+    res.status(500).send('Server Error');
+  }
 });
 
+// =============================
+// GET A SIMPLE LIST OF TEAMS FOR FILTERS (NO CHANGES)
+// =============================
+router.get('/teams/list', adminAuth, async (req, res) => {
+  try {
+    const teams = await Team.find({}).select('teamName').sort({ teamName: 1 }).lean();
+    const formattedTeams = teams.map(t => ({ _id: t._id, name: t.teamName }));
+    res.json(formattedTeams);
+  } catch (err) {
+    console.error('Admin get team list error:', err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// =============================
+// GET TEAM BY ID (NO CHANGES)
+// =============================
 router.get('/teams/:id', adminAuth, async (req, res) => {
-  try {
-    const t = await Team.findById(req.params.id)
-      .populate('leader', 'name email photoUrl')
-      .populate('members', 'name email photoUrl')
-      .populate('pendingRequests', 'name email photoUrl')
-      .lean();
+  try {
+    const t = await Team.findById(req.params.id)
+      .populate('leader', 'name email photoUrl')
+      .populate('members', 'name email photoUrl')
+      .populate('pendingRequests', 'name email photoUrl')
+      .lean();
 
-    if (!t) return res.status(404).json({ msg: 'Team not found' });
+    if (!t) return res.status(404).json({ msg: 'Team not found' });
 
-    res.json({
-      ...t,
-      memberCount: Array.isArray(t.members) ? t.members.length : 0,
-      pendingCount: Array.isArray(t.pendingRequests) ? t.pendingRequests.length : 0,
-    });
-  } catch (err) {
-    console.error('Admin get team error:', err);
-    res.status(500).send('Server Error');
-  }
+    res.json({
+      ...t,
+      memberCount: Array.isArray(t.members) ? t.members.length : 0,
+      pendingCount: Array.isArray(t.pendingRequests) ? t.pendingRequests.length : 0,
+    });
+  } catch (err) {
+    console.error('Admin get team error:', err);
+    res.status(500).send('Server Error');
+  }
 });
 
 module.exports = router;
