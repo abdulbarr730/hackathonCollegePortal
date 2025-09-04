@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 // --- MODIFIED: Removed icons that are now handled by SocialBadges ---
 // --- ADDED: Import the SocialBadges component ---
-import SocialBadges from '../components/SocialBadges';
+import SocialBadges from './components/SocialBadges';
 
 export default function AllUsersPage() {
   const router = useRouter();
