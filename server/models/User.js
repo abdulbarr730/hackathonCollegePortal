@@ -48,6 +48,14 @@ const userSchema = new mongoose.Schema(
       enum: ['Male', 'Female', 'Other'],
       required: true,
     },
+
+    course: {
+      type: String,
+      enum: ['B.Tech', 'BCA', 'Diploma'], // Add your course options here
+      required: true,
+    },
+    courseUpdateCount: { type: Number, default: 0 },
+
     year: { type: Number, min: 1, max: 4 },
     yearUpdateCount: { type: Number, default: 0 },
 
@@ -90,17 +98,26 @@ const userSchema = new mongoose.Schema(
 
 // -------------------- Virtuals --------------------
 userSchema.virtual('nameWithYear').get(function () {
-  if (this.year) {
-    const yearMap = {
-      1: '1st year',
-      2: '2nd year',
-      3: '3rd year',
-      4: '4th year',
-    };
-    const yearString = yearMap[this.year] || `${this.year}th year`;
-    return `${this.name} (${yearString})`;
-  }
-  return this.name;
+  const yearMap = {
+    1: '1st year',
+    2: '2nd year',
+    3: '3rd year',
+    4: '4th year',
+  };
+  const yearString = this.year ? (yearMap[this.year] || `${this.year}th year`) : '';
+
+  // Main Case: Both course and year are present
+  if (this.course && yearString) {
+    return `${this.name} (${this.course} ${yearString})`;
+  }
+  
+  // Fallback Case: Only the year is present
+  if (yearString) {
+    return `${this.name} (${yearString})`;
+  }
+
+  // Default Case: No academic info
+  return this.name;
 });
 
 // Ensure virtuals appear in JSON & object output

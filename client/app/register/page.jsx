@@ -20,6 +20,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [gender, setGender] = useState('');
   const [year, setYear] = useState('');
+  const [course, setCourse] = useState('');
   const [verificationResult, setVerificationResult] = useState(false);
   
   const router = useRouter();
@@ -34,7 +35,7 @@ export default function RegisterPage() {
       setError('Please provide a valid and available email address.');
       return;
     }
-    if (!name || !password || !gender || !year || (verificationMethod === 'rollNumber' && !rollNumber) || (verificationMethod === 'documentUpload' && !document)) {
+    if (!name || !password || !gender || !year || !course || (verificationMethod === 'rollNumber' && !rollNumber) || (verificationMethod === 'documentUpload' && !document)) {
       setError('Please fill out all required fields.');
       return;
     }
@@ -45,6 +46,7 @@ export default function RegisterPage() {
     formData.append('password', password);
     formData.append('gender', gender);
     formData.append('year', year);
+    formData.append('course', course);
     formData.append('verificationMethod', verificationMethod);
     if (verificationMethod === 'rollNumber') {
       formData.append('rollNumber', rollNumber);
@@ -236,6 +238,15 @@ export default function RegisterPage() {
                   <option value="Other">Other</option>
                 </select>
               </div>
+              <div>
+                <label htmlFor="course" className="mb-2 block text-sm font-medium text-gray-300">Course</label>
+                <select id="course" value={course} onChange={(e) => setCourse(e.target.value)} required className={`w-full rounded-md border-none bg-black/30 p-3 ring-1 ring-white/10 focus:ring-purple-500 ${!course ? 'text-gray-400' : 'text-white'}`}>
+                  <option value="">Select Course</option>
+                  <option value="B.Tech">B.Tech</option>
+                  <option value="BCA">BCA</option>
+                  <option value="Diploma">Diploma</option>
+                </select>
+              </div>
               <div>
                 <label htmlFor="year" className="mb-2 block text-sm font-medium text-gray-300">Academic Year</label>
                 <select id="year" value={year} onChange={(e) => setYear(e.target.value)} required className={`w-full rounded-md border-none bg-black/30 p-3 ring-1 ring-white/10 focus:ring-purple-500 ${!year ? 'text-gray-400' : 'text-white'}`}>

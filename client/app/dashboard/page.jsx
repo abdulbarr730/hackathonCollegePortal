@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -224,6 +225,24 @@ export default function DashboardPage() {
           </h1>
           <p className="mt-2 text-slate-400">Manage your team, track updates, and explore ideas.</p>
         </motion.div>
+
+        {user.course === 'B.Tech' && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="mb-8 rounded-lg border border-cyan-500/50 bg-cyan-500/10 p-4 text-center"
+          >
+            <p className="text-cyan-300">
+              We've updated our system! Please take a moment to verify your academic details are correct.
+            </p>
+            <Link href="/profile">
+              <button className="mt-3 rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500">
+                Go to Profile
+              </button>
+            </Link>
+          </motion.div>
+        )}
 
         <div className="grid gap-8 lg:grid-cols-[320px,1fr]">
           {/* Sidebar */}
