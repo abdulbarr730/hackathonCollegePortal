@@ -330,7 +330,7 @@ router.get('/', auth, async (req, res) => {
     if (search) filter.$or = [{ name: new RegExp(search, 'i') }, { email: new RegExp(search, 'i') }];
 
     const users = await User.find(filter)
-      .select('name email year photoUrl team socialProfiles isVerified')
+      .select('name email year photoUrl team socialProfiles isVerified role')
       .lean();
 
     // If the logged-in user has a team, mark already invited users
