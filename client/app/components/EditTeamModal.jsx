@@ -191,7 +191,7 @@ export default function EditTeamModal({
                   <div className="flex items-center gap-3">
                     <img src={member.photoUrl || '/default-avatar.png'} alt={member.name} className="h-8 w-8 rounded-full object-cover"/>
                     <span className="text-slate-200 text-sm">
-                      {member.name}
+                      {member.nameWithYear || member.name}
                       {member._id === teamData.leader._id && ( <span className="ml-2 text-xs text-emerald-400">(Leader)</span> )}
                     </span>
                   </div>
