@@ -26,6 +26,35 @@ const uploadToCloudinary = (fileBuffer) => {
   });
 };
 
+
+/**
+ * @route   GET /api/auth/supabase-token
+ * @desc    Generate a custom Supabase JWT for the current user
+ * @access  Private
+ */
+router.get('/supabase-token', auth, async (req, res) => {
+    try {
+        const payload = {
+            id: req.user.id,
+            role: 'authenticated', // Must be 'authenticated' or a custom role
+            exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiration
+        };
+        const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+        const supabaseUrl = process.env.SUPABASE_URL;
+        
+        // This is the new, separate secret for Supabase
+        const token = jwt.sign(payload, process.env.SUPABASE_JWT_SECRET, { algorithm: 'HS256' });
+
+        const supabaseConfig = { supabaseUrl, supabaseAnonKey };
+        
+        res.json({ token, config: supabaseConfig });
+    } catch (err) {
+        console.error('Error generating Supabase token:', err);
+        res.status(500).json({ msg: 'Server Error' });
+    }
+});
+
+
 /**
  * @route   POST api/users/check-email
  * @desc    Check if an email is already registered
