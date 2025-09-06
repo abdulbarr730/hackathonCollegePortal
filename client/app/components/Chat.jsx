@@ -181,7 +181,11 @@ export default function Chat({ currentUser, allUsers, teams }) {
 
     // Open a specific chat
     const handleOpenChat = useCallback(async (otherUser) => {
-        if (!supabaseClient || !supabaseUser) return;
+        console.log("Attempting to open chat with user:", otherUser);
+        if (!supabaseClient || !supabaseUser) {
+            console.error("Supabase client or user not ready.");
+            return;
+        }
 
         // Special logic for Gemini Assistant
         if (otherUser._id === 'gemini-assistant') {
@@ -215,7 +219,9 @@ export default function Chat({ currentUser, allUsers, teams }) {
 
         if (data && data.length > 0) {
             conversationId = data[0].id;
+            console.log("Found existing chat:", data[0]);
         } else {
+            console.log("Creating new chat with status:", isTeamChat ? 'active' : 'pending');
             // Create a new conversation
             const newChatData = {
                 participants: [supabaseUser.id, otherUser.supabaseId],
@@ -681,52 +687,10 @@ export default function Chat({ currentUser, allUsers, teams }) {
         );
     };
 
-
     return (
-        <>
-            <ConfirmationModal 
-                isOpen={isConfirmModalOpen}
-                onClose={() => setIsConfirmModalOpen(false)}
-                onConfirm={confirmAction}
-                message="Are you sure you want to delete this conversation? This action cannot be undone."
-            />
-            
+        <div className="fixed bottom-0 right-0 mb-4 mr-4 z-50">
             {renderGroupModal()}
-
-            {/* Chat Icon in Navbar */}
-            <button onClick={handleToggleChatPanel} className="relative p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-white transition">
-                <ChatIcon />
-                {unreadCount > 0 && (
-                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full transform translate-x-1/2 -translate-y-1/2">
-                        {unreadCount}
-                    </span>
-                )}
-            </button>
-            
-            {/* Chat Panel */}
-            <AnimatePresence>
-                {isChatPanelOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, x: '100%' }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: '100%' }}
-                        transition={{ type: "tween", duration: 0.3 }}
-                        className="fixed inset-y-0 right-0 w-full sm:w-96 bg-slate-900/95 shadow-xl z-40 flex flex-col"
-                    >
-                        <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
-                            <h2 className="text-2xl font-bold text-slate-100">
-                                {activeChat ? activeChat.otherUser.name : 'Messages'}
-                            </h2>
-                            <button onClick={handleToggleChatPanel} className="p-2 text-slate-400 hover:text-white transition">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                        {renderContent()}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </>
+            {renderContent()}
+        </div>
     );
 }
