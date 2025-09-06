@@ -1,6 +1,6 @@
 'use client';
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.44.0';
+import { createClient } from '@supabase/supabase-js';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
