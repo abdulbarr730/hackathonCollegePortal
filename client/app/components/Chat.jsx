@@ -74,6 +74,12 @@ export default function Chat({ currentUser, allUsers, teams }) {
     const [confirmAction, setConfirmAction] = useState(null);
     const [isGenerating, setIsGenerating] = useState(false);
 
+    // New group chat state
+    const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+    const [groupMembers, setGroupMembers] = useState([]);
+    const [groupName, setGroupName] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+
     // Memoized user and team data
     const myTeamId = useMemo(() => currentUser?.team || null, [currentUser]);
     const myTeamMembers = useMemo(() => {
@@ -86,6 +92,16 @@ export default function Chat({ currentUser, allUsers, teams }) {
         const users = allUsers.map(u => ({ ...u, supabaseId: u._id }));
         return [geminiAssistant, ...users];
     }, [allUsers]);
+
+    // Filtered users for search and group chat creation
+    const filteredUsers = useMemo(() => {
+        if (!searchTerm) return allChattableUsers;
+        return allChattableUsers.filter(user => 
+            user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+    }, [allChattableUsers, searchTerm]);
+
 
     // Effect for Supabase initialization and auth
     useEffect(() => {
@@ -349,7 +365,46 @@ export default function Chat({ currentUser, allUsers, teams }) {
         }
     };
 
+    const handleCreateGroup = async (e) => {
+        e.preventDefault();
+        if (!groupName || groupMembers.length < 2) {
+            return alert('Please select at least two members and a group name.');
+        }
 
+        const memberIds = [...groupMembers, currentUser.supabaseId];
+        const newChatData = {
+            participants: memberIds,
+            messages: [{
+                text: `${currentUser.name} created the group "${groupName}".`,
+                senderId: currentUser.supabaseId,
+                timestamp: new Date().toISOString()
+            }],
+            status: 'active', // Group chats are always active
+            unread: memberIds.reduce((obj, id) => ({ ...obj, [id]: 0 }), {}),
+            is_group: true,
+            group_name: groupName,
+            last_updated_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabaseClient
+            .from('conversations')
+            .insert([newChatData])
+            .select();
+
+        if (error) {
+            console.error("Error creating group chat:", error);
+            return;
+        }
+
+        setIsGroupModalOpen(false);
+        setActiveChat({
+            id: data[0].id,
+            otherUser: { _id: data[0].id, name: groupName, is_group: true },
+            messages: data[0].messages,
+            status: 'active',
+        });
+    };
+    
     // Conditional rendering for content
     const renderContent = () => {
         if (isLoading) {
@@ -359,6 +414,7 @@ export default function Chat({ currentUser, allUsers, teams }) {
         if (activeChat) {
             const isRequestPending = activeChat.status === 'pending';
             const isGeminiChat = activeChat.otherUser._id === 'gemini-assistant';
+            const isGroupChat = activeChat.otherUser.is_group;
 
             const chat = conversations.find(c => c.id === activeChat.id) || activeChat;
 
@@ -377,9 +433,14 @@ export default function Chat({ currentUser, allUsers, teams }) {
                         {chat?.messages?.map((msg, index) => {
                             const isOutgoing = msg.senderId === supabaseUser.id;
                             const isBot = msg.senderId === geminiAssistant._id;
+                            const sender = allChattableUsers.find(u => u._id === msg.senderId || u.supabaseId === msg.senderId);
+
                             return (
                                 <div key={index} className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`max-w-[70%] p-3 rounded-lg ${isOutgoing ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-slate-700 text-slate-200 rounded-bl-none'}`}>
+                                        {isGroupChat && !isOutgoing && (
+                                            <span className="block font-bold text-xs text-cyan-400 mb-1">{sender?.name || 'Unknown User'}</span>
+                                        )}
                                         <p className="text-sm">{msg.text}</p>
                                     </div>
                                 </div>
@@ -428,43 +489,198 @@ export default function Chat({ currentUser, allUsers, teams }) {
         }
 
         // Chat List View
+        const myConversations = conversations.filter(c => c.is_group || c.participants.length === 2);
+        const myIndividualConversations = myConversations.filter(c => !c.is_group);
+        const myGroupConversations = myConversations.filter(c => c.is_group);
         const otherUsers = allChattableUsers.filter(u => u._id !== currentUser._id);
-        const myUserIdString = String(currentUser._id);
+        const individualChattableUsers = otherUsers.filter(u => u._id !== 'gemini-assistant');
+        const sortedConversations = [...myIndividualConversations, ...myGroupConversations].sort((a,b) => new Date(b.last_updated_at) - new Date(a.last_updated_at));
 
         return (
             <div className="h-full flex flex-col p-4">
-                <h3 className="text-xl font-semibold text-slate-100 mb-4">Users</h3>
-                <ul className="space-y-3 overflow-y-auto">
-                    {otherUsers.map(user => {
-                        const isTeamMember = myTeamMembers.includes(String(user._id));
-                        const isGemini = user._id === geminiAssistant._id;
-                        return (
-                            <li
-                                key={user._id}
-                                className="p-4 bg-slate-800/50 rounded-lg flex items-center justify-between transition duration-150 hover:bg-slate-700/50 cursor-pointer"
-                                onClick={() => handleOpenChat(user)}
-                            >
-                                <div className="flex flex-col">
-                                    <span className="font-medium text-slate-200 flex items-center gap-2">
-                                        {isGemini && <GeminiSparkles />}
-                                        {user.name}
-                                    </span>
-                                    <span className="text-xs text-slate-400">
-                                        {isGemini ? 'AI Assistant' : isTeamMember ? 'On your team' : 'Individual Chat'}
-                                    </span>
-                                </div>
-                                {!isGemini && (
-                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${isTeamMember ? 'bg-green-600 text-green-100' : 'bg-indigo-600 text-indigo-100'}`}>
-                                        {isTeamMember ? 'Team' : 'Personal'}
-                                    </span>
-                                )}
-                            </li>
-                        );
-                    })}
-                </ul>
+                <div className="flex items-center mb-4">
+                    <input
+                        type="text"
+                        placeholder="Search users..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className="flex-1 px-4 py-2 bg-slate-800 text-slate-200 border border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                    />
+                    <button
+                        onClick={() => setIsGroupModalOpen(true)}
+                        className="ml-3 p-3 bg-green-600 text-white rounded-full hover:bg-green-500 transition flex items-center justify-center"
+                        title="Create Group Chat"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5ZM9.75 18.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5ZM7.5 7.5a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5ZM19.5 7.5a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5Z" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto">
+                    {sortedConversations.length > 0 && (
+                        <>
+                            <h4 className="text-sm font-semibold text-slate-400 uppercase mb-2">Conversations</h4>
+                            <ul className="space-y-3 mb-6">
+                                {sortedConversations.map(conv => {
+                                    const isGroup = conv.is_group;
+                                    const otherUser = isGroup 
+                                        ? { _id: conv.id, name: conv.group_name, is_group: true }
+                                        : allChattableUsers.find(u => u.supabaseId === conv.participants.find(p => p !== supabaseUser.id));
+
+                                    if (!otherUser) return null; // Handle case where user might be deleted
+
+                                    return (
+                                        <li
+                                            key={conv.id}
+                                            className="p-4 bg-slate-800/50 rounded-lg flex items-center justify-between transition duration-150 hover:bg-slate-700/50 cursor-pointer"
+                                            onClick={() => setActiveChat({
+                                                id: conv.id,
+                                                otherUser,
+                                                messages: conv.messages,
+                                                status: conv.status,
+                                            })}
+                                        >
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-slate-200 flex items-center gap-2">
+                                                    {isGroup ? '👥' : otherUser._id === 'gemini-assistant' ? '✨' : ''} {otherUser.name}
+                                                </span>
+                                                {conv.messages && conv.messages.length > 0 && (
+                                                    <span className="text-xs text-slate-400 overflow-hidden text-ellipsis whitespace-nowrap max-w-[200px]">
+                                                        {conv.messages[conv.messages.length - 1].text}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {conv.unread && conv.unread[supabaseUser.id] > 0 && (
+                                                <span className="flex-shrink-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full">
+                                                    {conv.unread[supabaseUser.id]}
+                                                </span>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </>
+                    )}
+
+                    <h4 className="text-sm font-semibold text-slate-400 uppercase mb-2">Start a New Chat</h4>
+                    <ul className="space-y-3">
+                        {filteredUsers.filter(u => !myConversations.find(c => c.participants.includes(u.supabaseId))).map(user => {
+                            const isTeamMember = myTeamMembers.includes(String(user._id));
+                            const isGemini = user._id === 'gemini-assistant';
+
+                            return (
+                                <li
+                                    key={user._id}
+                                    className="p-4 bg-slate-800/50 rounded-lg flex items-center justify-between transition duration-150 hover:bg-slate-700/50 cursor-pointer"
+                                    onClick={() => handleOpenChat(user)}
+                                >
+                                    <div className="flex flex-col">
+                                        <span className="font-medium text-slate-200 flex items-center gap-2">
+                                            {isGemini && <GeminiSparkles />}
+                                            {user.name}
+                                        </span>
+                                        <span className="text-xs text-slate-400">
+                                            {isGemini ? 'AI Assistant' : isTeamMember ? 'On your team' : 'Individual Chat'}
+                                        </span>
+                                    </div>
+                                    {!isGemini && (
+                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${isTeamMember ? 'bg-green-600 text-green-100' : 'bg-indigo-600 text-indigo-100'}`}>
+                                            {isTeamMember ? 'Team' : 'Personal'}
+                                        </span>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
             </div>
         );
     };
+
+    const renderGroupModal = () => {
+        const usersForGroup = allUsers.filter(u => String(u._id) !== String(currentUser._id)).filter(u => 
+            u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (u.email && u.email.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+        const isMemberSelected = (user) => groupMembers.includes(user.supabaseId);
+
+        return (
+            <AnimatePresence>
+                {isGroupModalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-slate-900 bg-opacity-70 z-50 flex items-center justify-center p-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 50 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.9, y: 50 }}
+                            className="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700 max-w-lg w-full h-[70vh] flex flex-col"
+                        >
+                            <h3 className="text-xl font-bold text-slate-100 mb-4">Create Group Chat</h3>
+                            <div className="flex-1 overflow-y-auto pr-2">
+                                <form onSubmit={handleCreateGroup} className="flex flex-col h-full">
+                                    <input
+                                        type="text"
+                                        placeholder="Group Name"
+                                        value={groupName}
+                                        onChange={e => setGroupName(e.target.value)}
+                                        className="mb-4 px-4 py-2 bg-slate-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    />
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            placeholder="Search for members..."
+                                            value={searchTerm}
+                                            onChange={e => setSearchTerm(e.target.value)}
+                                            className="w-full px-4 py-2 mb-4 bg-slate-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto space-y-2">
+                                        {usersForGroup.map(user => (
+                                            <div
+                                                key={user._id}
+                                                className={`p-3 rounded-lg flex items-center justify-between cursor-pointer transition ${isMemberSelected(user) ? 'bg-indigo-600' : 'bg-slate-700'}`}
+                                                onClick={() => {
+                                                    setGroupMembers(prev => 
+                                                        isMemberSelected(user) 
+                                                            ? prev.filter(id => id !== user.supabaseId)
+                                                            : [...prev, user.supabaseId]
+                                                    );
+                                                }}
+                                            >
+                                                <span className="text-slate-200">{user.name}</span>
+                                                <span className="text-xs text-slate-400">{user.email}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="flex justify-end gap-3 mt-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsGroupModalOpen(false)}
+                                            className="px-4 py-2 text-sm font-medium text-slate-400 rounded-lg hover:bg-slate-700 transition"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition"
+                                        >
+                                            Create Group
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        );
+    };
+
 
     return (
         <>
@@ -475,6 +691,8 @@ export default function Chat({ currentUser, allUsers, teams }) {
                 message="Are you sure you want to delete this conversation? This action cannot be undone."
             />
             
+            {renderGroupModal()}
+
             {/* Chat Icon in Navbar */}
             <button onClick={handleToggleChatPanel} className="relative p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-white transition">
                 <ChatIcon />
