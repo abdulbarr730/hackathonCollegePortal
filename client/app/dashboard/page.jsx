@@ -10,7 +10,6 @@ import EditTeamModal from '../components/EditTeamModal';
 import TeamDetailsModal from '../components/TeamDetailsModal';
 import SocialBadges from '../components/SocialBadges';
 import Avatar from '../components/Avatar';
-import Chat from '../components/Chat';
 
 function dedupeById(list = []) {
   const map = new Map();
