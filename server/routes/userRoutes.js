@@ -359,17 +359,21 @@ router.get('/me', auth, (req, res) => {
  */
 router.get('/', auth, async (req, res) => {
   try {
-    const { year, search, course } = req.query; // Add course to query params
-    const filter = {};
+    const { year, search, course } = req.query;
+    const filter = { role: 'student' }; // ✅ only include students
 
-    if (year) filter.year = Number(year);
-    if (course) filter.course = course; // Add course to filter
-    if (search) filter.$or = [{ name: new RegExp(search, 'i') }, { email: new RegExp(search, 'i') }];
+    if (year) filter.year = Number(year);
+    if (course) filter.course = course;
+    if (search)
+      filter.$or = [
+        { name: new RegExp(search, 'i') },
+        { email: new RegExp(search, 'i') }
+      ];
 
-    const users = await User.find(filter)
-      .select('name email year course photoUrl team socialProfiles isVerified role') // Add course to select
+    const users = await User.find(filter)
+      .select('name email year course photoUrl team socialProfiles isVerified role');
 
-    // If the logged-in user has a team, mark already invited users
+    // Existing code: check if current user has a team and mark invites
     const currentUser = await User.findById(req.user.id).populate('team');
     if (currentUser.team) {
       const pendingInvites = await Invitation.find({
@@ -378,7 +382,6 @@ router.get('/', auth, async (req, res) => {
       }).select('inviteeId').lean();
 
       const inviteeIds = new Set(pendingInvites.map(i => i.inviteeId.toString()));
-
       users.forEach(u => {
         u.isInvited = inviteeIds.has(u._id.toString());
       });
@@ -392,5 +395,6 @@ router.get('/', auth, async (req, res) => {
     res.status(500).json({ msg: 'Server error' });
   }
 });
+
 
 module.exports = router;
