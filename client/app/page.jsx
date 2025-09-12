@@ -1,31 +1,15 @@
-'use client';
-
-import Link from 'next/link';
-import { useState } from 'react';
+import Link from "next/link";
 
 export const metadata = {
-  title: 'SIH Portal | Home',
-  description: 'Welcome to the official Smart India Hackathon portal.',
+  title: "SIH Portal | Home",
+  description: "Welcome to the official Smart India Hackathon portal.",
 };
 
 export default function HomePage() {
   const demo = {
-    email: 'test123@gmail.com',
-    password: 'pass@123',
+    email: "test123@gmail.com",
+    password: "pass@123",
   };
-
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(`Email: ${demo.email}\nPassword: ${demo.password}`);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      // fallback: do nothing (user can still read credentials on screen)
-      console.error('Clipboard copy failed', err);
-    }
-  }
 
   return (
     <main className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900/60 to-slate-900">
@@ -64,46 +48,31 @@ export default function HomePage() {
 
         {/* Demo credentials card */}
         <div className="mt-8 mx-auto max-w-md text-left rounded-xl bg-slate-700/30 border border-slate-600/50 p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm text-slate-300 font-medium">Try the demo account</p>
-              <p className="mt-1 text-xs text-slate-400">If you just want to try the flow, use the credentials below:</p>
+          <p className="text-sm text-slate-300 font-medium">
+            Try the demo account
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            If you just want to try the flow, use the credentials below:
+          </p>
 
-              <div className="mt-3 flex flex-col gap-1 text-sm text-slate-200">
-                <div className="flex items-center gap-2">
-                  <span className="w-20 font-medium text-slate-300">Email</span>
-                  <code className="rounded px-2 py-1 bg-slate-800/60">{demo.email}</code>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-20 font-medium text-slate-300">Password</span>
-                  <code className="rounded px-2 py-1 bg-slate-800/60">{demo.password}</code>
-                </div>
-              </div>
+          <div className="mt-3 flex flex-col gap-1 text-sm text-slate-200">
+            <div className="flex items-center gap-2">
+              <span className="w-20 font-medium text-slate-300">Email</span>
+              <code className="rounded px-2 py-1 bg-slate-800/60">
+                {demo.email}
+              </code>
             </div>
-
-            <div className="flex flex-col items-end justify-center gap-2">
-              <button
-                onClick={handleCopy}
-                aria-label="Copy demo credentials"
-                className="rounded-md px-4 py-2 bg-slate-900/60 border border-slate-600 text-sm font-semibold text-slate-100 hover:scale-105 transition-transform duration-150"
-              >
-                Copy
-              </button>
-
-              <Link
-                href={`/login`}
-                className="mt-2 rounded-md px-4 py-2 text-sm font-semibold border border-purple-500 text-purple-200 hover:bg-purple-500/20 transition-colors duration-150"
-              >
-                Go to Login
-              </Link>
+            <div className="flex items-center gap-2">
+              <span className="w-20 font-medium text-slate-300">Password</span>
+              <code className="rounded px-2 py-1 bg-slate-800/60">
+                {demo.password}
+              </code>
             </div>
           </div>
 
-          {copied && (
-            <p className="mt-3 text-xs text-emerald-300">Credentials copied to clipboard!</p>
-          )}
-
-          <p className="mt-3 text-xs text-slate-400">(Only for demo/testing — do not use for real accounts.)</p>
+          <p className="mt-3 text-xs text-slate-400">
+            (Only for demo/testing — do not use for real accounts.)
+          </p>
         </div>
       </div>
     </main>
