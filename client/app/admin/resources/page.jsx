@@ -308,7 +308,7 @@ export default function AdminResourcesPage() {
                     </button>
 
                     {/* View + Download (if file exists) */}
-                    {resource.file?.path && (
+                    {resource.file?.url && (
                       <>
                         {/* FINAL FIX: Points to the new /api/admin/.../view route */}
                         <a
