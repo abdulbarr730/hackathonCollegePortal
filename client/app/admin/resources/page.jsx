@@ -309,23 +309,26 @@ export default function AdminResourcesPage() {
 
                     {/* View + Download (if file exists) */}
                     {resource.file?.path && (
-                        <>
+                      <>
+                        {/* CHANGED: Link to the API view endpoint */}
                         <a
-                            href={resource.file.path}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 rounded-md bg-cyan-600 px-3 py-1 text-xs text-white hover:bg-cyan-700 shadow"
+                          href={`/api/resources/${resource._id}/view`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 rounded-md bg-cyan-600 px-3 py-1 text-xs text-white hover:bg-cyan-700 shadow"
                         >
-                            <Eye className="w-4 h-4" /> View
+                          <Eye className="w-4 h-4" /> View
                         </a>
+
+                        {/* CHANGED: Link to the API download endpoint */}
                         <a
-                            href={resource.file.path}
-                            download
-                            className="flex items-center gap-1 rounded-md bg-purple-600 px-3 py-1 text-xs text-white hover:bg-purple-700 shadow"
+                          href={`/api/resources/${resource._id}/download`}
+                          download={resource.file.originalName || true}
+                          className="flex items-center gap-1 rounded-md bg-purple-600 px-3 py-1 text-xs text-white hover:bg-purple-700 shadow"
                         >
-                            <FileDown className="w-4 h-4" /> Download
+                          <FileDown className="w-4 h-4" /> Download
                         </a>
-                        </>
+                      </>
                     )}
                     </div>
 
