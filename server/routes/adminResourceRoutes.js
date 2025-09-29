@@ -221,4 +221,62 @@ router.post('/bulk-delete', requireAdmin, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/admin/resources/:id/view
+ * Generates a temporary signed URL and redirects to view the file.
+ */
+router.get('/:id/view', requireAdmin, async (req, res) => {
+  try {
+    const resource = await Resource.findById(req.params.id).lean();
+    if (!resource || !resource.file?.path) {
+      return res.status(404).send('File not found.');
+    }
+
+    // Generate a temporary URL to access the private file, expires in 60 seconds
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(resource.file.path, 60);
+
+    if (error) {
+      console.error('Supabase signed URL error:', error);
+      return res.status(500).send('Could not get file URL.');
+    }
+
+    // Redirect the user's browser to the temporary file URL
+    return res.redirect(data.signedUrl);
+  } catch (err) {
+    console.error('Admin view file error:', err);
+    return res.status(500).send('Server Error');
+  }
+});
+
+/**
+ * GET /api/admin/resources/:id/download
+ * Generates a temporary signed URL and redirects to download the file.
+ */
+router.get('/:id/download', requireAdmin, async (req, res) => {
+  try {
+    const resource = await Resource.findById(req.params.id).lean();
+    if (!resource || !resource.file?.path) {
+      return res.status(404).send('File not found.');
+    }
+
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(resource.file.path, 60, {
+        download: resource.file.originalName || true,
+      });
+
+    if (error) {
+      console.error('Supabase signed URL error (download):', error);
+      return res.status(500).send('Could not get file URL.');
+    }
+
+    return res.redirect(data.signedUrl);
+  } catch (err) {
+    console.error('Admin download file error:', err);
+    return res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;
