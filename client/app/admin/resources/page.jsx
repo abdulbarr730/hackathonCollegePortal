@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { FileDown, Eye, Edit, Trash2, Save, X } from 'lucide-react';
+import { FileDown, Eye, Edit, Trash2, Save, X, ExternalLink } from 'lucide-react';
 
 const TABS = ['pending', 'approved', 'rejected'];
 
@@ -306,7 +306,17 @@ export default function AdminResourcesPage() {
                     >
                         <Trash2 className="w-4 h-4" /> Delete
                     </button>
-
+                    {/* ✨ NEW: View Link (if URL exists) ✨ */}
+                    {resource.url && (
+                      <a
+                        href={resource.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 rounded-md bg-sky-600 px-3 py-1 text-xs text-white hover:bg-sky-700 shadow"
+                      >
+                        <ExternalLink className="w-4 h-4" /> View Link
+                      </a>
+                    )}
                     {/* View + Download (if file exists) */}
                     {resource.file?.url && (
                       <>
