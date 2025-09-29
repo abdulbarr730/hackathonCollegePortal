@@ -51,7 +51,7 @@ export default function AdminLoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg || 'Login failed.');
       await recheckUser();
-      window.location.href = '/dashboard';
+      window.location.href = '/admin/dashboard';
     } catch (err) {
       setError(err.message);
     } finally {
