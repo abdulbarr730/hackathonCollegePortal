@@ -15,9 +15,9 @@ export default function Footer() {
               A portal for the Smart India Hackathon, designed for students to collaborate and innovate.
             </p>
             <div className="mt-4 flex space-x-4">
-              <a href="https://github.com/abdulbarr730" className="hover:text-white"><Github size={20} /></a>
-              <a href="https://www.linkedin.com/in/abdul-barr-9092a4251/" className="hover:text-white"><Linkedin size={20} /></a>
-              <a href="https://x.com/ipokealot" className="hover:text-white"><Twitter size={20} /></a>
+              <a href="https://github.com/abdulbarr730" target="_blank" rel="noopener noreferrer" className="hover:text-white"><Github size={20} /></a>
+              <a href="https://www.linkedin.com/in/abdul-barr-9092a4251/" target="_blank" rel="noopener noreferrer" className="hover:text-white"><Linkedin size={20} /></a>
+              <a href="https://x.com/ipokealot" target="_blank" rel="noopener noreferrer" className="hover:text-white"><Twitter size={20} /></a>
             </div>
           </div>
 
