@@ -189,39 +189,38 @@ router.post('/logout', (_req, res) => {
  * @access  Public
  */
 router.post('/forgot-password', async (req, res) => {
+  // Add this line for debugging
+  console.log("Checking AWS Vars:", { 
+    region: process.env.AWS_REGION, 
+    keyId: process.env.AWS_ACCESS_KEY_ID ? 'Loaded' : 'MISSING', 
+    secretKey: process.env.AWS_SECRET_ACCESS_KEY ? 'Loaded' : 'MISSING' 
+  });
+
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
 
-    // Security: Always send a generic success message to prevent user enumeration
     if (!user) {
       return res.json({ msg: 'If a user with that email exists, a reset link has been sent.' });
     }
 
-    // 1. Generate the reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
     user.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    user.passwordResetExpires = Date.now() + 15 * 60 * 1000; // Token expires in 15 minutes
+    user.passwordResetExpires = Date.now() + 15 * 60 * 1000;
     await user.save();
 
-    // 2. Create the reset URL and email message
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
-    const message = `You are receiving this email because you (or someone else) have requested the reset of the password for your account.\n\nPlease click on the following link, or paste this into your browser to complete the process:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.`;
+    const message = `You are receiving this email because you (or someone else) have requested the reset of the password for your account...`;
 
-    // 3. Configure and send the email with AWS SES
     const sesClient = new SESClient({ region: process.env.AWS_REGION });
     
     const params = {
-      Destination: { 
-        ToAddresses: [user.email] 
-      },
+      Destination: { ToAddresses: [user.email] },
       Message: {
-        Body: { 
-          Text: { Data: message } 
-        },
+        Body: { Text: { Data: message } },
         Subject: { Data: "Password Reset Request" },
       },
-      Source: '"SIH Portal" <hackathoncollegeportal@gmail.com>', // Your verified sender email
+      Source: '"SIH Portal" <hackathoncollegeportal@gmail.com>',
     };
 
     const command = new SendEmailCommand(params);
