@@ -200,7 +200,7 @@ router.post('/forgot-password', async (req, res) => {
 
     // 1. Generate the reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
-    user.passwordResetToken = crypto.createHash('sha26').update(resetToken).digest('hex');
+    user.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     user.passwordResetExpires = Date.now() + 15 * 60 * 1000; // Token expires in 15 minutes
     await user.save();
 
