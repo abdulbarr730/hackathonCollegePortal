@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
@@ -191,30 +192,43 @@ router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.json({ msg: 'If a user with that email exists, a reset link has been sent.' });
 
+    // Security: Always send a generic success message to prevent user enumeration
+    if (!user) {
+      return res.json({ msg: 'If a user with that email exists, a reset link has been sent.' });
+    }
+
+    // 1. Generate the reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
-    user.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    user.passwordResetExpires = Date.now() + 15 * 60 * 1000;
+    user.passwordResetToken = crypto.createHash('sha26').update(resetToken).digest('hex');
+    user.passwordResetExpires = Date.now() + 15 * 60 * 1000; // Token expires in 15 minutes
     await user.save();
 
+    // 2. Create the reset URL and email message
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
-    const message = `You are receiving this email because you requested a password reset. Click here:\n\n${resetUrl}`;
-    
-    let transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
+    const message = `You are receiving this email because you (or someone else) have requested the reset of the password for your account.\n\nPlease click on the following link, or paste this into your browser to complete the process:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.`;
 
-    await transporter.sendMail({
-      from: '"SIH Portal" <no-reply@sihportal.com>',
-      to: user.email,
-      subject: 'Password Reset Request',
-      text: message,
-    });
+    // 3. Configure and send the email with AWS SES
+    const sesClient = new SESClient({ region: process.env.AWS_REGION });
+    
+    const params = {
+      Destination: { 
+        ToAddresses: [user.email] 
+      },
+      Message: {
+        Body: { 
+          Text: { Data: message } 
+        },
+        Subject: { Data: "Password Reset Request" },
+      },
+      Source: '"SIH Portal" <hackathoncollegeportal@gmail.com>', // Your verified sender email
+    };
+
+    const command = new SendEmailCommand(params);
+    await sesClient.send(command);
 
     res.json({ msg: 'If a user with that email exists, a reset link has been sent.' });
+
   } catch (err) {
     console.error(`Error in /forgot-password: ${err.message}`);
     res.status(500).send('Server Error');
