@@ -210,7 +210,7 @@ router.post('/forgot-password', async (req, res) => {
     await user.save();
 
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
-    const message = `You are receiving this email because you (or someone else) have requested the reset of the password for your account...`;
+    const message = `You are receiving this email because you (or someone else) have requested the reset of the password for your account.\n\nPlease click on the following link, or paste this into your browser to complete the process:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.`;
 
     const sesClient = new SESClient({ region: process.env.AWS_REGION });
     
