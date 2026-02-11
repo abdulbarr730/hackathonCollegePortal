@@ -1,26 +1,23 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async rewrites() {
-    return process.env.NODE_ENV === "development"
-      ? [
-          {
-            // local: proxy /api/* to local backend
-            source: "/api/:path*",
-            destination: "http://localhost:5000/api/:path*",
-          },
-        ]
-      : [
-          {
-            // prod: proxy /api/* to Render backend
-            source: "/api/:path*",
-            destination:
-              "https://hackathoncollegeportal-server.onrender.com/api/:path*",
-          },
-          {
-            source: "/uploads/:path*",
-            destination: "https://hackathoncollegeportal-server.onrender.com/api/:path*",
-          },
-        ];
+    const isDev = process.env.NODE_ENV === "development";
+    // CHANGED THIS TO 5001
+    const backendUrl = isDev 
+      ? "http://127.0.0.1:5001" 
+      : "https://hackathoncollegeportal-server.onrender.com";
+
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${backendUrl}/api/:path*`, // Ensure backendUrl is just the domain
+      },
+      {
+        source: "/uploads/:path*",
+        destination: `${backendUrl}/uploads/:path*`,
+      },
+    ];
   },
 };
+
 export default nextConfig;

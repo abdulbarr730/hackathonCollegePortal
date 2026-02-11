@@ -150,13 +150,19 @@ router.post('/login', async (req, res) => {
     const payload = { user: { id: user.id, isAdmin: user.isAdmin } };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '5h' });
 
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
-      path: "/",
-      maxAge: 5 * 60 * 60 * 1000,
-    }).json({ msg: 'Login successful' });
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: isProduction, // true in prod, false in dev
+      sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-site prod, 'lax' for same-site local
+      path: "/",
+      maxAge: 5 * 60 * 60 * 1000,
+    }).json({ 
+      msg: 'Login successful',
+      token, // Send token in body as a backup for the frontend context
+      user: { id: user.id, isAdmin: user.isAdmin } 
+    });
 
   } catch (err) {
     console.error(`Error in /login: ${err.message}`);
