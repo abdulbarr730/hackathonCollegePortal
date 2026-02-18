@@ -10,11 +10,20 @@ const multer = require('multer');
 const requireAuth = require('./middleware/auth');
 const User = require('./models/User');
 
+// --- REMOVE THIS if you replaced it with the generic hackathonRoutes file I gave you ---
+// const adminHackathonRoutes = require('./routes/adminHackathonRoutes'); 
+// -------------------------------------------------------------------------------------
 
 // Feeder + notifications
 const cron = require('node-cron');
 const { runFeederOnce } = require('./services/sihFeeder');
 const { notifyUsersNewUpdates } = require('./services/updateNotifications');
+// -------------------- Feeder scheduler --------------------
+// 1. DEFINE THE VARIABLES FIRST
+const FEEDER_ENABLED = String(process.env.FEEDER_ENABLED || 'true') === 'true';
+const FEEDER_CRON = process.env.FEEDER_CRON || '*/15 * * * *';
+const FEEDER_SOURCE_URL = process.env.FEEDER_SOURCE_URL || 'https://sih.gov.in/';
+const PLAYWRIGHT_ENABLED = String(process.env.PLAYWRIGHT_ENABLED || 'true') === 'true';
 
 // DB
 const connectDB = require('./config/db');
@@ -32,12 +41,12 @@ app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Static uploads from the project root's 'uploads' directory
+// Static uploads
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 app.use('/uploads', express.static(uploadsDir));
 app.use('/uploads/avatars', express.static(path.join(__dirname, '..', 'uploads', 'avatars')));
 
-// Optional request logging for specific route
+// Optional request logging
 app.use((req, _res, next) => {
   if (req.path.startsWith('/api/admin/users/export.csv')) {
     console.log('CSV export request', {
@@ -51,14 +60,12 @@ app.use((req, _res, next) => {
 
 // -------------------- Routes --------------------
 
-// Existing routes
 app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/teams', require('./routes/teamRoutes'));
+app.use('/api/teams', require('./routes/teamRoutes')); // <--- This handles the Submit button
 app.use('/api/me', require('./routes/meRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/ideas', require('./routes/ideaRoutes'));
 app.use('/api/updates', require('./routes/updateRoutes'));
-// app.use('/api/public/spoc', require('./routes/publicSpocRoute'));
 app.use('/api/resources', require('./routes/resourceRoutes'));
 app.use('/api/admin/resources', require('./routes/adminResourceRoutes'));
 app.use('/api/public/updates', require('./routes/publicUpdateRoutes'));
@@ -67,8 +74,12 @@ app.use('/api/users/social', require('./routes/socialRoutes'));
 app.use('/api/admin/social-config', require('./routes/adminSocialConfigRoutes'));
 app.use('/api/comments', require('./routes/commentRoutes'));
 app.use('/api/invitations', require('./routes/invitationRoutes'));
+app.use('/api/archive', require('./routes/archiveRoutes'));
 
-// Pointing to the new, self-contained profile route file
+// --- FIX START: Add this so the Frontend can fetch Active Rules ---
+app.use('/api/hackathon', require('./routes/hackathonRoutes')); 
+// --- FIX END ---
+
 app.use('/api/profile', require('./routes/profileRoutes'));
 
 // Health check
@@ -79,12 +90,6 @@ app.use((err, _req, res, _next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ msg: 'Server Error' });
 });
-
-// -------------------- Feeder scheduler (Corrected) --------------------
-const FEEDER_ENABLED = String(process.env.FEEDER_ENABLED || 'true') === 'true';
-const FEEDER_CRON = process.env.FEEDER_CRON || '*/15 * * * *';
-const FEEDER_SOURCE_URL = process.env.FEEDER_SOURCE_URL || 'https.sih.gov.in/';
-const PLAYWRIGHT_ENABLED = String(process.env.PLAYWRIGHT_ENABLED || 'true') === 'true';
 
 if (FEEDER_ENABLED) {
   // Use a standard function and wrap the async logic inside
@@ -116,7 +121,6 @@ if (FEEDER_ENABLED) {
   });
 }
 
-// -------------------- Start server --------------------
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);

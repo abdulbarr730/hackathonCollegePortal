@@ -3,6 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
 const nodemailer = require('nodemailer');
+const { sendEmail } = require('../utils/email');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
@@ -11,6 +12,8 @@ const User = require('../models/User');
 const PreapprovedStudent = require('../models/PreapprovedStudent'); 
 const Invitation = require('../models/Invitation');
 const auth = require('../middleware/auth');
+
+const Otp = require('../models/Otp');
 const { validateSocial } = require('../utils/validators');
 
 // --- Multer & Cloudinary Config ---
@@ -55,6 +58,56 @@ router.get('/supabase-token', auth, async (req, res) => {
     }
 });
 
+/**
+ * @route   POST api/users/send-otp
+ * @desc    Generate and email a 6-digit verification code
+ * @access  Public
+ */
+router.post('/send-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // 1. Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ msg: 'Email is already registered. Please login.' });
+    }
+
+    // 2. Generate a 6-digit numeric OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // 3. Save to DB (Update if an OTP already exists for this email)
+    // upsert: true means create if not found
+    await Otp.findOneAndUpdate(
+      { email },
+      { otp, createdAt: Date.now() },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    // 4. Send the Email
+    const message = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h2 style="color: #4F46E5;">Verification Code</h2>
+        <p>Your verification code for the SIH Portal is:</p>
+        <h1 style="font-size: 32px; letter-spacing: 5px; background: #f3f4f6; padding: 10px; display: inline-block; border-radius: 8px;">${otp}</h1>
+        <p>This code is valid for 5 minutes.</p>
+        <p style="font-size: 12px; color: #666; margin-top: 20px;">If you didn't request this, please ignore this email.</p>
+      </div>
+    `;
+
+    await sendEmail({
+      to: email,
+      subject: 'Your Verification Code',
+      html: message
+    });
+
+    res.json({ msg: 'Verification code sent successfully' });
+
+  } catch (err) {
+    console.error(`Error in /send-otp: ${err.message}`);
+    res.status(500).send('Server Error');
+  }
+});
 
 /**
  * @route   POST api/users/check-email
@@ -70,44 +123,79 @@ router.post('/check-email', async (req, res) => {
   }
 });
 
+
+
 /**
  * @route   POST api/users/register
- * @desc    Register a new user with auto-verification
+ * @desc    Register a new user with OTP & Document verification
  * @access  Public
  */
 router.post('/register', upload.single('document'), async (req, res) => {
-  const { name, email, password, rollNumber, verificationMethod, gender, year, course } = req.body;
   try {
+    // 1. Extract all fields including OTP
+    const { 
+      name, email, password, otp, // <--- Added otp here
+      rollNumber, verificationMethod, gender, year, course 
+    } = req.body;
+
+    // --- OTP VERIFICATION BLOCK START ---
+    if (!otp) {
+      return res.status(400).json({ msg: 'Verification code is required.' });
+    }
+
+    const validOtp = await Otp.findOne({ email, otp });
+    if (!validOtp) {
+      return res.status(400).json({ msg: 'Invalid or expired verification code.' });
+    }
+
+    // Delete the OTP so it can't be used again
+    await Otp.deleteOne({ _id: validOtp._id });
+    // --- OTP VERIFICATION BLOCK END ---
+
+
+    // 2. Existing Validation Logic
     const orQuery = [{ email }];
     if (rollNumber) orQuery.push({ rollNumber });
+    
     const existingUser = await User.findOne({ $or: orQuery });
     if (existingUser) {
       return res.status(400).json({ msg: 'User with this email or Roll Number already exists.' });
     }
 
-    const newUserFields = { name, email, password, verificationMethod, gender, year, course, rollNumber };
+    // 3. Prepare User Fields
+    const newUserFields = { 
+      name, email, password, verificationMethod, 
+      gender, year, course, rollNumber 
+    };
 
+    // 4. Check Pre-approved List
     if (rollNumber) {
       const preapproved = await PreapprovedStudent.findOne({ rollNumber });
       if (preapproved) newUserFields.isVerified = true;
     }
 
+    // 5. Handle Document Upload
     if (verificationMethod === 'documentUpload') {
       if (!req.file) return res.status(400).json({ msg: 'ID card document is required.' });
-      const cloudinaryResult = await uploadToCloudinary(req.file.buffer);
+      
+      // Upload to Cloudinary (Ensure this function is imported)
+      const cloudinaryResult = await uploadToCloudinary(req.file.buffer); 
       newUserFields.documentUrl = cloudinaryResult.secure_url;
     }
     
+    // 6. Create and Save User
     const user = new User(newUserFields);
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
     await user.save();
     
+    // 7. Send Response
     const responseMessage = user.isVerified 
       ? 'User registered and automatically verified!' 
       : 'User registered successfully! Awaiting admin approval.';
 
     res.status(201).json({ msg: responseMessage, isVerified: user.isVerified });
+
   } catch (err) {
     console.error(`Error in /register: ${err.message}`);
     res.status(500).send('Server Error');
@@ -195,42 +283,51 @@ router.post('/logout', (_req, res) => {
  * @access  Public
  */
 router.post('/forgot-password', async (req, res) => {
-  // Add this line for debugging
-  console.log("Checking AWS Vars:", { 
-    region: process.env.AWS_REGION, 
-    keyId: process.env.AWS_ACCESS_KEY_ID ? 'Loaded' : 'MISSING', 
-    secretKey: process.env.AWS_SECRET_ACCESS_KEY ? 'Loaded' : 'MISSING' 
-  });
-
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
 
+    // Security: Always return success message even if user doesn't exist
     if (!user) {
       return res.json({ msg: 'If a user with that email exists, a reset link has been sent.' });
     }
 
+    // 1. Generate Token
     const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    // 2. Hash and Save
     user.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    user.passwordResetExpires = Date.now() + 15 * 60 * 1000;
+    user.passwordResetExpires = Date.now() + 15 * 60 * 1000; // 15 mins
     await user.save();
 
-    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
-    const message = `You are receiving this email because you (or someone else) have requested the reset of the password for your account.\n\nPlease click on the following link, or paste this into your browser to complete the process:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.`;
+    // 3. Create URL (Use CLIENT_URL from env, or fallback to localhost)
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+    const resetUrl = `${clientUrl}/reset-password/${resetToken}`;
 
-    const sesClient = new SESClient({ region: process.env.AWS_REGION });
-    
-    const params = {
-      Destination: { ToAddresses: [user.email] },
-      Message: {
-        Body: { Text: { Data: message } },
-        Subject: { Data: "Password Reset Request" },
-      },
-      Source: '"SIH Portal" <hackathoncollegeportal@gmail.com>',
-    };
+    // 4. Create Email Content (HTML is better)
+    const message = `
+      <h3>Password Reset Request</h3>
+      <p>You requested a password reset. Please click the link below to reset your password:</p>
+      <a href="${resetUrl}" style="display:inline-block;padding:10px 20px;background:#4F46E5;color:white;text-decoration:none;border-radius:5px;">Reset Password</a>
+      <p>Or copy this link:</p>
+      <p>${resetUrl}</p>
+      <p>This link is valid for 15 minutes.</p>
+    `;
 
-    const command = new SendEmailCommand(params);
-    await sesClient.send(command);
+    // 5. Send Email using Nodemailer (The utility we created)
+    const emailResult = await sendEmail({
+      to: user.email,
+      subject: 'Password Reset Request',
+      html: message,
+    });
+
+    if (!emailResult.success) {
+        // If email fails, cleanup the token so user can try again
+        user.passwordResetToken = undefined;
+        user.passwordResetExpires = undefined;
+        await user.save();
+        return res.status(500).json({ msg: 'Email could not be sent. Please try again later.' });
+    }
 
     res.json({ msg: 'If a user with that email exists, a reset link has been sent.' });
 

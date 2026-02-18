@@ -98,29 +98,20 @@ const userSchema = new mongoose.Schema(
 
 // -------------------- Virtuals --------------------
 userSchema.virtual('nameWithYear').get(function () {
-  const yearMap = {
-    1: '1st year',
-    2: '2nd year',
-    3: '3rd year',
-    4: '4th year',
-  };
-  const yearString = this.year ? (yearMap[this.year] || `${this.year}th year`) : '';
+  const yearMap = { 1: '1st year', 2: '2nd year', 3: '3rd year', 4: '4th year' };
+  const yearString = this.year ? (yearMap[this.year] || `${this.year}th year`) : '';
 
-  // Main Case: Both course and year are present
-  if (this.course && yearString) {
-    return `${this.name} (${this.course} ${yearString})`;
-  }
-  
-  // Fallback Case: Only the year is present
-  if (yearString) {
-    return `${this.name} (${yearString})`;
-  }
-
-  // Default Case: No academic info
-  return this.name;
+  if (this.course && yearString) return `${this.name} (${this.course} ${yearString})`;
+  if (yearString) return `${this.name} (${yearString})`;
+  return this.name;
 });
 
-// Ensure virtuals appear in JSON & object output
+// --- ADD THIS VIRTUAL FOR SOCIAL BADGES ---
+// This allows your frontend to quickly check if it should even render the SocialBadges component
+userSchema.virtual('hasSocials').get(function () {
+  return !!(this.socialProfiles?.linkedin || this.socialProfiles?.github);
+});
+
 userSchema.set('toJSON', { virtuals: true });
 userSchema.set('toObject', { virtuals: true });
 

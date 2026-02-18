@@ -1,280 +1,158 @@
-// server/services/sihFeeder.js
-const axios = require('axios');
-const cheerio = require('cheerio');
-const crypto = require('crypto');
+// const puppeteer = require('puppeteer-extra');
+// const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+// const crypto = require('crypto');
+// const Update = require('../models/Update');
+// const Hackathon = require('../models/Hackathon');
 
-const Update = require('../models/Update');
-const UpdateRun = require('../models/UpdateRun');
+// puppeteer.use(StealthPlugin());
 
-// Headless fallback (Playwright) if static HTML doesn't contain ribbon/links
-let playwright;
-async function fetchWithPlaywright(url) {
-  if (!playwright) playwright = await import('playwright');
-  const browser = await playwright.chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  try { await page.waitForTimeout(800); } catch (_) {}
-  const html = await page.content();
-  await browser.close();
-  return html;
-}
+// const runFeederOnce = async ({ sourceUrl, useHeadlessFallback }) => {
+//   console.log('🧠 Starting Intelligent SIH Scraper...');
+//   let browser;
+//   let inserted = 0;
+//   let deleted = 0;
 
-function makeHash({ title, url, publishedAt }) {
-  const base = `${title}|${url || ''}|${publishedAt || ''}`;
-  return crypto.createHash('sha256').update(base).digest('hex');
-}
+//   try {
+//     // 1. FETCH ALL SIH EDITIONS (So we can match years)
+//     const allHackathons = await Hackathon.find({
+//       $or: [{ name: /Smart India/i }, { shortName: /SIH/i }]
+//     });
 
-function dedupe(list) {
-  const map = new Map();
-  for (const it of list) {
-    const key = `${(it.title || '').trim()}|${(it.url || '').trim()}`;
-    if (!map.has(key) && it.title) map.set(key, it);
-  }
-  return Array.from(map.values());
-}
+//     // 2. IDENTIFY ACTIVE EDITION (Fallback)
+//     const activeHackathon = allHackathons.find(h => h.isActive);
+    
+//     // Helper: Find the best hackathon match for a text string
+//     const detectHackathonID = (text) => {
+//       // A. Look for specific years in the text (e.g., "2025", "2026")
+//       const yearMatch = text.match(/\b(202[0-9])\b/);
+//       if (yearMatch) {
+//         const year = parseInt(yearMatch[1]);
+//         // Find a hackathon stored in DB that matches this year (via startDate)
+//         const matched = allHackathons.find(h => 
+//           h.startDate && new Date(h.startDate).getFullYear() === year
+//         );
+//         if (matched) return matched._id;
+//       }
+      
+//       // B. If no year found, fallback to ACTIVE edition
+//       return activeHackathon ? activeHackathon._id : null;
+//     };
 
-// STRICT filter: keep only true updates (e.g., SPOC registration, notices, deadlines)
-function shouldKeep(title = '', url = '') {
-  const t = (title || '').toLowerCase();
-  const u = (url || '').toLowerCase();
+//     console.log(`📚 Loaded ${allHackathons.length} Editions for Context Matching.`);
 
-  // Strong allowlist (tight)
-  const allow = [
-    'spoc registration',
-    'spoc  registration',
-    'spoc-reg',
-    'spoc',
-    'registration', 'registrations',
-    'notice', 'notices',
-    'announcement', 'announcements',
-    'update', 'updates',
-    'deadline', 'last date',
-    'result', 'results',
-    'shortlist', 'short-listed', 'short listed',
-    'guideline', 'guidelines',
-    'important',
-    'opening', 'closing'
-  ];
+//     // 3. LAUNCH BROWSER
+//     browser = await puppeteer.launch({
+//       headless: useHeadlessFallback ? "new" : false,
+//       args: ['--no-sandbox', '--disable-setuid-sandbox']
+//     });
+//     const page = await browser.newPage();
+//     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+//     await page.goto(sourceUrl, { waitUntil: 'networkidle2', timeout: 60000 });
 
-  // Hard block for navigation/sections
-  const block = [
-    'faq', 'faqs',
-    'contact', 'contact us',
-    'login', 'sih login',
-    'about',
-    'home',
-    'guidelines', // generic page, not an "update"
-    'ppt', 'idea ppt',
-    'project implementation',
-    'for institutes', 'universities',
-    'internal hackathon process',
-    'mic alumni',
-    'sih 2023', 'sih 2024',
-    'themes', 'support'
-  ];
+//     // 4. SCRAPE CONTENT
+//     const liveUpdates = await page.evaluate(() => {
+//       const items = [];
+//       const seen = new Set(); // Dedup inside page context
 
-  // Block obvious homepage/anchors in URL
-  const urlBlock = ['/#', '#', '/home', '/about', '/contact', '/login'];
+//       const addItem = (t, u, s, p) => {
+//         if (!t || t.length < 5) return;
+//         const key = t + u;
+//         if (!seen.has(key)) {
+//           seen.add(key);
+//           items.push({ title: t, summary: s, url: u, pinned: p });
+//         }
+//       };
 
-  const contains = (arr, s) => arr.some(k => s.includes(k));
+//       // A. Banners
+//       document.querySelectorAll('.carousel-item').forEach((slide) => {
+//         const title = slide.querySelector('h2, h3, h4')?.innerText.trim();
+//         const summary = slide.querySelector('p')?.innerText.trim();
+//         const url = slide.querySelector('a')?.href || "https://www.sih.gov.in";
+//         addItem(title, url, summary, true);
+//       });
 
-  const allowHit = contains(allow, t) || contains(allow, u);
-  const blockHit = contains(block, t) || contains(block, u) || contains(urlBlock, u);
+//       // B. Latest News
+//       const container = document.querySelector('#latest_news') || document.body;
+//       container.querySelectorAll('.news-item, .marquee-item, li, a').forEach((el) => {
+//         const title = el.innerText.trim();
+//         const link = el.querySelector('a') || (el.tagName === 'A' ? el : null);
+//         const url = link ? link.href : "https://www.sih.gov.in";
+//         // Filter out tiny nav links
+//         if (title.length > 10 && !title.includes("Login")) {
+//            addItem(title, url, title, false);
+//         }
+//       });
+//       return items;
+//     });
 
-  // Require reasonably descriptive titles
-  const longEnough = t.replace(/\s+/g, ' ').trim().length >= 8;
+//     // 5. PROCESS UPDATES (Smart Tagging)
+//     const liveHashes = new Set();
+//     const updatesToInsert = [];
 
-  return allowHit && !blockHit && longEnough;
-}
+//     for (const item of liveUpdates) {
+//       const uniqueString = `${item.title.trim()}${item.url}`;
+//       const hash = crypto.createHash('sha256').update(uniqueString).digest('hex');
+//       liveHashes.add(hash);
 
-function pushIfKept(items, title, url, baseUrl) {
-  if (!title) return;
-  const cleanTitle = title.replace(/\s+/g, ' ').trim();
-  if (!cleanTitle || cleanTitle === '-') return;
+//       const exists = await Update.findOne({ hash });
+      
+//       // Determine the correct tag based on the title content
+//       const smartHackathonId = detectHackathonID(item.title + " " + item.summary);
 
-  const finalUrl = url ? (url.startsWith('http') ? url : new URL(url, baseUrl).toString()) : baseUrl;
+//       if (!exists) {
+//         updatesToInsert.push({
+//           title: item.title,
+//           summary: item.summary,
+//           url: item.url,
+//           pinned: item.pinned,
+//           hash: hash,
+//           isPublic: true,
+//           publishedAt: new Date(),
+//           source: 'scraper',
+//           hackathon: smartHackathonId // <--- INTELLIGENT TAG APPLIED HERE
+//         });
+//       } else {
+//         // OPTIONAL: If it exists but is untagged, fix it now?
+//         // Let's leave existing ones alone to avoid thrashing, 
+//         // use the /retag route for that.
+//       }
+//     }
 
-  // If URL is homepage-ish, only keep when title clearly looks like an update
-  const isHomeish = finalUrl.endsWith('/') || finalUrl.includes('/#');
-  if (isHomeish && !/spoc|registration|notice|announcement|update|deadline|result/i.test(cleanTitle)) {
-    return;
-  }
+//     if (updatesToInsert.length > 0) {
+//       await Update.insertMany(updatesToInsert);
+//       inserted = updatesToInsert.length;
+//     }
 
-  if (shouldKeep(cleanTitle, finalUrl)) {
-    items.push({ title: cleanTitle, url: finalUrl });
-  }
-}
+//     // 6. SYNC DELETE (Remove old 'scraper' items not found live)
+//     // We only delete items that matched ONE of our SIH editions (or were untagged SIH items)
+//     const sihIds = allHackathons.map(h => h._id);
+//     const dbScrapedUpdates = await Update.find({ 
+//       source: 'scraper',
+//       $or: [
+//         { hackathon: { $in: sihIds } }, // Tagged to a SIH edition
+//         { hackathon: null }             // Or Untagged (Global)
+//       ]
+//     });
 
-function parseUpdatesFromHtml(html, baseUrl) {
-  const $ = cheerio.load(html);
-  const items = [];
+//     const idsToDelete = dbScrapedUpdates
+//       .filter(dbItem => !liveHashes.has(dbItem.hash))
+//       .map(d => d._id);
 
-  // Optional override via env
-  const envSel = process.env.FEEDER_RIBBON_SELECTOR;
-  if (envSel && $(envSel).length) {
-    $(envSel).find('a').each((_, el) => {
-      const title = $(el).text().replace(/\s+/g, ' ').trim();
-      const href = $(el).attr('href') || '';
-      pushIfKept(items, title, href, baseUrl);
-    });
-    const rawText = $(envSel).text().trim();
-    if (rawText && items.length === 0) {
-      const parts = rawText
-        .split(/[\|\u2022\u00B7•]+/g)
-        .map(s => s.replace(/\s+/g, ' ').trim())
-        .filter(Boolean);
-      for (const t of parts) pushIfKept(items, t, '', baseUrl);
-    }
-    return dedupe(items);
-  }
+//     if (idsToDelete.length > 0) {
+//       await Update.deleteMany({ _id: { $in: idsToDelete } });
+//       deleted = idsToDelete.length;
+//     }
 
-  // Likely ribbon/ticker containers
-  const ribbonSelectors = [
-    '.marquee-container','.marquee-wrap','.news-marquee','.ticker-wrap',
-    '.running-text','.news-bar','.news-strip','.scrolling-text',
-    '.ticker','.marquee','.news-ticker','.breaking-news','.notice-ticker',
-  ];
+//     console.log(`✅ Smart Sync Complete: +${inserted} New, -${deleted} Deleted.`);
+//     return { inserted, deleted };
 
-  let matched = false;
-  for (const sel of ribbonSelectors) {
-    const count = $(sel).length;
-    if (count) {
-      matched = true;
-      const $c = $(sel).first();
+//   } catch (err) {
+//     console.error('❌ Smart Scraper Failed:', err);
+//     return { error: err.message };
+//   } finally {
+//     if (browser) await browser.close();
+//   }
+// };
 
-      $c.find('a').each((_, el) => {
-        const title = $(el).text().replace(/\s+/g, ' ').trim();
-        const href = $(el).attr('href') || '';
-        pushIfKept(items, title, href, baseUrl);
-      });
-
-      const rawText = $c.text().trim();
-      if (rawText && items.length === 0) {
-        const parts = rawText
-          .split(/[\|\u2022\u00B7•]+/g)
-          .map(s => s.replace(/\s+/g, ' ').trim())
-          .filter(Boolean);
-        for (const t of parts) pushIfKept(items, t, '', baseUrl);
-      }
-      break;
-    }
-  }
-
-  // Broad probe if ribbon not matched or yielded nothing
-  if (!matched || items.length === 0) {
-    const probeSelectors = [
-      'div[id*="marquee"]','div[class*="marquee"]','div[id*="ticker"]','div[class*="ticker"]',
-      'div[class*="ribbon"]','div[class*="notice"]','div[class*="news"]','section[class*="news"]',
-      'div[role="marquee"]','nav[role="marquee"]','div[class*="strip"]','div[class*="bar"]','div[class*="scroll"]',
-    ];
-    const $broad = $(probeSelectors.join(','));
-    if ($broad.length) {
-      const $target = $broad.first();
-      $target.find('a').each((_, el) => {
-        const title = $(el).text().replace(/\s+/g, ' ').trim();
-        const href = $(el).attr('href') || '';
-        pushIfKept(items, title, href, baseUrl);
-      });
-      if (items.length === 0) {
-        const rawText = $target.text().trim();
-        if (rawText) {
-          const parts = rawText
-            .split(/[\|\u2022\u00B7•]+/g)
-            .map(s => s.replace(/\s+/g, ' ').trim())
-            .filter(Boolean);
-          for (const t of parts) pushIfKept(items, t, '', baseUrl);
-        }
-      }
-    }
-  }
-
-  // Final safeguard: scan all anchors with strict filter
-  if (items.length === 0) {
-    $('a').each((_, el) => {
-      const title = $(el).text().replace(/\s+/g, ' ').trim();
-      const href = $(el).attr('href');
-      if (!title || !href) return;
-      pushIfKept(items, title, href, baseUrl);
-    });
-  }
-
-  return dedupe(items);
-}
-
-async function runFeederOnce({ sourceUrl, useHeadlessFallback = true } = {}) {
-  const run = new UpdateRun({ startedAt: new Date() });
-
-  try {
-    let html;
-    try {
-      const resp = await axios.get(sourceUrl, {
-        timeout: 60000,
-        headers: {
-          'User-Agent': 'SIH-Portal-Feeder/1.0 (+contact: admin@sih-portal.local)',
-          Accept: 'text/html,application/xhtml+xml',
-        },
-      });
-      html = resp.data;
-    } catch (httpErr) {
-      if (!useHeadlessFallback) throw httpErr;
-      html = await fetchWithPlaywright(sourceUrl);
-    }
-
-    let parsed = parseUpdatesFromHtml(html, sourceUrl);
-    if ((!parsed || parsed.length === 0) && useHeadlessFallback) {
-      const html2 = await fetchWithPlaywright(sourceUrl);
-      parsed = parseUpdatesFromHtml(html2, sourceUrl);
-    }
-
-    run.itemsFetched = Array.isArray(parsed) ? parsed.length : 0;
-    if (!parsed || parsed.length === 0) {
-      run.ok = true;
-      run.finishedAt = new Date();
-      await run.save();
-      return { inserted: 0, insertedDocs: [] };
-    }
-
-    const toInsert = [];
-    for (const it of parsed) {
-      const hash = makeHash({
-        title: it.title,
-        url: it.url,
-        publishedAt: it.publishedAt ? new Date(it.publishedAt).toISOString() : '',
-      });
-      const exists = await Update.findOne({ source: 'sih', hash }).select('_id').lean();
-      if (exists) continue;
-
-      toInsert.push({
-        title: it.title,
-        url: it.url || '',
-        summary: '',
-        publishedAt: it.publishedAt || undefined,
-        source: 'sih',
-        hash,
-        pinned: false,
-        isPublic: true,
-      });
-    }
-
-    let insertedDocs = [];
-    if (toInsert.length) {
-      const result = await Update.insertMany(toInsert, { ordered: false });
-      insertedDocs = result.map(d => d.toObject());
-    }
-
-    run.itemsInserted = insertedDocs.length;
-    run.ok = true;
-    run.finishedAt = new Date();
-    await run.save();
-
-    return { inserted: insertedDocs.length, insertedDocs };
-  } catch (err) {
-    run.ok = false;
-    run.errorMessage = err?.message || String(err);
-    run.finishedAt = new Date();
-    await run.save();
-    return { error: run.errorMessage, inserted: 0, insertedDocs: [] };
-  }
-}
-
-module.exports = { runFeederOnce };
+// module.exports = { runFeederOnce };

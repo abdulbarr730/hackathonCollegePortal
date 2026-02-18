@@ -1,48 +1,28 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
-// Create a reusable transporter object with your SMTP provider settings
+// Create the transporter once
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,     // e.g. smtp.gmail.com, smtp.mailtrap.io, smtp.sendgrid.net
-  port: parseInt(process.env.SMTP_PORT, 10) || 587,
-  secure: false,                   // true for port 465, false for others
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: false, // true for 465, false for other ports
   auth: {
-    user: process.env.SMTP_USER,  // your SMTP username
-    pass: process.env.SMTP_PASS,  // your SMTP password or API key
+    user: process.env.SMTP_USER, // Your Gmail address
+    pass: process.env.SMTP_PASS, // Your App Password
   },
 });
 
-// Optional: Verify connection configuration
-transporter.verify(function (error, success) {
-  if (error) {
-    console.error('Email transporter connection error:', error);
-  } else {
-    console.log('Email transporter ready');
-  }
-});
-
-/**
- * Send email utility function
- * @param {Object} options - email options: to, subject, text, html
- */
-async function sendEmail({ to, subject, text, html }) {
-  if (!to) throw new Error('Missing recipient email address');
-
-  const mailOptions = {
-    from: process.env.SMTP_FROM || 'YourApp <no-reply@yourapp.com>', // sender address
-    to,
-    subject,
-    text,
-    html,
-  };
-
+export async function sendEmail({ to, subject, html }) {
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${to}: ${info.messageId}`);
-    return info;
-  } catch (err) {
-    console.error(`Failed to send email to ${to}:`, err);
-    throw err;
+    const info = await transporter.sendMail({
+      from: process.env.SMTP_FROM || '"SIH Portal" <noreply@sihportal.com>',
+      to,
+      subject,
+      html,
+    });
+    console.log("Message sent: %s", info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error("Error sending email:", error);
+    return { success: false, error: error.message };
   }
 }
-
-module.exports = { sendEmail };

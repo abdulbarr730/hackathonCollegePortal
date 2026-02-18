@@ -122,30 +122,91 @@ scrapeSIHUpdates();
 // @route   GET /api/updates
 // @desc    Get the pinned public updates for the dashboard
 // @access  Public
+// @route   GET /api/public/updates
+// @desc    Get updates ONLY for active hackathon
+// @access  Public
 router.get('/', async (req, res) => {
   try {
-    const updates = await Update.find({ 
-      isPublic: true, 
-      pinned: true      // Filter for pinned updates
-    })
-    .sort({ createdAt: -1 }) // Sort by newest first
+    const Hackathon = require('../models/Hackathon');
 
-    res.json(updates);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
-  }
-});
+    // 1️⃣ Get active hackathon
+    const activeHackathon = await Hackathon.findOne({ isActive: true });
 
-// Admin-protected endpoint
-router.get('/', auth, async (req, res) => {
-  try {
-    const updates = await Update.find().sort({ createdAt: -1 });
-    res.json(updates);
+    let updates = [];
+
+    // 2️⃣ Try to get updates for active hackathon
+    if (activeHackathon) {
+      updates = await Update.find({
+        isPublic: true,
+        hackathon: activeHackathon._id
+      })
+        .populate('hackathon', 'name shortName')
+        .sort({ pinned: -1, publishedAt: -1, createdAt: -1 });
+    }
+
+    // 3️⃣ FALLBACK → show recent updates if none found
+    if (!updates.length) {
+      console.log('No active hackathon updates, showing recent updates instead');
+
+      updates = await Update.find({ isPublic: true })
+        .populate('hackathon', 'name shortName')
+        .sort({ pinned: -1, publishedAt: -1, createdAt: -1 })
+        .limit(10);   // only show latest 10 so page stays clean
+    }
+
+    res.json({ items: updates });
+
   } catch (err) {
     console.error(err);
     res.status(500).send('Server Error');
   }
 });
+
+
+
+
+// Admin-protected endpoint
+// @route   GET /api/public/updates
+// @desc    Get updates ONLY for active hackathon
+// @access  Public
+router.get('/', async (req, res) => {
+  try {
+    const Hackathon = require('../models/Hackathon');
+
+    // 1️⃣ Get active hackathon
+    const activeHackathon = await Hackathon.findOne({ isActive: true });
+
+    let updates = [];
+
+    // 2️⃣ Try to get updates for active hackathon
+    if (activeHackathon) {
+      updates = await Update.find({
+        isPublic: true,
+        hackathon: activeHackathon._id
+      })
+        .populate('hackathon', 'name shortName')
+        .sort({ pinned: -1, publishedAt: -1, createdAt: -1 });
+    }
+
+    // 3️⃣ FALLBACK → show recent updates if none found
+    if (!updates.length) {
+      console.log('No active hackathon updates, showing recent updates instead');
+
+      updates = await Update.find({ isPublic: true })
+        .populate('hackathon', 'name shortName')
+        .sort({ pinned: -1, publishedAt: -1, createdAt: -1 })
+        .limit(10);   // only show latest 10 so page stays clean
+    }
+
+    res.json({ items: updates });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+
+
 
 module.exports = router;

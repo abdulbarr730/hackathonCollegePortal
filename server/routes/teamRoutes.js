@@ -1,13 +1,16 @@
-// routes/teamRoutes.js
-
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const Team = require('../models/Team');
+const Hackathon = require('../models/Hackathon');
 const User = require('../models/User');
 const Invitation = require('../models/Invitation');
 const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
+
+// =========================================================================
+// CONFIGURATION & HELPERS
+// =========================================================================
 
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
@@ -29,42 +32,58 @@ const deleteFromCloudinary = (publicId) => {
     return cloudinary.uploader.destroy(publicId);
 };
 
-// -------------------- Helper: Female rule check --------------------
-function violatesFemaleRule(teamMembers, newUser) {
-  if (teamMembers.length === 5) {
-    const hasFemale = teamMembers.some(m => m.gender === 'Female');
-    if (!hasFemale && newUser.gender !== 'Female') {
-      return true;
-    }
-  }
-  return false;
-}
 
-// -------------------- Create a Team (Handles Logo Upload) --------------------
+// =========================================================================
+// CREATE A NEW TEAM (Scoped to Active Hackathon)
+// =========================================================================
 router.post('/', auth, upload.single('logo'), async (req, res) => {
   const { teamName, problemStatementTitle, problemStatementDescription } = req.body;
+  
   if (!teamName) {
     return res.status(400).json({ msg: 'Team name is required.' });
   }
+
   try {
-    const user = await User.findById(req.user.id);
-    if (user.team) {
-      return res.status(400).json({ msg: 'You are already in a team.' });
-    }
-    let teamExists = await Team.findOne({ teamName });
-    if (teamExists) {
-      return res.status(400).json({ msg: 'Team name is already taken.' });
+    // 1. GET ACTIVE HACKATHON
+    const activeHackathon = await Hackathon.findOne({ isActive: true });
+    if (!activeHackathon) {
+        return res.status(400).json({ msg: 'No active hackathon found. Cannot create a team.' });
     }
 
+    const user = await User.findById(req.user.id);
+
+    // 2. SMART CHECK: Is user in a team FOR THIS HACKATHON?
+    // We don't trust user.team alone. We check if they are a member of any team linked to this active event.
+    const existingTeamForThisEvent = await Team.findOne({
+      hackathonId: activeHackathon._id,
+      members: req.user.id
+    });
+
+    if (existingTeamForThisEvent) {
+      return res.status(400).json({ msg: `You are already in team "${existingTeamForThisEvent.teamName}" for the ${activeHackathon.name} event.` });
+    }
+    
+    // 3. CHECK NAME UNIQUENESS (Scoped to this Hackathon)
+    // We use collation for case-insensitive search
+    const nameTaken = await Team.findOne({ 
+      teamName: { $regex: new RegExp(`^${teamName}$`, 'i') }, 
+      hackathonId: activeHackathon._id 
+    });
+
+    if (nameTaken) {
+      return res.status(400).json({ msg: `Team name "${teamName}" is already taken in this hackathon.` });
+    }
+
+    // 4. CREATE TEAM
     const teamFields = {
       teamName,
       problemStatementTitle,
       problemStatementDescription,
       leader: req.user.id,
       members: [req.user.id],
+      hackathonId: activeHackathon._id 
     };
 
-    // If a logo file was uploaded, handle it
     if (req.file) {
       const cloudinaryResult = await uploadToCloudinary(req.file.buffer);
       teamFields.logoUrl = cloudinaryResult.secure_url;
@@ -74,22 +93,44 @@ router.post('/', auth, upload.single('logo'), async (req, res) => {
     let team = new Team(teamFields);
     await team.save();
 
+    // 5. UPDATE USER POINTER
+    // We point the user to the NEW team. The old team connection is lost in the User model 
+    // but preserved in the Team model (via the 'members' array).
     user.team = team.id;
     await user.save();
+
     res.status(201).json(team);
+
   } catch (err) {
     console.error(`Error in POST /api/teams: ${err.message}`);
+    // Handle Duplicate Key Error explicitly if race condition occurs
+    if (err.code === 11000) {
+      return res.status(400).json({ msg: 'Team name already exists in this hackathon.' });
+    }
     res.status(500).send('Server Error');
   }
 });
 
-// -------------------- GET all teams --------------------
+
+// =========================================================================
+// GET ALL TEAMS (Filtered by Active Hackathon)
+// =========================================================================
 router.get('/', auth, async (req, res) => {
   try {
-    const teams = await Team.find()
-      .populate('leader', 'name email photoUrl socialProfiles course year')
-      .populate('members', 'name email photoUrl socialProfiles course year')
-      .populate('pendingRequests', 'name email photoUrl socialProfiles course year');
+    const activeHackathon = await Hackathon.findOne({ isActive: true });
+    
+    let query = {};
+    if (activeHackathon) {
+        query.hackathonId = activeHackathon._id;
+    } else {
+        return res.json([]); // No active event = no public teams shown
+    }
+
+    const teams = await Team.find(query)
+      .populate('leader', 'name email photoUrl socialProfiles course year')
+      .populate('members', 'name email photoUrl socialProfiles course year')
+      .populate('pendingRequests', 'name email photoUrl socialProfiles course year');
+      
     res.json(teams);
   } catch (err) {
     console.error(`Error in GET /api/teams: ${err.message}`);
@@ -97,15 +138,19 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// -------------------- GET my team for logged-in user --------------------
+
+// =========================================================================
+// GET MY TEAM (For the logged-in user)
+// =========================================================================
 router.get('/my-team', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).populate({
       path: 'team',
       populate: [
-        { path: 'members', select: 'name email gender photoUrl socialProfiles course year' },
-        { path: 'leader', select: 'name email gender photoUrl socialProfiles course year' }
-      ]
+        { path: 'members', select: 'name email gender photoUrl socialProfiles course year' },
+        { path: 'leader', select: 'name email gender photoUrl socialProfiles course year' },
+        { path: 'hackathonId' } // Important: Frontend needs this for rules
+      ]
     });
 
     if (!user.team) return res.json(null);
@@ -117,13 +162,17 @@ router.get('/my-team', auth, async (req, res) => {
   }
 });
 
-// -------------------- GET a single team by ID --------------------
+
+// =========================================================================
+// GET SINGLE TEAM BY ID
+// =========================================================================
 router.get('/:id', auth, async (req, res) => {
   try {
     const team = await Team.findById(req.params.id)
       .populate('leader', 'name email photoUrl socialProfiles course year')
-      .populate('members', 'name email photoUrl socialProfiles course year')
-      .populate('pendingRequests', 'name email photoUrl socialProfiles course year');
+      .populate('members', 'name email photoUrl socialProfiles course year')
+      .populate('pendingRequests', 'name email photoUrl socialProfiles course year')
+      .populate('hackathonId');
 
     if (!team) {
       return res.status(404).json({ msg: 'Team not found' });
@@ -135,7 +184,10 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// -------------------- Edit a team's details (Handles Logo Update) --------------------
+
+// =========================================================================
+// UPDATE TEAM DETAILS (Blocked if Submitted)
+// =========================================================================
 router.put('/:id', auth, upload.single('logo'), async (req, res) => {
   const { teamName, problemStatementTitle, problemStatementDescription } = req.body;
   try {
@@ -145,13 +197,15 @@ router.put('/:id', auth, upload.single('logo'), async (req, res) => {
       return res.status(401).json({ msg: 'User not authorized' });
     }
     
-    // If a new logo is uploaded
+    // Check Lock
+    if (team.isSubmitted) {
+        return res.status(400).json({ msg: 'Team is submitted and locked. Cannot edit.' });
+    }
+
     if (req.file) {
-      // First, delete the old logo from Cloudinary if it exists
       if (team.logoPublicId) {
         await deleteFromCloudinary(team.logoPublicId);
       }
-      // Upload the new one
       const cloudinaryResult = await uploadToCloudinary(req.file.buffer);
       team.logoUrl = cloudinaryResult.secure_url;
       team.logoPublicId = cloudinaryResult.public_id;
@@ -169,7 +223,10 @@ router.put('/:id', auth, upload.single('logo'), async (req, res) => {
   }
 });
 
-// -------------------- Delete a team (Handles Logo Deletion) --------------------
+
+// =========================================================================
+// DELETE TEAM (Blocked if Submitted)
+// =========================================================================
 router.delete('/:id', auth, async (req, res) => {
   try {
     const team = await Team.findById(req.params.id);
@@ -178,14 +235,16 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(401).json({ msg: 'User not authorized' });
     }
     
-    // Delete the logo from Cloudinary if it exists
+    // Check Lock
+    if (team.isSubmitted) {
+        return res.status(400).json({ msg: 'Team is submitted and locked. Cannot delete.' });
+    }
+    
     if (team.logoPublicId) {
       await deleteFromCloudinary(team.logoPublicId);
     }
 
-    // Delete related invitations
     await Invitation.deleteMany({ teamId: team._id });
-
     await User.updateMany({ _id: { $in: team.members } }, { $unset: { team: "" } });
     await team.deleteOne();
     res.json({ msg: 'Team removed' });
@@ -195,14 +254,26 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// -------------------- Request to join a team --------------------
+
+// =========================================================================
+// JOIN REQUEST (Blocked if Submitted or Full)
+// =========================================================================
 router.post('/:id/join', auth, async (req, res) => {
   try {
-    const team = await Team.findById(req.params.id).populate('members', 'gender');
-    if (!team) return res.status(404).json({ msg: 'Team not found' });
+    const team = await Team.findById(req.params.id)
+        .populate('members', 'gender')
+        .populate('hackathonId'); 
 
-    if (team.members.length >= 6) {
-      return res.status(400).json({ msg: 'This team is already full.' });
+    if (!team) return res.status(404).json({ msg: 'Team not found' });
+    
+    if (team.isSubmitted) {
+        return res.status(400).json({ msg: 'This team is locked and not accepting new members.' });
+    }
+
+    const maxMembers = team.hackathonId ? team.hackathonId.maxTeamSize : 6;
+
+    if (team.members.length >= maxMembers) {
+      return res.status(400).json({ msg: `This team is full (Max ${maxMembers} members).` });
     }
 
     const user = await User.findById(req.user.id);
@@ -214,11 +285,6 @@ router.post('/:id/join', auth, async (req, res) => {
       return res.status(400).json({ msg: 'You have already sent a request to join this team.' });
     }
 
-    // ✅ Female rule check
-    if (violatesFemaleRule(team.members, user)) {
-      return res.status(400).json({ msg: 'A team of 6 must have at least one female member.' });
-    }
-    
     team.pendingRequests.push(req.user.id);
     await team.save();
     res.json(team);
@@ -229,44 +295,44 @@ router.post('/:id/join', auth, async (req, res) => {
   }
 });
 
-// -------------------- Cancel a join request --------------------
+
+// =========================================================================
+// CANCEL JOIN REQUEST
+// =========================================================================
 router.post('/:id/cancel-request', auth, async (req, res) => {
   try {
-    const team = await Team.findById(req.params.id).select('pendingRequests members').lean();
-    if (!team) {
-      return res.status(404).json({ msg: 'Team not found' });
-    }
-
-    if (team.members?.some(m => m.toString() === req.user.id)) {
-      return res.status(400).json({ msg: 'You are already a member of this team.' });
-    }
-
     await Team.updateOne(
       { _id: req.params.id },
       { $pull: { pendingRequests: req.user.id } }
     );
-
     res.json({ ok: true, msg: 'Request cancelled.' });
   } catch (err) {
-    console.error(`Error in POST /api/teams/:id/cancel-request: ${err.message}`);
     res.status(500).send('Server Error');
   }
 });
 
-// -------------------- Approve a join request --------------------
+
+// =========================================================================
+// APPROVE JOIN REQUEST (With Smart Multi-Female Check & Invitation Cleanup)
+// =========================================================================
 router.post('/:id/approve/:userId', auth, async (req, res) => {
   try {
     const { id: teamId, userId } = req.params;
 
-    const team = await Team.findById(teamId).populate('members', 'gender');
+    const team = await Team.findById(teamId)
+        .populate('members', 'gender')
+        .populate('hackathonId'); 
+        
     if (!team) return res.status(404).json({ msg: 'Team not found' });
-
-    if (team.leader.toString() !== req.user.id) {
-      return res.status(401).json({ msg: 'User not authorized' });
+    if (team.leader.toString() !== req.user.id) return res.status(401).json({ msg: 'User not authorized' });
+    
+    if (team.isSubmitted) {
+        return res.status(400).json({ msg: 'Team is submitted and locked.' });
     }
 
-    if (team.members.length >= 6) {
-      return res.status(400).json({ msg: 'Team is already full.' });
+    const maxMembers = team.hackathonId ? team.hackathonId.maxTeamSize : 6;
+    if (team.members.length >= maxMembers) {
+      return res.status(400).json({ msg: `Team is already full (Max ${maxMembers}).` });
     }
 
     const userToApprove = await User.findById(userId);
@@ -275,17 +341,37 @@ router.post('/:id/approve/:userId', auth, async (req, res) => {
       return res.status(400).json({ msg: 'User is no longer available to join.' });
     }
 
-    // ✅ Female rule check
-    if (violatesFemaleRule(team.members, userToApprove)) {
-      return res.status(400).json({ msg: 'A team of 6 must have at least one female member.' });
+    // --- SMART MULTI-FEMALE RULE CHECK ---
+    const requiredFemales = team.hackathonId ? team.hackathonId.minFemaleMembers : 0;
+    
+    if (requiredFemales > 0) {
+        const currentFemales = team.members.filter(m => m.gender && ['female', 'f'].includes(m.gender.toLowerCase())).length;
+        const incomingIsFemale = userToApprove.gender && ['female', 'f'].includes(userToApprove.gender.toLowerCase());
+        
+        const remainingSlots = maxMembers - team.members.length; // Slots left INCLUDING this one
+        const femalesStillNeeded = incomingIsFemale ? requiredFemales - (currentFemales + 1) : requiredFemales - currentFemales;
+
+        // If the number of slots left after this approval is EQUAL to the number of females still needed,
+        // we MUST block this approval if the user is male.
+        if (!incomingIsFemale && (remainingSlots - 1) < femalesStillNeeded) {
+             return res.status(400).json({ 
+                msg: `Diversity Rule: You still need ${femalesStillNeeded} more female(s) but only have ${remainingSlots - 1} slot(s) left. This slot must be female.` 
+             });
+        }
     }
 
+    // 1. Update Team Roster
     team.members.push(userId);
     team.pendingRequests = team.pendingRequests.filter(id => id.toString() !== userId);
     await team.save();
 
+    // 2. Update User Profile
     userToApprove.team = teamId;
     await userToApprove.save();
+
+    // 3. THE GHOST-BUSTER FIX:
+    // Automatically delete the pending invitation because they are now a member
+    await Invitation.deleteMany({ inviteeId: userId, teamId: teamId });
 
     res.json(team);
   } catch (err) { 
@@ -294,42 +380,45 @@ router.post('/:id/approve/:userId', auth, async (req, res) => {
   }
 });
 
-// -------------------- Reject a join request --------------------
+
+// =========================================================================
+// REJECT JOIN REQUEST
+// =========================================================================
 router.post('/:id/reject/:userId', auth, async (req, res) => {
   try {
-    const result = await Team.updateOne(
+    await Team.updateOne(
       { _id: req.params.id, leader: req.user.id },
       { $pull: { pendingRequests: req.params.userId } }
     );
-
-    if (result.nModified === 0) {
-      return res.status(404).json({ msg: 'Team not found or user not authorized' });
-    }
     res.json({ msg: 'Request rejected.' });
   } catch (err) { 
-    console.error(`Error in POST /api/teams/:id/reject/:userId: ${err.message}`);
     res.status(500).send('Server Error'); 
   }
 });
 
-// -------------------- Leave the current team --------------------
+
+// =========================================================================
+// LEAVE TEAM (Blocked if Locked)
+// =========================================================================
 router.delete('/members/leave', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('team').lean();
-    if (!user.team) {
-      return res.status(400).json({ msg: 'You are not in a team.' });
-    }
+    if (!user.team) return res.status(400).json({ msg: 'You are not in a team.' });
     
+    // Check if team is locked
+    const team = await Team.findById(user.team);
+    if (team.isSubmitted) {
+        return res.status(400).json({ msg: 'Team is locked. You cannot leave.' });
+    }
+
     const result = await Team.updateOne(
         { _id: user.team, leader: { $ne: req.user.id } },
         { $pull: { members: req.user.id } }
     );
 
     if (result.nModified === 0) {
-        const team = await Team.findById(user.team).select('leader').lean();
-        if (!team) return res.json({ msg: 'Team not found, but your record is clear.' });
         if (team.leader.toString() === req.user.id) {
-            return res.status(400).json({ msg: 'Team leader cannot leave; you must delete the team instead.' });
+            return res.status(400).json({ msg: 'Team leader cannot leave; delete the team instead.' });
         }
     }
     
@@ -341,59 +430,151 @@ router.delete('/members/leave', auth, async (req, res) => {
   }
 });
 
-// -------------------- Remove a member from a team --------------------
-router.delete('/:teamId/members/:memberId', auth, async (req, res) => {
+
+// =========================================================================
+// REMOVE MEMBER (Blocked if Locked)
+// =========================================================================
+// =========================================================================
+// REMOVE MEMBER (Matched to Frontend POST request)
+// =========================================================================
+router.post('/:id/remove/:memberId', auth, async (req, res) => {
   try {
-    const { teamId, memberId } = req.params;
+    const { id, memberId } = req.params;
     
+    // 1. Leader Protection
     if (req.user.id === memberId) {
-        return res.status(400).json({ msg: 'Team leader cannot remove themselves.' });
+        return res.status(400).json({ msg: 'Team leader cannot remove themselves. Delete the team instead.' });
     }
 
+    const team = await Team.findById(id);
+    if (!team) return res.status(404).json({ msg: 'Team not found' });
+    
+    // 2. Lock Check
+    if (team.isSubmitted) return res.status(400).json({ msg: 'Team is locked. Cannot remove members.' });
+
+    // 3. Permission Check (Only leader can remove)
+    if (team.leader.toString() !== req.user.id) {
+        return res.status(401).json({ msg: 'Unauthorized. Only the leader can manage members.' });
+    }
+
+    // 4. Update Team & User
     const result = await Team.updateOne(
-        { _id: teamId, leader: req.user.id },
+        { _id: id },
         { $pull: { members: memberId } }
     );
 
-    if (result.nModified === 0) {
-        return res.status(404).json({ msg: 'Team not found, member not found, or you are not the leader.' });
+    if (result.modifiedCount === 0) {
+        return res.status(400).json({ msg: 'Member not found in this team.' });
     }
 
-    await User.updateOne({ _id: memberId }, { $unset: { team: "" } });
-    res.json({ msg: 'Member removed.' });
+    await User.updateOne({ _id: memberId }, { $set: { team: null } });
+    
+    res.json({ msg: 'Member removed successfully.' });
   } catch (err) {
-    console.error(`Error in removing member: ${err.message}`);
-    res.status(500).send('Server Error');
+    console.error(err);
+    res.status(500).json({ msg: 'Server Error' });
   }
 });
 
-// -------------------- Remove a team's logo --------------------
+
+// =========================================================================
+// REMOVE LOGO (Blocked if Locked)
+// =========================================================================
 router.delete('/:id/logo', auth, async (req, res) => {
   try {
     let team = await Team.findById(req.params.id);
-    if (!team) {
-      return res.status(404).json({ msg: 'Team not found' });
-    }
-    // Ensure user is the leader
-    if (team.leader.toString() !== req.user.id) {
-      return res.status(401).json({ msg: 'User not authorized' });
-    }
-    // If there's no logo, there's nothing to do
-    if (!team.logoPublicId) {
-      return res.status(400).json({ msg: 'Team does not have a logo to remove.' });
+    if (!team) return res.status(404).json({ msg: 'Team not found' });
+    if (team.leader.toString() !== req.user.id) return res.status(401).json({ msg: 'User not authorized' });
+    
+    if (team.isSubmitted) return res.status(400).json({ msg: 'Team is locked.' });
+
+    if (team.logoPublicId) {
+      await deleteFromCloudinary(team.logoPublicId);
     }
 
-    // Delete the image from Cloudinary
-    await deleteFromCloudinary(team.logoPublicId);
-
-    // Clear the logo fields in the database
     team.logoUrl = '';
     team.logoPublicId = '';
     await team.save();
 
-    res.json(team); // Send back the updated team object
+    res.json(team);
   } catch (err) {
-    console.error(`Error in DELETE /api/teams/:id/logo: ${err.message}`);
+    res.status(500).send('Server Error');
+  }
+});
+
+
+// =========================================================================
+// FINAL SUBMIT (LOCK TEAM) - Checks Size & Gender Rules
+// =========================================================================
+// =========================================================================
+// FINAL SUBMIT (LOCK TEAM) - Checks Size, Gender & DEADLINE
+// =========================================================================
+router.post('/:id/submit', auth, async (req, res) => {
+  try {
+    // 1. Find team & populate details
+    const team = await Team.findById(req.params.id)
+      .populate('members', 'gender name') 
+      .populate('hackathonId');
+
+    if (!team) return res.status(404).json({ msg: 'Team not found' });
+
+    // 2. Security Checks
+    if (team.leader.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'Only the Team Leader can submit.' });
+    }
+    if (team.isSubmitted) {
+      return res.status(400).json({ msg: 'Team is already submitted and locked.' });
+    }
+
+    // 3. Get Rules & DEADLINE
+    const rules = {
+      minMembers: team.hackathonId?.minTeamSize || 1,
+      maxMembers: team.hackathonId?.maxTeamSize || 6,
+      minFemales: team.hackathonId?.minFemaleMembers || 0,
+      deadline: team.hackathonId?.submissionDeadline // <--- Get Deadline
+    };
+
+    // --- DEADLINE CHECK START ---
+    if (rules.deadline) {
+        const now = new Date();
+        const deadlineDate = new Date(rules.deadline);
+        
+        if (now > deadlineDate) {
+            return res.status(400).json({ 
+                msg: `Submission Closed! The deadline was ${deadlineDate.toLocaleString()}.` 
+            });
+        }
+    }
+    // --- DEADLINE CHECK END ---
+
+    // 4. Validate Team Size
+    const currentCount = team.members.length;
+    if (currentCount < rules.minMembers || currentCount > rules.maxMembers) {
+      return res.status(400).json({ 
+        msg: `Team size invalid. Must be between ${rules.minMembers} and ${rules.maxMembers} members.` 
+      });
+    }
+
+    // 5. Validate Gender
+    const femaleCount = team.members.filter(m => 
+      m.gender && ['female', 'f'].includes(m.gender.toLowerCase())
+    ).length;
+
+    if (femaleCount < rules.minFemales) {
+      return res.status(400).json({ 
+        msg: `Diversity Rule Violation: You need at least ${rules.minFemales} female member(s).` 
+      });
+    }
+
+    // 6. Lock It
+    team.isSubmitted = true;
+    team.pendingRequests = []; 
+    await team.save();
+
+    res.json({ msg: 'Team submitted successfully!', team });
+
+  } catch (err) {
+    console.error(`Error in POST /api/teams/:id/submit: ${err.message}`);
     res.status(500).send('Server Error');
   }
 });
