@@ -5,7 +5,7 @@ import {
   RefreshCw, Trash2, Unlock, Lock, Clock, Edit3, FileSpreadsheet,
   Search, Filter, Users, Venus, Mars, Mail, Loader2, 
   UserPlus, UserMinus, ShieldCheck, MoreVertical, X, ChevronDown, ChevronUp, UserCog,
-  LayoutDashboard, CheckCircle, AlertCircle, Trophy
+  LayoutDashboard, CheckCircle, AlertCircle, Trophy, Ban // Added Ban icon for unmarking
 } from 'lucide-react';
 
 export default function AdminTeamsPage() {
@@ -17,7 +17,6 @@ export default function AdminTeamsPage() {
   
   // UI States
   const [expandedTeamId, setExpandedTeamId] = useState(null);
-  const [openTeamMenuId, setOpenTeamMenuId] = useState(null); // Added this state
   const [openMemberMenuId, setOpenMemberMenuId] = useState(null);
 
   // --- DATA FETCHING ---
@@ -71,7 +70,6 @@ export default function AdminTeamsPage() {
       method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({teamName: name}) 
     });
     fetchTeams(selectedHackathon);
-    setOpenTeamMenuId(null);
   };
 
   const handleAddMember = async (id) => {
@@ -105,10 +103,9 @@ export default function AdminTeamsPage() {
     if (!confirm("DELETE ENTIRE TEAM?")) return;
     await fetch(`/api/admin/teams/${id}`, { method: 'DELETE' });
     fetchTeams(selectedHackathon);
-    setOpenTeamMenuId(null);
   };
 
-  // --- NEW: MARK WINNER ---
+  // --- WINNER ACTIONS ---
   const handleMarkWinner = async (teamId) => {
     const position = prompt("Enter Winner Position (e.g., '1st Place', 'Gold', 'Top 10'):");
     if (!position) return;
@@ -123,11 +120,29 @@ export default function AdminTeamsPage() {
       if (res.ok) {
         alert(`Team marked as ${position}!`);
         fetchTeams(selectedHackathon);
-        setOpenTeamMenuId(null);
       } else {
         alert(data.msg);
       }
     } catch (err) { alert("Failed to mark winner"); }
+  };
+
+  // --- NEW: UNMARK WINNER ---
+  const handleUnmarkWinner = async (teamId) => {
+    if (!confirm("Remove this team from the winners list?")) return;
+    
+    try {
+      // Assuming you handle DELETE on the same route to clear the status
+      const res = await fetch(`/api/admin/teams/${teamId}/winner`, {
+        method: 'DELETE' 
+      });
+      
+      if (res.ok) {
+        alert("Winner status removed.");
+        fetchTeams(selectedHackathon);
+      } else {
+        alert("Failed to unmark winner.");
+      }
+    } catch (err) { alert("Error removing winner status"); }
   };
 
   const toggleAccordion = (id) => {
@@ -255,7 +270,18 @@ export default function AdminTeamsPage() {
                     <div className="grid grid-cols-1 gap-2">
                       <button onClick={() => handleRename(team._id)} className="flex items-center gap-2 w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold hover:bg-indigo-50 transition-all"><Edit3 size={16} className="text-indigo-500"/> Rename Squad</button>
                       <button onClick={() => handleAddMember(team._id)} className="flex items-center gap-2 w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold hover:bg-indigo-50 transition-all"><UserPlus size={16} className="text-emerald-500"/> Force Add Member</button>
-                      <button onClick={() => handleMarkWinner(team._id)} className="flex items-center gap-2 w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold hover:bg-yellow-50 transition-all"><Trophy size={16} className="text-yellow-500"/> Mark Winner</button>
+                      
+                      {/* --- WINNER TOGGLE BUTTONS --- */}
+                      {team.isWinner ? (
+                        <button onClick={() => handleUnmarkWinner(team._id)} className="flex items-center gap-2 w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold hover:bg-red-50 text-red-600 transition-all">
+                          <Ban size={16} className="text-red-500"/> Remove Winner Status
+                        </button>
+                      ) : (
+                        <button onClick={() => handleMarkWinner(team._id)} className="flex items-center gap-2 w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold hover:bg-yellow-50 transition-all">
+                          <Trophy size={16} className="text-yellow-500"/> Mark Winner
+                        </button>
+                      )}
+
                       <button onClick={() => handleDeleteTeam(team._id)} className="flex items-center gap-2 w-full px-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-600 hover:text-white transition-all"><Trash2 size={16}/> Disband Entire Team</button>
                     </div>
                   </div>

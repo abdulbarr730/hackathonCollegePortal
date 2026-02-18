@@ -20,12 +20,11 @@ export default function Footer() {
           <div className="md:col-span-5 space-y-4">
             <Link href="/" className="inline-block">
               <span className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 dark:from-white dark:via-indigo-200 dark:to-white">
-                SIH Portal
+                Find Your Dream Team
               </span>
             </Link>
             <p className="text-sm leading-relaxed max-w-sm text-slate-500 dark:text-slate-400">
-              The official collaboration platform for Smart India Hackathon 2025. 
-              Build, innovate, and ship your ideas with the best teams.
+              Stop searching and start building. The ultimate platform to connect with skilled developers, designers, and innovators for your next project.
             </p>
             
             {/* Socials */}
