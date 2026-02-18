@@ -1,33 +1,30 @@
 'use client';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Eye, EyeOff } from 'lucide-react';
-
-const API_BASE_URL = '' || 'http://localhost:5001';
+import { Eye, EyeOff, Lock, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [status, setStatus] = useState({ type: '', msg: '' });
   const [loading, setLoading] = useState(false);
   const params = useParams();
   const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setMessage('');
+    setStatus({ type: '', msg: '' });
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+      setStatus({ type: 'error', msg: 'Password must be at least 6 characters long.' });
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setStatus({ type: 'error', msg: 'Passwords do not match.' });
       return;
     }
+    
     setLoading(true);
 
     try {
@@ -37,106 +34,105 @@ export default function ResetPasswordPage() {
         body: JSON.stringify({ password }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.msg);
-      setMessage(data.msg + ' Redirecting to login...');
-      setTimeout(() => router.push('/login'), 3000);
+      
+      if (!res.ok) throw new Error(data.msg || 'Something went wrong');
+      
+      setStatus({ type: 'success', msg: 'Password reset successful! Redirecting...' });
+      setTimeout(() => router.push('/login'), 2000);
     } catch (err) {
-      setError(err.message || "An unknown error occurred.");
+      setStatus({ type: 'error', msg: err.message || "An unknown error occurred." });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="relative flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
-      {/* Background Overlay */}
-      <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
-
+    <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 transition-colors duration-300">
+      
+      {/* Dynamic Background Pattern */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+      
+      {/* Ambient Glows */}
+      <div className="absolute left-0 top-0 h-96 w-96 rounded-full bg-indigo-500/10 dark:bg-indigo-500/20 blur-[128px]"></div>
+      
       {/* Card */}
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-blue-500/30 bg-slate-800/70 p-8 shadow-2xl shadow-blue-500/20">
-        <h2 className="mb-6 bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-center text-3xl font-bold text-transparent">
-          Reset Your Password
-        </h2>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Success & Error */}
-          {message && (
-            <p className="rounded-lg bg-green-500/20 p-3 text-center text-sm text-green-300">
-              {message}
-            </p>
-          )}
-          {error && (
-            <p className="rounded-lg bg-red-500/20 p-3 text-center text-sm text-red-300">
-              {error}
-            </p>
-          )}
-
-          {/* New Password */}
-          <div>
-            <label
-              htmlFor="password"
-              className="mb-2 block text-sm font-medium text-gray-300"
-            >
-              New Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full rounded-lg border-none bg-black/30 p-3 pr-10 ring-1 ring-white/10 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 transition-all"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-white"
-              >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5" />
-                ) : (
-                  <Eye className="h-5 w-5" />
-                )}
-              </button>
+      <div className="relative z-10 w-full max-w-md p-6">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 p-8 shadow-2xl backdrop-blur-xl transition-all hover:border-indigo-500/30">
+          
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+              <Lock size={24} />
             </div>
-            <p className="mt-1 text-xs text-slate-400">
-              Must be at least 6 characters long.
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Set New Password</h2>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              Please choose a strong password for your account.
             </p>
           </div>
 
-          {/* Confirm Password */}
-          <div>
-            <label
-              htmlFor="confirmPassword"
-              className="mb-2 block text-sm font-medium text-gray-300"
-            >
-              Confirm New Password
-            </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full rounded-lg border-none bg-black/30 p-3 ring-1 ring-white/10 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 transition-all"
-              required
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {status.msg && (
+              <div className={`flex items-start gap-3 rounded-lg p-4 text-sm ${
+                status.type === 'success' 
+                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' 
+                  : 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20'
+              }`}>
+                {status.type === 'success' ? <CheckCircle size={18} className="shrink-0 mt-0.5"/> : <AlertCircle size={18} className="shrink-0 mt-0.5"/>}
+                <p>{status.msg}</p>
+              </div>
+            )}
 
-          {/* Button */}
-          <div className="pt-2">
+            <div>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-500">
+                New Password
+              </label>
+              <div className="relative group">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 py-3 pl-4 pr-10 text-slate-900 dark:text-white placeholder-slate-400 outline-none transition-all focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-500">
+                Confirm Password
+              </label>
+              <div className="relative group">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 py-3 pl-4 pr-10 text-slate-900 dark:text-white placeholder-slate-400 outline-none transition-all focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-3 font-medium text-white shadow-lg shadow-blue-500/30 transition-all duration-200 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+              className="group flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3.5 font-semibold text-white transition-all hover:bg-indigo-500 hover:shadow-lg hover:shadow-indigo-500/25 disabled:opacity-50"
             >
-              {loading ? 'Resetting...' : 'Reset Password'}
+              {loading ? (
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+              ) : (
+                <>Reset Password <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" /></>
+              )}
             </button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );

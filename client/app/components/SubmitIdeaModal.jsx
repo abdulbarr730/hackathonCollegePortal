@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { X, Lightbulb, Loader2, Tag } from 'lucide-react';
 
 export default function SubmitIdeaModal({ isOpen, onClose, onIdeaCreated }) {
   const [title, setTitle] = useState('');
@@ -10,12 +11,22 @@ export default function SubmitIdeaModal({ isOpen, onClose, onIdeaCreated }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // --- SCROLL LOCK LOGIC ---
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) {
-      setError('⚠️ Title and description are required.');
+      setError('Title and description are required.');
       return;
     }
 
@@ -44,12 +55,13 @@ export default function SubmitIdeaModal({ isOpen, onClose, onIdeaCreated }) {
 
       await res.json();
       if (onIdeaCreated) onIdeaCreated();
-      onClose();
-
-      // Reset form
+      
+      // Reset and Close
       setTitle('');
       setDescription('');
       setTags('');
+      onClose();
+
     } catch (err) {
       console.error(err);
       setError(err.message);
@@ -61,103 +73,133 @@ export default function SubmitIdeaModal({ isOpen, onClose, onIdeaCreated }) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        >
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
+          
+          {/* BACKDROP */}
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm"
+          />
+
+          {/* MODAL CONTAINER */}
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
             transition={{ duration: 0.2 }}
-            className="w-full max-w-lg rounded-2xl bg-slate-900 text-white shadow-2xl border border-slate-700"
+            className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-slate-900/5 dark:ring-white/10 max-h-[90vh] flex flex-col overflow-hidden"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
-              <h2 className="text-xl font-semibold">💡 Submit a New Idea</h2>
+            
+            {/* HEADER */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
+                  <Lightbulb size={20} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">Submit New Idea</h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Share your innovation with the community</p>
+                </div>
+              </div>
               <button
                 onClick={onClose}
-                className="text-slate-400 hover:text-white text-2xl leading-none"
+                className="p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
               >
-                &times;
+                <X size={20} />
               </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="px-6 py-6 space-y-5">
-              {error && (
-                <div className="rounded-md bg-red-500/20 text-red-300 px-3 py-2 text-sm">
-                  {error}
+            {/* SCROLLABLE FORM */}
+            <div className="overflow-y-auto p-6 custom-scrollbar">
+              <form id="ideaForm" onSubmit={handleSubmit} className="space-y-5">
+                
+                {error && (
+                  <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 text-sm text-red-600 dark:text-red-400 font-medium">
+                    ⚠️ {error}
+                  </div>
+                )}
+
+                {/* Title Input */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Project Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
+                    placeholder="e.g. AI-Powered Waste Management"
+                    required
+                  />
                 </div>
-              )}
 
-              {/* Title */}
-              <div>
-                <label className="block text-sm mb-1 text-slate-300">
-                  Title <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-white placeholder-slate-400 focus:border-purple-500 focus:ring focus:ring-purple-500/30 outline-none transition"
-                  placeholder="Give your idea a catchy title"
-                  required
-                />
-              </div>
+                {/* Description Input */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Detailed Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    rows="6"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all resize-none"
+                    placeholder="Explain the problem, your solution, and the tech stack you plan to use..."
+                    required
+                  />
+                </div>
 
-              {/* Description */}
-              <div>
-                <label className="block text-sm mb-1 text-slate-300">
-                  Description <span className="text-red-400">*</span>
-                </label>
-                <textarea
-                  rows="5"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-white placeholder-slate-400 focus:border-purple-500 focus:ring focus:ring-purple-500/30 outline-none transition"
-                  placeholder="Explain your idea in detail..."
-                  required
-                />
-              </div>
+                {/* Tags Input */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Tags <span className="text-xs font-normal text-slate-500 dark:text-slate-400 ml-1">(Comma separated)</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-2.5 text-slate-400">
+                      <Tag size={16} />
+                    </div>
+                    <input
+                      type="text"
+                      value={tags}
+                      onChange={(e) => setTags(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 pl-10 pr-3 py-2.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
+                      placeholder="Blockchain, IoT, React, HealthTech"
+                    />
+                  </div>
+                </div>
 
-              {/* Tags */}
-              <div>
-                <label className="block text-sm mb-1 text-slate-300">
-                  Tags <span className="text-slate-500">(comma separated)</span>
-                </label>
-                <input
-                  type="text"
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-white placeholder-slate-400 focus:border-purple-500 focus:ring focus:ring-purple-500/30 outline-none transition"
-                  placeholder="e.g. AI, Blockchain, Healthcare"
-                />
-              </div>
+              </form>
+            </div>
 
-              {/* Buttons */}
-              <div className="flex justify-end gap-4 pt-4 border-t border-slate-700">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-lg px-5 py-2 text-sm font-medium bg-slate-700 hover:bg-slate-600 transition"
-                  disabled={loading}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="rounded-lg px-5 py-2 text-sm font-medium bg-purple-600 hover:bg-purple-500 transition disabled:opacity-50"
-                >
-                  {loading ? 'Submitting…' : 'Submit Idea'}
-                </button>
-              </div>
-            </form>
+            {/* FOOTER */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-b-2xl shrink-0">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="ideaForm"
+                disabled={loading}
+                className="rounded-lg px-6 py-2 text-sm font-bold text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-lg shadow-amber-500/20 disabled:opacity-70 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center min-w-[120px]"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin mr-2" />
+                    Posting...
+                  </>
+                ) : 'Submit Idea'}
+              </button>
+            </div>
+
           </motion.div>
-        </motion.div>
+        </div>
       )}
     </AnimatePresence>
   );

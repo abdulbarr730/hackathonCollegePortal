@@ -1,9 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Users, CheckCircle, Users2, RefreshCcw, ArrowRight } from 'lucide-react';
+import { Loader2, Users, CheckCircle, Users2, RefreshCcw, ArrowRight, Trophy } from 'lucide-react';
 
 const API_BASE_URL = '';
+
 const StatCard = ({ title, value, icon: Icon, accent }) => {
   const accentColors = {
     indigo: 'border-indigo-500/50 text-indigo-400 bg-indigo-500/10',
@@ -26,13 +27,16 @@ const StatCard = ({ title, value, icon: Icon, accent }) => {
   );
 };
 
-const ActionCard = ({ title, description, buttonText, onClick }) => (
+const ActionCard = ({ title, description, buttonText, onClick, icon: Icon }) => (
   <div
     onClick={onClick}
-    className="group relative flex items-start justify-between gap-6 rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-lg hover:shadow-xl transition-all"
+    className="group relative flex items-start justify-between gap-6 rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-lg hover:shadow-xl transition-all cursor-pointer"
   >
     <div>
-      <h3 className="text-lg font-semibold text-white">{title}</h3>
+      <div className="flex items-center gap-3 mb-2">
+        {Icon && <Icon className="text-indigo-400 h-5 w-5" />}
+        <h3 className="text-lg font-semibold text-white">{title}</h3>
+      </div>
       <p className="mt-1 text-sm text-slate-400">{description}</p>
     </div>
     <button
@@ -40,7 +44,7 @@ const ActionCard = ({ title, description, buttonText, onClick }) => (
         e.stopPropagation(); // prevents double navigation
         onClick();
       }}
-      className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition"
+      className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition shadow-md"
     >
       {buttonText}
       <ArrowRight className="h-4 w-4" />
@@ -71,7 +75,7 @@ export default function AdminDashboardPage() {
   }, []);
 
   return (
-    <div className="space-y-12 p-8">
+    <div className="space-y-12 p-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight text-white">Admin Dashboard</h1>
@@ -86,12 +90,14 @@ export default function AdminDashboardPage() {
 
       {/* Metrics */}
       {loading ? (
-        <p className="text-slate-400">Loading metrics...</p>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 animate-pulse">
+           {[1,2,3].map(i => <div key={i} className="h-32 bg-slate-800 rounded-2xl"></div>)}
+        </div>
       ) : metrics ? (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           <StatCard title="Total Users" value={metrics.users.total} icon={Users} accent="indigo" />
           <StatCard title="Verified Users" value={metrics.users.verified} icon={CheckCircle} accent="green" />
-          <StatCard title="Teams" value={metrics.teams.total} icon={Users2} accent="cyan" />
+          <StatCard title="Total Teams" value={metrics.teams.total} icon={Users2} accent="cyan" />
         </div>
       ) : (
         <p className="text-red-400">Failed to load metrics.</p>
@@ -101,6 +107,18 @@ export default function AdminDashboardPage() {
       <div className="space-y-6">
         <h2 className="text-2xl font-semibold text-white">Quick Actions</h2>
         <div className="grid gap-6 md:grid-cols-2">
+          
+          {/* --- NEW HACKATHON MANAGER CARD --- */}
+          <div className="md:col-span-2">
+             <ActionCard
+                title="Manage Hackathons"
+                description="Create new events, switch the active hackathon, and configure team size rules."
+                buttonText="Configure"
+                icon={Trophy}
+                onClick={() => router.push('/admin/hackathons')}
+              />
+          </div>
+
           <ActionCard
             title="Manage Users"
             description="View, search, verify, and export all users."

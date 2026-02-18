@@ -1,15 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Search } from 'lucide-react';
+import axios from 'axios';
+
+// Modals
 import CreateTeamModal from '../components/CreateTeamModal';
 import EditTeamModal from '../components/EditTeamModal';
 import TeamDetailsModal from '../components/TeamDetailsModal';
-import SocialBadges from '../components/SocialBadges';
-import Avatar from '../components/Avatar';
+
+// Components
+import SidebarCards from '../components/dashboard/SidebarCards';
+import MyTeamCard from '../components/dashboard/MyTeamCard';
+import TeamGrid from '../components/dashboard/TeamGrid';
 
 function dedupeById(list = []) {
   const map = new Map();
@@ -20,15 +26,18 @@ function dedupeById(list = []) {
   return Array.from(map.values());
 }
 
-function NameWithEmail({ user, className }) {
-  if (!user) return null;
-  return (
-    <div className={className || 'flex flex-col'}>
-      <span className="font-medium text-gray-200">{user.nameWithYear || user.name}</span>
-      <span className="text-xs text-slate-400">{user.email || 'email not set'}</span>
-    </div>
-  );
-}
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1, delayChildren: 0.1 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+};
 
 export default function DashboardPage() {
   const { user, isAuthenticated, loading, recheckUser } = useAuth();
@@ -36,464 +45,225 @@ export default function DashboardPage() {
 
   const [teams, setTeams] = useState([]);
   const [updates, setUpdates] = useState([]);
-  const [allUsers, setAllUsers] = useState([]);
+  const [activeHackathon, setActiveHackathon] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [viewingTeam, setViewingTeam] = useState(null);
   const [sentInvites, setSentInvites] = useState([]);
   const [receivedInvites, setReceivedInvites] = useState([]);
 
-  const fetchTeams = async () => {
+  // --- API Fetchers ---
+  const fetchTeams = useCallback(async () => {
     try {
       const res = await fetch(`/api/teams`, { credentials: 'include' });
       if (res.ok) setTeams(await res.json());
     } catch (error) { console.error('Failed to fetch teams:', error); }
-  };
+  }, []);
 
-  const fetchUpdates = async () => {
+  const fetchActiveHackathon = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/hackathon/active`); 
+      if (res.ok) setActiveHackathon(await res.json());
+    } catch (error) { console.error('Failed to fetch hackathon:', error); }
+  }, []);
+
+  const fetchUpdates = useCallback(async () => {
     try {
       const res = await fetch(`/api/updates`);
-      if (res.ok) {
-        const data = await res.json();
-        setUpdates(data || []);
-      }
+      if (res.ok) setUpdates(await res.json() || []);
     } catch (error) { console.error('Failed to fetch updates:', error); }
-  };
+  }, []);
 
-  const fetchUsers = async () => {
+  const fetchSentInvites = useCallback(async () => {
     try {
-      const res = await fetch(`/api/users`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setAllUsers(data || []);
-      }
-    } catch (error) { console.error('Failed to fetch users:', error); }
-  };
+      const res = await axios.get(`/api/invitations/sent`, { withCredentials: true });
+      setSentInvites(res.data || []);
+    } catch (error) { console.error('Failed to fetch sent invites:', error); }
+  }, []);
 
-  const fetchSentInvites = async () => {
+  const fetchReceivedInvites = useCallback(async () => {
     try {
-      const res = await fetch(`/api/invitations/sent`, { credentials: 'include' });
-      if (res.ok) setSentInvites(await res.json());
-    } catch (error) {
-      console.error('Failed to fetch sent invites:', error);
-    }
-  };
+      const res = await axios.get(`/api/invitations/my-invitations`, { withCredentials: true });
+      setReceivedInvites(res.data || []);
+    } catch (error) { console.error('Failed to fetch received invites:', error); }
+  }, []);
 
-  const fetchReceivedInvites = async () => {
-    try {
-      const res = await fetch(`/api/invitations/received`, { credentials: 'include' });
-      if (res.ok) setReceivedInvites(await res.json());
-    } catch (error) {
-      console.error('Failed to fetch received invites:', error);
-    }
-  };
+  const handleDataUpdate = useCallback(() => {
+    fetchTeams();
+    recheckUser();
+    fetchSentInvites();
+    fetchReceivedInvites();
+  }, [fetchTeams, recheckUser, fetchSentInvites, fetchReceivedInvites]);
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchTeams();
       fetchUpdates();
-      fetchUsers();
-      
-      if (user?.team) {
-        fetchSentInvites();
-      } else {
-        fetchReceivedInvites();
-      }
+      fetchActiveHackathon();
+      fetchSentInvites();
+      fetchReceivedInvites();
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, fetchTeams, fetchUpdates, fetchActiveHackathon, fetchSentInvites, fetchReceivedInvites]);
 
-  const handleDataUpdate = () => {
-    fetchTeams();
-    recheckUser();
-  };
+  // --- BULLTEPROOF TEAM MATCHING ---
+  // This memoised block ensures that "test" shows in MyTeamCard, not the general grid.
+  const myTeam = useMemo(() => {
+    if (!user || teams.length === 0 || !activeHackathon) return null;
 
-  const handleDeleteClick = async (teamId) => {
-    if (window.confirm('Are you sure you want to delete this team?')) {
-      try {
+    // Search teams for leader ID or member ID that matches current user
+    const found = teams.find(t => {
+      const leaderId = t.leader?._id || t.leader;
+      const isLeader = String(leaderId) === String(user._id);
+      const isMember = t.members?.some(m => String(m._id || m) === String(user._id));
+      
+      // Ensure the team belongs to the CURRENT active hackathon
+      const teamHackId = t.hackathonId?._id || t.hackathonId;
+      const isCurrentEvent = String(teamHackId) === String(activeHackathon._id);
+      
+      return (isLeader || isMember) && isCurrentEvent;
+    });
+
+    return found || null;
+  }, [user, teams, activeHackathon]);
+
+  const otherTeams = useMemo(() => {
+    return dedupeById(teams.filter((t) => !myTeam || String(t._id) !== String(myTeam._id)));
+  }, [teams, myTeam]);
+
+  const handlers = {
+    onDelete: async (teamId) => {
+      if (window.confirm('Are you sure you want to delete this team?')) {
         await fetch(`/api/teams/${teamId}`, { method: 'DELETE', credentials: 'include' });
         handleDataUpdate();
-      } catch (error) { console.error('Failed to delete team:', error); }
-    }
-  };
-
-  const handleLeaveClick = async () => {
-    if (window.confirm('Leave your current team?')) {
-      try {
+      }
+    },
+    onLeave: async () => {
+      if (window.confirm('Leave your current team?')) {
         const res = await fetch(`/api/teams/members/leave`, { method: 'DELETE', credentials: 'include' });
-        if (!res.ok) throw new Error((await res.json())?.msg || 'Leave failed');
-        handleDataUpdate();
-      } catch (error) { alert(error.message); }
-    }
-  };
-
-  const handleJoinClick = async (teamId) => {
-    try {
+        if (res.ok) handleDataUpdate();
+      }
+    },
+    onJoin: async (teamId) => {
       const res = await fetch(`/api/teams/${teamId}/join`, { method: 'POST', credentials: 'include' });
-      if (!res.ok) throw new Error((await res.json())?.msg || 'Request failed');
-      handleDataUpdate();
-    } catch (error) {
-      alert(error.message);
-    }
-  };
-
-  const handleCancelJoin = async (teamId) => {
-    try {
+      if (res.ok) handleDataUpdate();
+    },
+    onCancelJoin: async (teamId) => {
       const res = await fetch(`/api/teams/${teamId}/cancel-request`, { method: 'POST', credentials: 'include' });
-      if (!res.ok) throw new Error((await res.json())?.msg || 'Cancel failed');
-      handleDataUpdate();
-    } catch (e) {
-      alert(e.message);
-    }
-  };
-  
-  const handleApprove = async (teamId, userId) => {
-    try {
+      if (res.ok) handleDataUpdate();
+    },
+    onApprove: async (teamId, userId) => {
       await fetch(`/api/teams/${teamId}/approve/${userId}`, { method: 'POST', credentials: 'include' });
       handleDataUpdate();
-    } catch (error) { console.error('Failed to approve request:', error); }
-  };
-
-  const handleReject = async (teamId, userId) => {
-    try {
+    },
+    onReject: async (teamId, userId) => {
       await fetch(`/api/teams/${teamId}/reject/${userId}`, { method: 'POST', credentials: 'include' });
       handleDataUpdate();
-    } catch (error) { console.error('Failed to reject request:', error); }
-  };
-
-  const handleInvite = async (inviteeId) => {
-    try {
-      const res = await fetch(`/api/invitations`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ teamId: user.team, inviteeId }),
-      });
-      if (!res.ok) throw new Error((await res.json())?.msg || 'Invite failed');
-      alert('Invitation sent!');
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const handleCancelInvite = async (inviteId) => {
-    if (window.confirm('Are you sure you want to cancel this invitation?')) {
+    },
+    onAcceptInvite: async (inviteId) => {
+      const res = await axios.post(`/api/invitations/${inviteId}/accept`, {}, { withCredentials: true });
+      if (res.status === 200) handleDataUpdate();
+    },
+    onRejectInvite: async (inviteId) => {
+      const res = await axios.post(`/api/invitations/${inviteId}/reject`, {}, { withCredentials: true });
+      if (res.status === 200) fetchReceivedInvites();
+    },
+    onCancelInvite: async (inviteId) => {
       try {
-        const res = await fetch(`/api/invitations/${inviteId}/cancel`, { method: 'POST', credentials: 'include' });
-        if (!res.ok) throw new Error((await res.json())?.message || 'Failed to cancel');
-        fetchSentInvites();
-      } catch (error) {
-        alert(error.message);
+        await axios.delete(`/api/invitations/${inviteId}`, { withCredentials: true });
+        setSentInvites(prev => prev.filter(i => i._id !== inviteId));
+      } catch (err) { alert("Failed to cancel invite"); }
+    },
+    onSubmitTeam: async (teamId) => {
+      if (window.confirm('Are you sure? Once submitted, you cannot change members.')) {
+        try {
+           const res = await fetch(`/api/teams/${teamId}/submit`, { method: 'POST', credentials: 'include' });
+           if (res.ok) {
+             handleDataUpdate();
+             alert("Team submitted successfully!");
+           } else {
+             const err = await res.json();
+             alert(err.message || "Failed to submit team");
+           }
+        } catch(e) { alert("Network error submitting team"); }
       }
-    }
-  };
-
-  const handleAcceptInvite = async (inviteId) => {
-    try {
-      const res = await fetch(`/api/invitations/${inviteId}/accept`, { method: 'POST', credentials: 'include' });
-      if (!res.ok) throw new Error((await res.json())?.message || 'Failed to accept');
-      handleDataUpdate();
-    } catch (error) {
-      alert(error.message);
-    }
-  };
-
-  const handleRejectInvite = async (inviteId) => {
-    try {
-      const res = await fetch(`/api/invitations/${inviteId}/reject`, { method: 'POST', credentials: 'include' });
-      if (!res.ok) throw new Error((await res.json())?.message || 'Failed to reject');
-      fetchReceivedInvites();
-    } catch (error) {
-      alert(error.message);
     }
   };
 
   if (loading || !user) {
-    return <div className="flex min-h-screen items-center justify-center"><h1 className="text-3xl font-bold">Loading...</h1></div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="animate-bounce text-2xl">🚀</div>
+      </div>
+    );
   }
 
-  const myTeam = user.team ? teams.find((t) => String(t._id) === String(user.team)) : null;
-  const otherTeams = dedupeById(teams.filter((t) => !user.team || String(t._id) !== String(user.team)));
-  const myMembers = myTeam ? dedupeById(myTeam.members) : [];
-  const myRequests = myTeam ? dedupeById(myTeam.pendingRequests) : [];
-
   return (
-    <div className="min-h-screen w-full">
-    
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-10 text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-slate-100">
-            Welcome, <span className="bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">{user.name}</span>
-          </h1>
-          <p className="mt-2 text-slate-400">Manage your team, track updates, and explore ideas.</p>
-        </motion.div>
+    <div className="min-h-screen relative bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+      {/* Background Decor */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60%] h-[200px] bg-indigo-500/10 blur-[120px] rounded-full pointer-events-none" />
 
-        {user.course === 'B.Tech' && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="mb-8 rounded-lg border border-cyan-500/50 bg-cyan-500/10 p-4 text-center"
-          >
-            <p className="text-cyan-300">
-              We've updated our system! Please take a moment to verify your academic details are correct.
-            </p>
-            <Link href="/profile">
-              <button className="mt-3 rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500">
-                Go to Profile
-              </button>
-            </Link>
+      <main className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <motion.div variants={containerVariants} initial="hidden" animate="visible">
+          
+          {/* HEADER SECTION */}
+          <motion.div variants={itemVariants} className="mb-10 flex flex-col md:flex-row justify-between items-end gap-6 border-b border-slate-200 dark:border-slate-800 pb-8">
+            <div className="space-y-2">
+              <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+                Welcome, <span className="bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent">{user.name}</span> 👋
+              </h1>
+              <p className="text-lg font-medium text-slate-600 dark:text-slate-400">Assemble your dream squad.</p>
+            </div>
+            
+            <div className="flex items-center gap-4">
+               <button onClick={() => router.push('/dashboard/all-users')} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold shadow-lg hover:scale-105 transition-transform">
+                 <Search size={18} strokeWidth={2.5} /> Find Teammates
+               </button>
+               {/* FIXED BADGE: Uses the actual event name for branding */}
+               <div className="hidden lg:block bg-white dark:bg-slate-800 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm">
+                  <span className="text-sm font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                    📅 {activeHackathon?.name || activeHackathon?.title || "Active Event"}
+                  </span>
+               </div>
+            </div>
           </motion.div>
-        )}
 
-        <div className="grid gap-8 lg:grid-cols-[320px,1fr]">
-          {/* Sidebar */}
-          <aside className="space-y-6">
-            {[
-              {
-                title: "📢 Official Updates",
-                color: "indigo",
-                description: "Stay updated with the latest announcements.",
-                items: updates,
-                buttonText: "View All Updates",
-                onClick: () => router.push('/updates'),
-              },
-              {
-                title: "💡 Got an Idea?",
-                color: "purple",
-                description: "Share proposals and track feedback.",
-                buttonText: "Browse Ideas",
-                onClick: () => router.push('/ideas'),
-              },
-              {
-                title: "📚 Resource Hub",
-                color: "emerald",
-                description: "Access curated study materials, guides, and references.",
-                buttonText: "Go to Resource Hub",
-                onClick: () => router.push('/resources'),
-              },
-              {
-                title: "👥 View All Users",
-                color: "cyan",
-                description: "Browse all participants and invite them to your team.",
-                buttonText: "View Users",
-                onClick: () => router.push('/dashboard/all-users'),
-              }
-            ].map((card, idx) => (
-              <motion.div
-                key={idx}
-                whileHover={{ scale: 1.02 }}
-                className="relative rounded-xl p-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500 animate-border"
-              >
-                <div className="rounded-xl bg-slate-900/90 p-6">
-                  <h3 className={`text-lg font-semibold text-${card.color}-400`}>{card.title}</h3>
-                  {card.items ? (
-                    card.items.length > 0 ? (
-                      <ul className="mt-3 space-y-2">
-                        {card.items.slice(0, 3).map((u) => (
-                          <li key={u._id}>
-                            <a href={u.url} className="text-sm font-medium hover:text-indigo-300">
-                              {u.title}
-                            </a>
-                            <p className="text-xs text-slate-500">{u.summary || 'No description'}</p>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="mt-2 text-sm text-slate-400">No updates available</p>
-                    )
-                  ) : (
-                    <p className="mt-2 text-sm text-slate-400">{card.description}</p>
-                  )}
-                  <button
-                    onClick={card.onClick}
-                    className={`mt-4 w-full rounded-md bg-${card.color}-600 px-4 py-2 text-sm font-medium hover:bg-${card.color}-500 transition`}
-                  >
-                    {card.buttonText}
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </aside>
+          <div className="flex flex-col lg:flex-row gap-8 items-start">
+            <motion.div variants={itemVariants} className="w-full lg:w-[340px] lg:sticky lg:top-24 shrink-0">
+              <SidebarCards updates={updates} router={router} />
+            </motion.div>
 
-          {/* Main section */}
-          <section>
-            {/* My Team */}
-            <div className="mb-8 flex items-center justify-between">
-              <h2 className="text-2xl font-bold">My Team</h2>
-              {!myTeam && (
-                <button onClick={() => setIsCreateModalOpen(true)} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500">+ Create Team</button>
-              )}
-            </div>
+            <motion.div variants={itemVariants} className="flex-1 w-full space-y-10 min-w-0">
+              <MyTeamCard 
+                myTeam={myTeam} 
+                user={user} 
+                handlers={handlers} 
+                hackathon={activeHackathon}
+                sentInvites={sentInvites}
+                receivedInvites={receivedInvites}
+                teams={teams}
+                setIsCreateModalOpen={setIsCreateModalOpen}
+                setIsEditModalOpen={setIsEditModalOpen}
+                setViewingTeam={setViewingTeam}
+                router={router}
+              />
 
-            {myTeam ? (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="relative rounded-lg p-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500">
-                <div className="rounded-lg bg-slate-900/90 p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center">
-                      {myTeam.logoUrl && (
-                        <img src={myTeam.logoUrl} alt={`${myTeam.teamName} logo`} className="w-16 h-16 rounded-lg mr-4 object-cover bg-slate-700" />
-                      )}
-                      <div>
-                        <h3 className="text-xl font-semibold text-cyan-400">{myTeam.teamName}</h3>
-                        <div className="mt-2 text-slate-400">
-                          Led by:
-                          <div className="mt-1 flex items-center gap-2">
-                            <Avatar name={myTeam.leader.name} src={myTeam.leader.photoUrl} size={36} />
-                            <NameWithEmail user={myTeam.leader} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => setIsEditModalOpen(true)} className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium hover:bg-blue-500">
-                        {String(user._id) === String(myTeam.leader._id) ? 'Edit' : 'Read Details'}
-                      </button>
-                      {String(user._id) === String(myTeam.leader._id) ? (
-                        <button onClick={() => handleDeleteClick(myTeam._id)} className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium hover:bg-red-500">Delete</button>
-                      ) : (
-                        <button onClick={handleLeaveClick} className="rounded-md bg-yellow-600 px-3 py-1.5 text-sm font-medium hover:bg-yellow-500">Leave</button>
-                      )}
-                    </div>
-                  </div>
-                  <p className="mt-4 font-medium text-gray-200">Problem Statement:</p>
-                  <p className="mt-1 text-slate-400">{myTeam.problemStatementTitle}</p>
-                  <p className="mt-4 font-medium text-gray-200">Members ({myMembers.length} / 6):</p>
-                  <ul className="mt-2 space-y-2">
-                    {myMembers.map((m) => (
-                      <li key={m._id} className="flex items-center gap-2">
-                        <Avatar name={m.name} src={m.photoUrl} size={28} />
-                        <NameWithEmail user={m} />
-                        <SocialBadges profiles={m.socialProfiles} className="ml-2" />
-                      </li>
-                    ))}
-                  </ul>
-                  {String(user._id) === String(myTeam.leader._id) && myRequests.length > 0 && (
-                    <div className="mt-4 border-t border-slate-700 pt-4">
-                      <p className="font-semibold text-cyan-400">Pending Requests:</p>
-                      <ul className="mt-1 space-y-2">
-                        {myRequests.map((requestUser) => (
-                          <li key={requestUser._id} className="flex items-center justify-between text-gray-400">
-                            <NameWithEmail user={requestUser} />
-                            <div className="space-x-2">
-                              <button onClick={() => handleApprove(myTeam._id, requestUser._id)} className="rounded bg-green-600 px-2 py-1 text-xs hover:bg-green-700">Approve</button>
-                              <button onClick={() => handleReject(myTeam._id, requestUser._id)} className="rounded bg-red-600 px-2 py-1 text-xs hover:bg-red-700">Reject</button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {String(user._id) === String(myTeam.leader._id) && sentInvites.length > 0 && (
-                    <div className="mt-4 border-t border-slate-700 pt-4">
-                      <p className="font-semibold text-yellow-400">Sent Invitations:</p>
-                      <ul className="mt-1 space-y-2">
-                        {sentInvites.map((invite) => (
-                          <li key={invite._id} className="flex items-center justify-between text-gray-400">
-                            <NameWithEmail user={invite.inviteeId} />
-                            <div className="space-x-2">
-                              <button 
-                                onClick={() => handleCancelInvite(invite._id)} 
-                                className="rounded bg-gray-600 px-2 py-1 text-xs hover:bg-gray-700">
-                                Cancel
-                              </button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+              <div className="pt-4">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span className="text-indigo-500">⚡</span> Active Squads
+                  </h2>
+                  <span className="text-xs font-bold px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded text-slate-500">{otherTeams.length} TEAMS</span>
                 </div>
-              </motion.div>
-            ) : (
-              <div>
-                {receivedInvites.length > 0 && (
-                  <div className="mb-6 rounded-lg bg-slate-800/50 p-6">
-                    <h3 className="text-xl font-bold text-cyan-400 mb-4">You Have Team Invitations!</h3>
-                    <ul className="space-y-3">
-                      {receivedInvites.map(invite => {
-                        const fullTeam = teams.find(t => t._id === invite.teamId?._id);
-                        return (
-                          <li key={invite._id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-slate-900/70 rounded-md gap-3">
-                            <p>
-                              <button
-                                onClick={() => {
-                                  if (fullTeam) {
-                                    setViewingTeam(fullTeam);
-                                  }
-                                }}
-                                className="font-semibold text-cyan-400 hover:underline disabled:text-gray-500 disabled:no-underline disabled:cursor-default"
-                                disabled={!fullTeam}
-                                title={fullTeam ? `Click to view details for ${fullTeam.teamName}` : 'Team details not available'}
-                              >
-                                {fullTeam?.teamName || invite.teamId?.name || 'A team'}
-                              </button>
-                              <span className="text-sm text-slate-400"> has invited you to join.</span>
-                            </p>
-                            <div className="flex gap-2 flex-shrink-0">
-                              <button onClick={() => handleAcceptInvite(invite._id)} className="rounded bg-green-600 px-3 py-1.5 text-xs font-semibold hover:bg-green-500">Accept</button>
-                              <button onClick={() => handleRejectInvite(invite._id)} className="rounded bg-red-600 px-3 py-1.5 text-xs font-semibold hover:bg-red-500">Decline</button>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-                
-                <div className="rounded-lg border border-dashed border-slate-700 bg-slate-800/50 p-6 text-center text-slate-400">
-                  You are not part of a team yet. Create one or join an existing team from the list below.
-                </div>
+                <TeamGrid otherTeams={otherTeams} user={user} myTeam={myTeam} handlers={handlers} setViewingTeam={setViewingTeam} />
               </div>
-            )}
-
-            {/* Other Teams */}
-            <div className="mt-12">
-              <h2 className="mb-6 text-2xl font-bold">All Other Teams</h2>
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {otherTeams.map((team) => {
-                  const hasRequested = (team.pendingRequests || []).some(req => String(req._id || req) === String(user._id));
-                  const isFull = (team.members || []).length >= 6;
-                  return (
-                    <motion.div key={team._id} whileHover={{ scale: 1.02 }} className="flex flex-col justify-between rounded-lg p-[1px] bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 cursor-pointer" onClick={() => setViewingTeam(team)}>
-                      <div className="rounded-lg bg-slate-900/90 p-6 h-full flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-center mb-2">
-                            {team.logoUrl && (
-                              <img src={team.logoUrl} alt={`${team.teamName} logo`} className="w-10 h-10 rounded-md mr-3 object-cover bg-slate-700" />
-                            )}
-                            <h3 className="text-lg font-semibold text-indigo-400">{team.teamName}</h3>
-                          </div>
-                          <p className="mt-2 text-slate-400 text-sm">Led by {team.leader.name}</p>
-                          <p className="mt-4 text-sm text-slate-300">Members: {team.members?.length || 0} / 6</p>
-                        </div>
-                        <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center justify-between">
-                          <span className="text-xs text-slate-500">Click to view members</span>
-                          {!myTeam && (
-                            hasRequested ? (
-                              <button onClick={(e) => { e.stopPropagation(); handleCancelJoin(team._id); }} className="rounded bg-slate-600 px-3 py-1.5 text-xs text-white hover:bg-slate-500">
-                                Cancel Request
-                              </button>
-                            ) : (
-                              <button onClick={(e) => { e.stopPropagation(); handleJoinClick(team._id); }} className="rounded bg-indigo-600 px-3 py-1.5 text-xs text-white hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed" disabled={isFull}>
-                                {isFull ? 'Full' : 'Request to Join'}
-                              </button>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        </div>
+            </motion.div>
+          </div>
+        </motion.div>
       </main>
 
       <CreateTeamModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onTeamCreated={handleDataUpdate} />
-      {myTeam && (
-        <EditTeamModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onTeamUpdated={handleDataUpdate} teamData={myTeam} currentUser={user} />
-      )}
+      {myTeam && <EditTeamModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onTeamUpdated={handleDataUpdate} teamData={myTeam} currentUser={user} />}
       <TeamDetailsModal isOpen={!!viewingTeam} onClose={() => setViewingTeam(null)} team={viewingTeam} currentUserId={user?._id} onDataUpdate={handleDataUpdate} />
     </div>
   );

@@ -1,16 +1,29 @@
 @import "tailwindcss";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
+/* v4 Theme Configuration 
+   We define the "dark" variant to listen to the ".dark" class 
+   instead of the system preference.
+*/
+@custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+  
+  /* Re-add animations if you need them */
+  --animate-border: border 4s ease infinite;
+  
+  @keyframes border {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+}
+
+/* Apply the background colors using standard CSS 
+   because v4 is CSS-first.
+*/
 @layer base {
   body {
-    @apply bg-slate-900 text-slate-200;
-  }
-
-  /* Consistent dark-themed dropdown options */
-  select option {
-    @apply bg-slate-800 text-white;
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300;
   }
 }

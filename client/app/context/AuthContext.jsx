@@ -1,19 +1,20 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 
 const AuthContext = createContext(null);
-const API_BASE_URL = '';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const checkUser = async () => {
+  // 1. Stable Check User Function
+  const checkUser = useCallback(async () => {
     try {
       const res = await fetch(`/api/users/me`, { credentials: 'include' });
       if (res.ok) {
-        setUser(await res.json());
+        const data = await res.json();
+        setUser(data);
       } else {
         setUser(null);
       }
@@ -22,39 +23,50 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     checkUser();
-  }, []);
+  }, [checkUser]);
 
-  const login = async (email, password) => {
+  // 2. Login: Fetches, updates state, and then HARD REDIRECTS to dashboard
+  const login = useCallback(async (email, password) => {
     const res = await fetch(`/api/users/login`, {
       method: 'POST',
-      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ email, password }),
     });
+
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.msg || 'Login failed');
     }
-    await checkUser(); // Re-fetch user data to update state
-  };
 
-  const logout = async () => {
-    await fetch(`${API_BASE_URL}/api/users/logout`, {
-      method: 'POST',
-      credentials: 'include',
-    });
+    // Force a hard refresh to the dashboard to ensure all state is clean
+    window.location.href = '/dashboard'; 
+  }, []);
+
+  // 3. Logout: Kills session and HARD REDIRECTS to login
+  const logout = useCallback(async () => {
+    try {
+      await fetch(`/api/users/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
+    
     setUser(null);
+    // This forces the browser to reload the page, clearing all memory/cache
     window.location.href = '/login';
-  };
+  }, []);
   
-  const recheckUser = () => {
+  const recheckUser = useCallback(() => {
     setLoading(true);
     checkUser();
-  };
+  }, [checkUser]);
   
   const value = useMemo(
     () => ({
@@ -65,7 +77,7 @@ export function AuthProvider({ children }) {
       logout,
       recheckUser,
     }),
-    [user, loading]
+    [user, loading, login, logout, recheckUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

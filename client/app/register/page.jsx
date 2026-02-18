@@ -1,84 +1,53 @@
 'use client';
 
-import { Eye, EyeOff } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { gsap } from 'gsap';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { 
+  Eye, EyeOff, User, Mail, Lock, GraduationCap, 
+  Upload, CheckCircle, AlertCircle, Loader2, 
+  School, CreditCard, ArrowRight, Check, Key
+} from 'lucide-react';
+
+// IMPORT YOUR FOOTER HERE
+import Footer from '../components/Footer'; 
 
 export default function RegisterPage() {
+  // --- Form States ---
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [emailStatus, setEmailStatus] = useState('idle');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [rollNumber, setRollNumber] = useState('');
-  const [document, setDocument] = useState(null);
-  const [verificationMethod, setVerificationMethod] = useState('rollNumber');
-  const [error, setError] = useState('');
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [gender, setGender] = useState('');
   const [year, setYear] = useState('');
   const [course, setCourse] = useState('');
+  const [rollNumber, setRollNumber] = useState('');
+  const [document, setDocument] = useState(null);
+  const [verificationMethod, setVerificationMethod] = useState('rollNumber');
+
+  // --- UI States ---
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
   const [verificationResult, setVerificationResult] = useState(false);
   
+  // --- Validation States ---
+  const [emailStatus, setEmailStatus] = useState('idle'); // idle | checking | available | unavailable | invalid
+
+  // --- OTP States ---
+  const [otp, setOtp] = useState('');
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpTimer, setOtpTimer] = useState(0);
+
   const router = useRouter();
-  const formRef = useRef(null);
   const errorRef = useRef(null);
-  const titleRef = useRef(null);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    if (emailStatus === 'unavailable' || emailStatus === 'invalid') {
-      setError('Please provide a valid and available email address.');
-      return;
-    }
-    if (!name || !password || !gender || !year || !course || (verificationMethod === 'rollNumber' && !rollNumber) || (verificationMethod === 'documentUpload' && !document)) {
-      setError('Please fill out all required fields.');
-      return;
-    }
-    setLoading(true);
-    const formData = new FormData();
-    formData.append('name', name);
-    formData.append('email', email);
-    formData.append('password', password);
-    formData.append('gender', gender);
-    formData.append('year', year);
-    formData.append('course', course);
-    formData.append('verificationMethod', verificationMethod);
-    if (verificationMethod === 'rollNumber') {
-      formData.append('rollNumber', rollNumber);
-    } else if (document) {
-      formData.append('document', document);
-    }
-    try {
-      // MODIFIED: Using relative path
-      const res = await fetch(`/api/users/register`, {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.msg || 'Something went wrong during registration.');
-      }
-      setVerificationResult(data.isVerified);
-      setIsSuccess(true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFileChange = (e) => {
-    if (e.target.files) {
-      setDocument(e.target.files[0]);
-    }
-  };
-
+  // --- 1. Email Availability Checker ---
   useEffect(() => {
+    // Reset OTP state if email changes
+    if (isOtpSent) return; 
+
     if (!email) {
       setEmailStatus('idle');
       return;
@@ -88,10 +57,10 @@ export default function RegisterPage() {
       setEmailStatus('invalid');
       return;
     }
+
     setEmailStatus('checking');
     const debounceTimer = setTimeout(async () => {
       try {
-        // MODIFIED: Using relative path
         const res = await fetch(`/api/users/check-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -103,208 +72,348 @@ export default function RegisterPage() {
         setEmailStatus('idle');
       }
     }, 500);
-    return () => clearTimeout(debounceTimer);
-  }, [email]);
 
+    return () => clearTimeout(debounceTimer);
+  }, [email, isOtpSent]);
+
+  // --- 2. OTP Timer Logic ---
   useEffect(() => {
-    const formElement = formRef.current;
-    if (!formElement) return;
-    const handleMouseMoveInside = (e) => {
-      const rect = formElement.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      const scaleX = gsap.utils.mapRange(0, rect.width, 0.98, 1.02, mouseX);
-      const scaleY = gsap.utils.mapRange(0, rect.height, 1.02, 0.98, mouseY);
-      gsap.to(formElement, { scaleX, scaleY, duration: 0.5, ease: 'power3.out' });
-    };
-    const handleMouseLeave = () => {
-      gsap.to(formElement, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.5)' });
-    };
-    formElement.addEventListener('mousemove', handleMouseMoveInside);
-    formElement.addEventListener('mouseleave', handleMouseLeave);
-    return () => {
-      if (formElement) {
-        formElement.removeEventListener('mousemove', handleMouseMoveInside);
-        formElement.removeEventListener('mouseleave', handleMouseLeave);
+    let interval;
+    if (otpTimer > 0) {
+      interval = setInterval(() => setOtpTimer((prev) => prev - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [otpTimer]);
+
+  // --- 3. Send OTP Handler ---
+  const handleSendOtp = async () => {
+    if (emailStatus !== 'available') return;
+    setOtpLoading(true);
+    setError('');
+    
+    try {
+      const res = await fetch('/api/users/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.msg || 'Failed to send OTP');
+      
+      setIsOtpSent(true);
+      setOtpTimer(60); // 60 seconds cooldown
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // --- 4. File Upload Handler ---
+  const handleFileChange = (e) => {
+    if (e.target.files) {
+      setDocument(e.target.files[0]);
+    }
+  };
+
+  // --- 5. Final Registration Submission ---
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    
+    // Validation
+    if (emailStatus === 'unavailable') return setError('Email is already taken.');
+    if (emailStatus === 'invalid') return setError('Invalid email address.');
+    if (!isOtpSent) return setError('Please verify your email address first.');
+    if (!otp) return setError('Please enter the verification code sent to your email.');
+    
+    if (!name || !password || !gender || !year || !course) {
+      setError('Please fill out all required fields.');
+      return;
+    }
+    if (verificationMethod === 'rollNumber' && !rollNumber) return setError('Roll Number is required.');
+    if (verificationMethod === 'documentUpload' && !document) return setError('ID Document is required.');
+
+    setLoading(true);
+    
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('email', email);
+    formData.append('password', password);
+    formData.append('gender', gender);
+    formData.append('year', year);
+    formData.append('course', course);
+    formData.append('otp', otp); // Passing OTP to backend
+    formData.append('verificationMethod', verificationMethod);
+    
+    if (verificationMethod === 'rollNumber') {
+      formData.append('rollNumber', rollNumber);
+    } else if (document) {
+      formData.append('document', document);
+    }
+
+    try {
+      const res = await fetch(`/api/users/register`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.msg || 'Something went wrong during registration.');
       }
-    };
-  }, []);
+      
+      setVerificationResult(data.isVerified);
+      setIsSuccess(true);
+    } catch (err) {
+      setError(err.message);
+      if(errorRef.current) errorRef.current.scrollIntoView({ behavior: 'smooth' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div
-      className="relative flex min-h-full w-full items-center justify-center p-4 bg-cover bg-center bg-fixed"
-      style={{ backgroundImage: "url('/coding-background.jpg')" }}
-    >
-      <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm"></div>
-      <div
-        ref={formRef}
-        className="relative z-10 w-full max-w-md rounded-2xl border border-purple-500/30 bg-slate-800/50 p-8 shadow-2xl shadow-purple-500/20"
-      >
-        <h2 className="mb-6 bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-center text-3xl font-bold text-transparent">
-          Join the Hackathon
-        </h2>
-        {isSuccess ? (
-            <div className="text-center">
-              <svg
-                className="mx-auto h-16 w-16 text-green-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                ></path>
-              </svg>
+    <div className="relative flex flex-col min-h-screen w-full bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+      
+      {/* Background Elements */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[300px] bg-indigo-500/10 dark:bg-indigo-500/20 blur-[120px] rounded-full pointer-events-none" />
+
+      {/* Main Content Area */}
+      <div className="flex-grow flex items-center justify-center py-10 px-4 z-10">
+        <div className="w-full max-w-2xl rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-2xl shadow-indigo-500/10 overflow-hidden transition-all duration-300">
+          
+          {isSuccess ? (
+            <div className="p-10 flex flex-col items-center text-center animate-in fade-in zoom-in duration-300">
+              <div className="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20">
+                <CheckCircle size={40} className="text-emerald-600 dark:text-emerald-400" />
+              </div>
 
               {verificationResult ? (
                 <>
-                  <h3 className="mt-4 text-2xl font-semibold text-white">
-                    College Student Verified!
-                  </h3>
-                  <p className="mt-2 text-gray-400">
-                    Your account has been created and verified successfully.
+                  <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">Verified Student!</h2>
+                  <p className="text-slate-600 dark:text-slate-300 text-lg mb-8 max-w-md">
+                    Your details matched our records. Your account has been created and verified successfully.
                   </p>
-                  <button
-                    onClick={() => router.push('/login')}
-                    className="mt-6 w-full rounded-lg bg-blue-600 px-5 py-3 font-medium text-white transition-transform duration-200 hover:scale-105 active:scale-95"
-                  >
-                    Login Here
+                  <button onClick={() => router.push('/login')} className="w-full max-w-xs rounded-xl bg-indigo-600 px-6 py-3.5 font-bold text-white shadow-lg hover:bg-indigo-500 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                    Proceed to Login
                   </button>
                 </>
               ) : (
                 <>
-                  <h3 className="mt-4 text-2xl font-semibold text-white">
-                    Successfully Registered!
-                  </h3>
-                  <p className="mt-2 text-gray-400">
-                    Your account is now pending approval from the admin.
+                  <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">Registration Successful!</h2>
+                  <p className="text-slate-600 dark:text-slate-300 mb-8 max-w-md">
+                    Your account is created and currently <span className="font-bold text-amber-500">Pending Approval</span>.
                   </p>
-
-                  {/* ✅ Added urgent verification message */}
-                  <div className="mt-4 text-sm text-gray-300">
-                    <p>
-                      <span className="font-semibold text-yellow-400">
-                        Need to get verified ASAP?
-                      </span>{' '}
-                      Drop a message at{' '}
-                      <a
-                        href="tel:+917479934706"
-                        className="text-blue-400 hover:underline"
-                      >
-                        +91 7479934706
-                      </a>{' '}
-                      or{' '}
-                      <a
-                        href="mailto:abdulbarr730@gmail.com"
-                        className="text-blue-400 hover:underline"
-                      >
-                        abdulbarr730@gmail.com
-                      </a>
-                    </p>
-                  </div>
+                  <Link href="/login" className="inline-block mt-4 text-indigo-600 dark:text-indigo-400 font-bold hover:underline">
+                    Return to Login
+                  </Link>
                 </>
               )}
             </div>
           ) : (
-          <>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && <p ref={errorRef} className="rounded bg-red-500/50 p-3 text-center text-sm">{error}</p>}
-              <div>
-                <label htmlFor="name" className="mb-2 block text-sm font-medium text-gray-300">Full Name</label>
-                <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your full name" className="w-full rounded-md border-none bg-black/30 p-3 ring-1 ring-white/10 placeholder:text-gray-400 focus:ring-purple-500" />
+            <div className="p-6 sm:p-10">
+              <div className="text-center mb-10">
+                <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  Join the Squad
+                </h2>
+                <p className="text-slate-500 dark:text-slate-400 mt-2">
+                  Create your account to start participating.
+                </p>
               </div>
-              <div>
-                <label htmlFor="email" className="mb-2 block text-sm font-medium text-gray-300">Email Address</label>
-                <div className="relative">
-                  <input type="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={`w-full rounded-md border-none bg-black/30 p-3 ring-1 placeholder:text-gray-400 focus:ring-purple-500 ${emailStatus === 'available' ? 'ring-green-500' : ''} ${emailStatus === 'unavailable' || emailStatus === 'invalid' ? 'ring-red-500' : 'ring-white/10'}`} />
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                
+                {error && (
+                  <div ref={errorRef} className="rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-500/20 p-4 flex items-start gap-3 animate-pulse">
+                    <AlertCircle className="text-red-500 dark:text-red-400 shrink-0 mt-0.5" size={18} />
+                    <span className="text-sm font-medium text-red-600 dark:text-red-300">{error}</span>
+                  </div>
+                )}
+
+                {/* --- EMAIL & OTP SECTION (The New Part) --- */}
+                <div className="space-y-4 rounded-2xl bg-slate-50 dark:bg-slate-950/30 p-4 border border-slate-100 dark:border-slate-800">
+                    
+                    {/* Email Input */}
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Email Address</label>
+                        <div className="relative group">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                            <input 
+                                type="email" 
+                                value={email} 
+                                onChange={(e) => setEmail(e.target.value)} 
+                                disabled={isOtpSent} // Lock email after sending
+                                placeholder="name@example.com" 
+                                className={`w-full pl-10 pr-28 py-2.5 rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white outline-none transition-all ${emailStatus === 'available' ? 'border-emerald-500' : emailStatus === 'unavailable' ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                            />
+                            
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                {isOtpSent ? (
+                                    <span className="text-xs font-bold text-emerald-500 flex items-center gap-1 bg-emerald-500/10 px-2 py-1 rounded-lg">
+                                        <Check size={12} /> Code Sent
+                                    </span>
+                                ) : (
+                                    <button 
+                                        type="button"
+                                        onClick={handleSendOtp}
+                                        disabled={emailStatus !== 'available' || otpLoading}
+                                        className="text-xs font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                                    >
+                                        {otpLoading ? <Loader2 size={14} className="animate-spin" /> : "Get Code"}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        {/* Status Message */}
+                        <div className="flex justify-between h-4 px-1">
+                            <span className="text-[10px] text-slate-400">
+                                {emailStatus === 'checking' && "Checking availability..."}
+                            </span>
+                            <span className="text-[10px] font-medium">
+                                {emailStatus === 'available' && !isOtpSent && <span className="text-emerald-500">Email available</span>}
+                                {emailStatus === 'unavailable' && <span className="text-red-500">Email already exists</span>}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* OTP Input (Conditionally Rendered) */}
+                    {isOtpSent && (
+                        <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-300">
+                            <div className="flex justify-between items-center">
+                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Verification Code</label>
+                                {otpTimer > 0 ? (
+                                    <span className="text-[10px] text-slate-400">Resend in {otpTimer}s</span>
+                                ) : (
+                                    <button type="button" onClick={handleSendOtp} className="text-[10px] text-indigo-500 hover:underline">Resend Code</button>
+                                )}
+                            </div>
+                            <div className="relative group">
+                                <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                                <input 
+                                    type="text" 
+                                    value={otp} 
+                                    onChange={(e) => setOtp(e.target.value)} 
+                                    placeholder="Enter 6-digit code" 
+                                    maxLength={6}
+                                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all tracking-widest font-mono"
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
-                <div className="pt-1 text-xs min-h-[16px]">
-                  {emailStatus === 'checking' && <p className="text-yellow-400">Checking...</p>}
-                  {emailStatus === 'unavailable' && <p className="text-red-500">Email is already taken.</p>}
-                  {emailStatus === 'available' && <p className="text-green-500">Email is available!</p>}
-                  {emailStatus === 'invalid' && <p className="text-red-500">Please enter a valid email.</p>}
+
+                {/* --- PERSONAL DETAILS --- */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Full Name</label>
+                    <div className="relative group">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                      <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="John Doe" className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"/>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Gender</label>
+                    <div className="relative group">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                      <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer">
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label htmlFor="gender" className="mb-2 block text-sm font-medium text-gray-300">Gender</label>
-                <select id="gender" value={gender} onChange={(e) => setGender(e.target.value)} required className={`w-full rounded-md border-none bg-black/30 p-3 ring-1 ring-white/10 focus:ring-purple-500 ${!gender ? 'text-gray-400' : 'text-white'}`}>
-                  <option value="">Select Gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="course" className="mb-2 block text-sm font-medium text-gray-300">Course</label>
-                <select id="course" value={course} onChange={(e) => setCourse(e.target.value)} required className={`w-full rounded-md border-none bg-black/30 p-3 ring-1 ring-white/10 focus:ring-purple-500 ${!course ? 'text-gray-400' : 'text-white'}`}>
-                  <option value="">Select Course</option>
-                  <option value="B.Tech">B.Tech</option>
-                  <option value="BCA">BCA</option>
-                  <option value="Diploma">Diploma</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="year" className="mb-2 block text-sm font-medium text-gray-300">Academic Year</label>
-                <select id="year" value={year} onChange={(e) => setYear(e.target.value)} required className={`w-full rounded-md border-none bg-black/30 p-3 ring-1 ring-white/10 focus:ring-purple-500 ${!year ? 'text-gray-400' : 'text-white'}`}>
-                  <option value="">Select Year</option>
-                  <option value="1">1st Year</option>
-                  <option value="2">2nd Year</option>
-                  <option value="3">3rd Year</option>
-                  <option value="4">4th Year</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-300">Verification Method</label>
-                <div className="flex items-center space-x-4 rounded-md bg-black/30 p-1">
-                  <label className="flex-1 cursor-pointer rounded-md p-2 text-center text-gray-300 transition-colors hover:bg-white/10 has-[:checked]:bg-purple-600/50 has-[:checked]:text-white">
-                    <input type="radio" name="verificationMethod" value="rollNumber" checked={verificationMethod === 'rollNumber'} onChange={(e) => setVerificationMethod(e.target.value)} className="sr-only" />
-                    <span>Roll Number</span>
-                  </label>
-                  <label className="flex-1 cursor-pointer rounded-md p-2 text-center text-gray-300 transition-colors hover:bg-white/10 has-[:checked]:bg-purple-600/50 has-[:checked]:text-white">
-                    <input type="radio" name="verificationMethod" value="documentUpload" checked={verificationMethod === 'documentUpload'} onChange={(e) => setVerificationMethod(e.target.value)} className="sr-only" />
-                    <span>Upload Doc</span>
-                  </label>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Course</label>
+                    <div className="relative group">
+                      <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                      <select value={course} onChange={(e) => setCourse(e.target.value)} className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer">
+                        <option value="">Select Course</option>
+                        <option value="B.Tech">B.Tech</option>
+                        <option value="BCA">BCA</option>
+                        <option value="Diploma">Diploma</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Year</label>
+                    <div className="relative group">
+                      <School className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                      <select value={year} onChange={(e) => setYear(e.target.value)} className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer">
+                        <option value="">Select Year</option>
+                        <option value="1">1st Year</option>
+                        <option value="2">2nd Year</option>
+                        <option value="3">3rd Year</option>
+                        <option value="4">4th Year</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              {verificationMethod === 'rollNumber' && (
-                <div>
-                  <label htmlFor="rollNumber" className="mb-2 block text-sm font-medium text-gray-300">Roll Number</label>
-                  <input type="text" id="rollNumber" value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} placeholder="Enter your university roll number" className="w-full rounded-md border-none bg-black/30 p-3 ring-1 ring-white/10 placeholder:text-gray-400 focus:ring-purple-500" />
+
+                {/* --- VERIFICATION METHOD --- */}
+                <div className="space-y-3 pt-2">
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Verification Method</label>
+                  <div className="flex bg-slate-100 dark:bg-slate-950/50 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <button type="button" onClick={() => setVerificationMethod('rollNumber')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${verificationMethod === 'rollNumber' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Roll Number</button>
+                    <button type="button" onClick={() => setVerificationMethod('documentUpload')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${verificationMethod === 'documentUpload' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Upload ID Card</button>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                      {verificationMethod === 'rollNumber' ? (
+                        <div className="relative group">
+                          <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                          <input type="text" value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} placeholder="University Roll No." className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"/>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                            <input type="file" id="doc-upload" onChange={handleFileChange} accept="image/*,application/pdf" className="hidden" />
+                            <label htmlFor="doc-upload" className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                              <Upload className="text-slate-400 mb-2" size={24} />
+                              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{document ? document.name : "Click to Upload ID Card"}</span>
+                            </label>
+                        </div>
+                      )}
+                  </div>
                 </div>
-              )}
-              {verificationMethod === 'documentUpload' && (
-                <div>
-                  <label htmlFor="document" className="mb-2 block text-sm font-medium text-gray-300">Upload ID Card</label>
-                  <input type="file" id="document" onChange={handleFileChange} accept="image/png, image/jpeg, image/jpg, application/pdf" className="block w-full text-sm text-gray-400 file:mr-4 file:rounded-md file:border-0 file:bg-slate-700 file:px-4 file:py-2 file:text-white hover:file:bg-slate-600" />
-                  <p className="mt-1 text-xs text-gray-400">PDF, PNG, JPG, or JPEG.</p>
+
+                {/* --- PASSWORD --- */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Password</label>
+                  <div className="relative group">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                    <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a strong password" className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"/>
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
-              )}
-              <div>
-                <label htmlFor="password" className="mb-2 block text-sm font-medium text-gray-00">Create a Password</label>
-                <div className="relative">
-                  <input type={showPassword ? 'text' : 'password'} id="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full rounded-md border-none bg-black/30 p-3 ring-1 ring-white/10 placeholder:text-gray-700 focus:ring-purple-500"/>
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-white" aria-label="Toggle password visibility">
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+
+                <div className="pt-4">
+                  <button type="submit" disabled={loading} className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4 font-bold text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                    {loading ? (<><Loader2 size={20} className="animate-spin" /> Verifying & Creating...</>) : (<>Join Now <ArrowRight size={20} /></>)}
                   </button>
                 </div>
-              </div>
-              <div className="pt-4">
-                <button type="submit" disabled={loading} className="w-full rounded-lg bg-green-600 px-5 py-3 font-medium text-white transition-transform duration-200 hover:scale-105 active:scale-95 disabled:opacity-50">
-                  {loading ? 'Submitting...' : 'Submit Registration'}
-                </button>
-              </div>
-            </form>
-            <p className="mt-6 text-center text-sm text-gray-400">
-              Already have an account?{' '}
-              <Link href="/login" className="font-medium text-blue-400 hover:text-blue-300">Login here</Link>
-            </p>
-          </>
-        )}
+
+              </form>
+
+              <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                Already have an account?{' '}
+                <Link href="/login" className="font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors">
+                  Sign In
+                </Link>
+              </p>
+            </div>
+          )}
+        </div>
       </div>
+
+      <Footer />
+      
     </div>
   );
 }

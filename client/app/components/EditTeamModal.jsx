@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { X, Trash2, Camera, Loader2, UserMinus } from 'lucide-react';
+import Avatar from './Avatar';
 
 export default function EditTeamModal({ 
   isOpen, 
@@ -18,7 +20,24 @@ export default function EditTeamModal({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [removingMember, setRemovingMember] = useState(null);
-  const [isRemovingLogo, setIsRemovingLogo] = useState(false); // State for remove logo button
+  const [isRemovingLogo, setIsRemovingLogo] = useState(false);
+
+  // --- UPDATED SCROLL LOCK LOGIC ---
+  useEffect(() => {
+    if (isOpen) {
+      // Calculate scrollbar width to prevent the page from "jumping"
+      const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = `${scrollBarWidth}px`;
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (teamData) {
@@ -33,6 +52,8 @@ export default function EditTeamModal({
 
   if (!isOpen) return null;
 
+  const isLeader = currentUser?._id === teamData?.leader?._id;
+
   const handleTextChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -45,8 +66,10 @@ export default function EditTeamModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!isLeader) return; // Guard clause
+
     setError('');
-    if (!formData.teamName) {
+    if (!formData.teamName.trim()) {
       setError('Team name is required.');
       return;
     }
@@ -77,12 +100,8 @@ export default function EditTeamModal({
     }
   };
 
-  const handleRemoveMember = async (memberId) => {
-    // ... this function remains the same
-  };
-
-  // ADDED: Handler for removing the logo
   const handleRemoveLogo = async () => {
+    if (!window.confirm("Are you sure you want to remove the team logo?")) return;
     setIsRemovingLogo(true);
     setError('');
     try {
@@ -92,7 +111,7 @@ export default function EditTeamModal({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg || 'Failed to remove logo.');
-      onTeamUpdated(); // Refresh data on the dashboard
+      onTeamUpdated();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -100,122 +119,261 @@ export default function EditTeamModal({
     }
   };
 
-  const isLeader = currentUser?._id === teamData?.leader?._id;
+  const handleRemoveMember = async (memberId) => {
+    if (!window.confirm("Remove this member from the team?")) return;
+    setRemovingMember(memberId);
+    setError('');
+
+    try {
+        const res = await fetch(`/api/teams/${teamData._id}/remove/${memberId}`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        // Check if response is JSON before parsing
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.msg || "Failed to remove member");
+        } else {
+            // If the server sent HTML (404/500), show a clean error
+            if (res.status === 404) throw new Error("Backend route missing. Restart your server.");
+            throw new Error("Server error. Check your backend logs.");
+        }
+
+        onTeamUpdated();
+    } catch (err) {
+        setError(err.message);
+    } finally {
+        setRemovingMember(null);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl rounded-2xl bg-slate-800 p-8 text-white shadow-xl border border-slate-700 flex flex-col max-h-[90vh]">
-        <h2 className="text-2xl font-bold text-center flex-shrink-0">
-          {isLeader ? 'Edit Team' : 'Team Details'}
-        </h2>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
+      {/* BACKDROP */}
+      <div 
+        className="absolute inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm transition-opacity" 
+        onClick={onClose}
+      />
 
-        <form id="editTeamForm" onSubmit={handleSubmit} className="mt-6 space-y-4 overflow-y-auto pr-4 -mr-4">
-          {error && (
-            <p className="rounded bg-red-500/20 p-3 text-center text-sm text-red-300">
-              {error}
+      {/* MODAL CONTAINER */}
+      <div className="relative w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-slate-900/5 dark:ring-white/10 max-h-[90vh] flex flex-col transition-all duration-300">
+        
+        {/* HEADER */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+              {isLeader ? 'Edit Team Settings' : 'Team Details'}
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              {isLeader ? 'Update your squad info and manage members' : 'View team information'}
             </p>
-          )}
+          </div>
+          <button 
+            onClick={onClose} 
+            className="p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-          {/* Team Logo Section */}
-          <div className="flex items-center gap-4">
-            {(teamData.logoUrl || logo) && (
-              <img 
-                src={logo ? URL.createObjectURL(logo) : teamData.logoUrl} 
-                alt="Team logo" 
-                className="w-16 h-16 rounded-lg object-cover bg-slate-700 flex-shrink-0" 
-              />
-            )}
-            {isLeader && (
-              <div className="w-full">
-                <label
-                  htmlFor="logo-edit"
-                  className="block text-sm font-medium text-slate-300 mb-1"
-                >
-                  {teamData.logoUrl ? 'Change Team Logo' : 'Upload Team Logo'} (Optional)
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="logo-edit"
-                    type="file"
-                    onChange={handleFileChange}
-                    accept="image/*"
-                    className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-500"
-                  />
-                  {/* ADDED: Remove logo button */}
-                  {teamData.logoUrl && !logo && (
-                    <button 
-                      type="button" 
-                      onClick={handleRemoveLogo}
-                      disabled={isRemovingLogo}
-                      className="text-xs text-red-400 hover:text-red-300 p-2 rounded-md bg-slate-700 hover:bg-slate-600 disabled:opacity-50"
-                      title="Remove team logo"
-                    >
-                      {isRemovingLogo ? '...' : 'X'}
-                    </button>
-                  )}
-                </div>
+        {/* SCROLLABLE CONTENT */}
+        <div className="overflow-y-auto p-6 custom-scrollbar">
+          <form id="editTeamForm" onSubmit={handleSubmit} className="space-y-6">
+            
+            {error && (
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 text-sm text-red-600 dark:text-red-400 font-medium">
+                {error}
               </div>
             )}
-          </div>
 
-          {/* Team Name, Problem Statement, etc. remain the same */}
-          <div>
-            <label htmlFor="teamName-edit" className="block text-sm font-medium text-slate-300 mb-1">Team Name</label>
-            <input
-              id="teamName-edit" name="teamName" type="text" value={formData.teamName}
-              onChange={handleTextChange} disabled={!isLeader} required
-              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-            />
-          </div>
-          <div>
-            <label htmlFor="problemStatementTitle-edit" className="block text-sm font-medium text-slate-300 mb-1">Problem Statement Title</label>
-            <input
-              id="problemStatementTitle-edit" name="problemStatementTitle" type="text" value={formData.problemStatementTitle}
-              onChange={handleTextChange} disabled={!isLeader}
-              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
-            />
-          </div>
-          <div>
-            <label htmlFor="problemStatementDescription-edit" className="block text-sm font-medium text-slate-300 mb-1">Problem Statement Description</label>
-            <textarea
-              id="problemStatementDescription-edit" name="problemStatementDescription" rows="4" value={formData.problemStatementDescription}
-              onChange={handleTextChange} disabled={!isLeader}
-              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
-            ></textarea>
-          </div>
-          <div className="pt-4">
-            <h3 className="text-lg font-semibold text-slate-200 mb-3">Team Members</h3>
-            <ul className="space-y-2">
-              {teamData?.members?.map((member) => (
-                <li key={member._id} className="flex items-center justify-between rounded-lg bg-slate-700/50 p-2">
-                  <div className="flex items-center gap-3">
-                    <img src={member.photoUrl || '/default-avatar.png'} alt={member.name} className="h-8 w-8 rounded-full object-cover"/>
-                    <span className="text-slate-200 text-sm">
-                      {member.nameWithYear || member.name}
-                      {member._id === teamData.leader._id && ( <span className="ml-2 text-xs text-emerald-400">(Leader)</span> )}
-                    </span>
+            {/* LOGO SECTION */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                Team Logo
+              </label>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                {/* Logo Preview */}
+                <div className="relative group shrink-0">
+                  <div className="w-24 h-24 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+                    {(logo || teamData.logoUrl) ? (
+                      <img 
+                        src={logo ? URL.createObjectURL(logo) : teamData.logoUrl} 
+                        alt="Team logo" 
+                        className="w-full h-full object-cover" 
+                      />
+                    ) : (
+                      <Camera size={32} className="text-slate-300 dark:text-slate-600" />
+                    )}
                   </div>
-                  {isLeader && member._id !== currentUser._id && (
-                    <button type="button" onClick={() => handleRemoveMember(member._id)} disabled={removingMember === member._id} className="text-red-400 hover:text-red-300 text-xs font-medium disabled:opacity-50">
-                      {removingMember === member._id ? 'Removing...' : 'Remove'}
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </form>
+                </div>
 
-        <div className="flex justify-end gap-4 pt-6 flex-shrink-0">
-          <button type="button" onClick={onClose} className="rounded-lg px-5 py-2.5 text-sm font-medium bg-slate-600 hover:bg-slate-500">
+                {/* Logo Actions */}
+                {isLeader && (
+                  <div className="flex-1 space-y-3 w-full">
+                    <div className="relative">
+                      <input
+                        id="logo-upload"
+                        type="file"
+                        onChange={handleFileChange}
+                        accept="image/*"
+                        className="hidden"
+                      />
+                      <label 
+                        htmlFor="logo-upload"
+                        className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 text-sm font-semibold border border-indigo-100 dark:border-indigo-900/50 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors w-full sm:w-auto"
+                      >
+                        <Camera size={16} className="mr-2" />
+                        {teamData.logoUrl ? 'Change Logo' : 'Upload Logo'}
+                      </label>
+                    </div>
+
+                    {teamData.logoUrl && !logo && (
+                      <button 
+                        type="button" 
+                        onClick={handleRemoveLogo}
+                        disabled={isRemovingLogo}
+                        className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 text-sm font-semibold border border-red-100 dark:border-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors w-full sm:w-auto disabled:opacity-50"
+                      >
+                        {isRemovingLogo ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} className="mr-2" />}
+                        Remove Logo
+                      </button>
+                    )}
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Recommended size: 500x500px. Max size: 2MB.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="h-px bg-slate-100 dark:bg-slate-800 my-4" />
+
+            {/* FORM FIELDS */}
+            <div className="grid gap-5">
+              <div>
+                <label htmlFor="teamName" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Team Name
+                </label>
+                <input
+                  id="teamName"
+                  name="teamName"
+                  type="text"
+                  value={formData.teamName}
+                  onChange={handleTextChange}
+                  disabled={!isLeader}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60 disabled:cursor-not-allowed outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="problemStatementTitle" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Problem Statement Title
+                </label>
+                <input
+                  id="problemStatementTitle"
+                  name="problemStatementTitle"
+                  type="text"
+                  value={formData.problemStatementTitle}
+                  onChange={handleTextChange}
+                  disabled={!isLeader}
+                  placeholder="e.g. Smart Agriculture System"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60 disabled:cursor-not-allowed outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="problemStatementDescription" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Problem Description
+                </label>
+                <textarea
+                  id="problemStatementDescription"
+                  name="problemStatementDescription"
+                  rows="4"
+                  value={formData.problemStatementDescription}
+                  onChange={handleTextChange}
+                  disabled={!isLeader}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60 disabled:cursor-not-allowed outline-none transition-all resize-none"
+                ></textarea>
+              </div>
+            </div>
+
+            <div className="h-px bg-slate-100 dark:bg-slate-800 my-4" />
+
+            {/* MEMBERS LIST */}
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center justify-between">
+                Team Members
+                <span className="text-xs font-normal text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                  {teamData?.members?.length || 0} / 6
+                </span>
+              </h3>
+              
+              <div className="space-y-2">
+                {teamData?.members?.map((member) => (
+                  <div key={member._id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={member.name} src={member.photoUrl} size={32} />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-slate-900 dark:text-slate-200 flex items-center gap-2">
+                          {member.nameWithYear || member.name}
+                          {member._id === teamData.leader._id && (
+                            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded font-bold uppercase">
+                              Leader
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">{member.email}</span>
+                      </div>
+                    </div>
+
+                    {isLeader && member._id !== currentUser._id && (
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemoveMember(member._id)} 
+                        disabled={removingMember === member._id}
+                        className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                        title="Remove Member"
+                      >
+                        {removingMember === member._id ? (
+                          <Loader2 size={16} className="animate-spin text-red-500" />
+                        ) : (
+                          <UserMinus size={16} />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </form>
+        </div>
+
+        {/* FOOTER */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-b-2xl shrink-0">
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
             {isLeader ? 'Cancel' : 'Close'}
           </button>
+          
           {isLeader && (
-            <button type="submit" form="editTeamForm" disabled={loading} className="rounded-lg px-5 py-2.5 text-sm font-medium bg-blue-600 hover:bg-blue-500 disabled:opacity-50">
+            <button 
+              type="submit" 
+              form="editTeamForm" 
+              disabled={loading} 
+              className="rounded-lg px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-500/20 disabled:opacity-70 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center"
+            >
+              {loading && <Loader2 size={16} className="animate-spin mr-2" />}
               {loading ? 'Saving...' : 'Save Changes'}
             </button>
           )}
         </div>
+
       </div>
     </div>
   );

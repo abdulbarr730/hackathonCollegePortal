@@ -1,57 +1,117 @@
 'use client';
 
-import { Github, Linkedin, Code, BrainCircuit, BookOpen, ToyBrick, Waypoints, SquareCode } from 'lucide-react';
+import { 
+  Github, Linkedin, Code, BrainCircuit, BookOpen, 
+  Terminal, Globe, Cpu, Hash, Database 
+} from 'lucide-react';
 
-// Map platform keys to icons and brand colors for styling
+// PLATFORM CONFIGURATION
 const PLATFORM_META = {
-  github: { icon: Github, label: 'GitHub', className: 'bg-gray-700 hover:bg-gray-600' },
-  linkedin: { icon: Linkedin, label: 'LinkedIn', className: 'bg-sky-600 hover:bg-sky-500' },
-  leetcode: { icon: Code, label: 'LeetCode', className: 'bg-amber-500 hover:bg-amber-400' },
-  codeforces: { icon: Waypoints, label: 'Codeforces', className: 'bg-rose-600 hover:bg-rose-500' },
-  codechef: { icon: ToyBrick, label: 'CodeChef', className: 'bg-yellow-700 hover:bg-yellow-600' },
-  geeksforgeeks: { icon: BrainCircuit, label: 'GeeksforGeeks', className: 'bg-green-600 hover:bg-green-500' },
-  stackoverflow: { icon: SquareCode, label: 'Stack Overflow', className: 'bg-orange-500 hover:bg-orange-400' },
-  medium: { icon: BookOpen, label: 'Medium', className: 'bg-slate-600 hover:bg-slate-500' },
-  devto: { icon: BookOpen, label: 'Dev.to', className: 'bg-slate-600 hover:bg-slate-500' },
-  kaggle: { icon: Waypoints, label: 'Kaggle', className: 'bg-cyan-500 hover:bg-cyan-400' },
+  github: { 
+    icon: Github, 
+    label: 'GitHub', 
+    color: 'bg-[#333] hover:bg-black', 
+    text: 'text-white' 
+  },
+  linkedin: { 
+    icon: Linkedin, 
+    label: 'LinkedIn', 
+    color: 'bg-[#0077b5] hover:bg-[#005582]', 
+    text: 'text-white' 
+  },
+  leetcode: { 
+    icon: Code, 
+    label: 'LeetCode', 
+    color: 'bg-[#FFA116] hover:bg-[#e59114]', 
+    text: 'text-white' 
+  },
+  codeforces: { 
+    icon: Terminal, 
+    label: 'Codeforces', 
+    color: 'bg-[#1f8dd6] hover:bg-[#1a75b2]', 
+    text: 'text-white' 
+  },
+  codechef: { 
+    icon: Cpu, 
+    label: 'CodeChef', 
+    color: 'bg-[#5B4638] hover:bg-[#4a392e]', 
+    text: 'text-white' 
+  },
+  geeksforgeeks: { 
+    icon: BrainCircuit, 
+    label: 'GeeksforGeeks', 
+    color: 'bg-[#2f8d46] hover:bg-[#257038]', 
+    text: 'text-white' 
+  },
+  stackoverflow: { 
+    icon: Database, 
+    label: 'Stack Overflow', 
+    color: 'bg-[#f48024] hover:bg-[#da6e1b]', 
+    text: 'text-white' 
+  },
+  medium: { 
+    icon: BookOpen, 
+    label: 'Medium', 
+    color: 'bg-black hover:bg-gray-800', 
+    text: 'text-white' 
+  },
+  devto: { 
+    icon: Hash, 
+    label: 'Dev.to', 
+    color: 'bg-black hover:bg-gray-800', 
+    text: 'text-white' 
+  },
+  kaggle: { 
+    icon: Globe, 
+    label: 'Kaggle', 
+    color: 'bg-[#20BEFF] hover:bg-[#1aa3db]', 
+    text: 'text-white' 
+  },
+  website: {
+    icon: Globe,
+    label: 'Portfolio',
+    color: 'bg-indigo-600 hover:bg-indigo-500',
+    text: 'text-white'
+  }
 };
 
-export default function SocialBadges({ profiles, className }) {
-  if (!profiles) {
-    return null;
-  }
+export default function SocialBadges({ profiles, className = "" }) {
+  if (!profiles) return null;
 
   const socialLinks = Object.entries(profiles)
-    .filter(([key, value]) => {
-      const platformKey = key.toLowerCase();
-      // Ensure the link is valid and the platform is recognized
-      return value && value.trim() !== '' && PLATFORM_META[platformKey];
-    })
     .map(([key, value]) => {
-      const platformKey = key.toLowerCase();
-      return {
-        ...PLATFORM_META[platformKey],
-        url: value,
-      };
-    });
+      const meta = PLATFORM_META[key.toLowerCase()];
+      return meta && value ? { ...meta, url: value, id: key } : null;
+    })
+    .filter(Boolean);
 
-  if (socialLinks.length === 0) {
-    return null;
-  }
+  if (socialLinks.length === 0) return null;
 
   return (
     <div className={`flex flex-wrap items-center gap-2 ${className}`}>
-      {socialLinks.map(({ url, label, icon: Icon, className: platformClass }) => (
+      {socialLinks.map(({ id, url, label, icon: Icon, color, text }) => (
         <a
-          key={label}
+          key={id}
           href={url}
           target="_blank"
           rel="noopener noreferrer"
           title={label}
-          // Base styles + platform-specific color styles
-          className={`flex h-8 w-8 items-center justify-center rounded-full text-white transition-transform hover:scale-110 ${platformClass}`}
+          // CHANGE: Used 'group/social' instead of just 'group'
+          className={`
+            group/social relative flex items-center justify-center 
+            w-8 h-8 rounded-full 
+            transition-all duration-300 ease-out
+            shadow-sm hover:shadow-md hover:-translate-y-1 hover:scale-110
+            ${color} ${text}
+          `}
         >
-          <Icon size={18} />
+          <Icon size={16} strokeWidth={2} />
+
+          {/* Tooltip: Only shows when hovering THIS specific icon */}
+          <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] font-bold rounded opacity-0 group-hover/social:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20">
+            {label}
+            <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></span>
+          </span>
         </a>
       ))}
     </div>

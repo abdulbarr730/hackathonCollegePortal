@@ -3,25 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Footer from '../components/Footer'; // Ensure this path is correct
 import { gsap } from 'gsap';
 import { useAuth } from '../context/AuthContext';
-
-// --- Icon components for the show/hide button ---
-const EyeIcon = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-);
-
-const EyeOffIcon = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
-    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
-    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
-    <line x1="2" x2="22" y1="2" y2="22" />
-  </svg>
-);
+import { Eye, EyeOff, Mail, Lock, Loader2, LogIn, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -35,34 +20,35 @@ export default function LoginPage() {
   const formRef = useRef(null);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setIsUserNotFound(false);
+    e.preventDefault();
+    setError('');
+    setIsUserNotFound(false);
 
-    if (!email || !password) {
-      setError('Please enter both email and password.');
-      return;
-    }
-    setLoading(true);
-    try {
-      await login(email, password);
-      window.location.href = '/dashboard'; 
-    } catch (err) {
-      // --- MODIFIED CATCH BLOCK ---
-      if (err.message.includes('USER_NOT_FOUND')) {
-        setIsUserNotFound(true);
-      } else if (err.message.includes('INVALID_PASSWORD')) {
-        setError('Invalid password. Please try again.');
-      } else if (err.message.includes('ACCOUNT_NOT_VERIFIED')) { // <-- ADDED THIS BLOCK
-        setError('Your account is awaiting admin verification. Need it faster? Contact us at +91 7479934706 or email at abdulbarr730@gmail.com');
-      } else {
-        setError('An unexpected error occurred. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (!email || !password) {
+      setError('Please enter both email and password.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await login(email, password);
+      // Force navigation to dashboard to ensure state refresh
+      window.location.href = '/dashboard'; 
+    } catch (err) {
+      if (err.message && err.message.includes('USER_NOT_FOUND')) {
+        setIsUserNotFound(true);
+      } else if (err.message && err.message.includes('INVALID_PASSWORD')) {
+        setError('Invalid password. Please try again.');
+      } else if (err.message && err.message.includes('ACCOUNT_NOT_VERIFIED')) { 
+        setError('Your account is awaiting admin verification. Need it faster? Contact us at +91 7479934706 or email at abdulbarr730@gmail.com');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // GSAP Hover Effect
   useEffect(() => {
     const formElement = formRef.current;
     if (!formElement) return;
@@ -92,114 +78,142 @@ export default function LoginPage() {
   }, []);
 
   return (
-    <div
-      className="relative flex min-h-screen w-full items-center justify-center bg-cover bg-center bg-fixed p-4"
-      style={{ backgroundImage: "url('/coding-background.jpg')" }}
-    >
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm"></div>
+    // Updated Layout: flex-col ensures footer stays at the bottom
+    <div className="relative flex flex-col min-h-screen w-full bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+      
+      {/* Background Elements */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60%] h-[300px] bg-indigo-500/10 dark:bg-indigo-500/20 blur-[120px] rounded-full pointer-events-none" />
 
-      {/* Login Card */}
-      <div
-        ref={formRef}
-        className="relative z-10 w-full max-w-md rounded-2xl border border-blue-500/30 bg-slate-800/70 p-8 shadow-2xl shadow-blue-500/30"
-      >
-        <h2 className="mb-6 bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-center text-3xl font-bold text-transparent">
-          Welcome Back
-        </h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          
-          {/* Unified Error Display Area */}
-          {(error || isUserNotFound) && (
-            <div className="rounded bg-red-500/50 p-3 text-center text-sm text-white">
-              {isUserNotFound ? (
-                <span>
-                  Email not found. Have you registered?{' '}
-                  <Link href="/register" className="font-bold underline hover:text-red-100">
-                    Register here
-                  </Link>
-                </span>
-              ) : (
-                <span>{error}</span>
-              )}
+      {/* Main Content Area (flex-grow pushes footer down) */}
+      <div className="flex-grow flex items-center justify-center py-12 px-4 z-10">
+        <div
+          ref={formRef}
+          className="relative w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-8 shadow-2xl shadow-indigo-500/10 transition-colors duration-300"
+        >
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white mb-4 shadow-lg shadow-indigo-500/30">
+              <LogIn size={24} />
             </div>
-          )}
-
-          <div>
-            <label
-              htmlFor="email"
-              className="mb-2 block text-sm font-medium text-gray-300"
-            >
-              Email Address
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="w-full rounded-md border-none bg-black/30 p-3 ring-1 ring-white/10 placeholder:text-gray-400 focus:ring-blue-500"
-              required
-            />
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+              Welcome Back
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm">
+              Enter your credentials to access your workspace
+            </p>
           </div>
-          
-          {/* Password input with Show/Hide toggle */}
-          <div>
-            <label
-              htmlFor="password"
-              className="mb-2 block text-sm font-medium text-gray-300"
-            >
-              Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full rounded-md border-none bg-black/30 p-3 pr-10 ring-1 ring-white/10 placeholder:text-gray-600 focus:ring-blue-500"
-                required
-              />
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            
+            {/* Error Display */}
+            {(error || isUserNotFound) && (
+              <div className="rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-500/20 p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <AlertCircle className="text-red-500 dark:text-red-400 shrink-0 mt-0.5" size={18} />
+                <div className="text-sm text-red-600 dark:text-red-300">
+                  {isUserNotFound ? (
+                    <span>
+                      Account not found. {' '}
+                      <Link href="/register" className="font-bold underline hover:text-red-800 dark:hover:text-red-200 transition-colors">
+                        Create an account
+                      </Link>
+                    </span>
+                  ) : (
+                    <span>{error}</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Email Input */}
+            <div>
+              <label htmlFor="email" className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
+                Email Address
+              </label>
+              <div className="relative group">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                  <Mail size={18} />
+                </div>
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950/50 pl-10 pr-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                  required
+                />
+              </div>
+            </div>
+            
+            {/* Password Input */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5 ml-1">
+                <label htmlFor="password" className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Password
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <div className="relative group">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                  <Lock size={18} />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950/50 pl-10 pr-10 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-2">
               <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-white"
-                aria-label="Toggle password visibility"
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-3.5 font-bold text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {showPassword ? <EyeOffIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                {loading ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    Authenticating...
+                  </>
+                ) : (
+                  'Sign In'
+                )}
               </button>
             </div>
-          </div>
+          </form>
 
-          <div className="flex justify-end text-sm">
+          <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
+            New to the portal?{' '}
             <Link
-              href="/forgot-password"
-              className="font-medium text-blue-400 hover:text-blue-300"
+              href="/register"
+              className="font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors"
             >
-              Forgot password?
+              Create an account
             </Link>
-          </div>
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-blue-600 px-5 py-3 font-medium text-white transition-transform duration-200 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? 'Logging In...' : 'Login'}
-            </button>
-          </div>
-        </form>
-        <p className="mt-6 text-center text-sm text-gray-400">
-          New to the portal?{' '}
-          <Link
-            href="/register"
-            className="font-medium text-purple-400 hover:text-purple-300"
-          >
-            Register here
-          </Link>
-        </p>
+          </p>
+        </div>
       </div>
+
+      {/* Footer Component */}
+      <Footer />
+      
     </div>
   );
 }
