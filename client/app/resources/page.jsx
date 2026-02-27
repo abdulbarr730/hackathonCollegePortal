@@ -12,6 +12,7 @@ import {
   Filter,
   Library,
   Calendar,
+  Layers,
   LayoutGrid,
   ArrowUpRight,
   User,

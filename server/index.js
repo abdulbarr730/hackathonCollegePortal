@@ -7,8 +7,10 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const multer = require('multer');
-const requireAuth = require('./middleware/auth');
-const User = require('./models/User');
+const requireAuth = require('./core/middlewares/auth');
+const User = require('./modules/users/user.model');
+const errorHandler = require('./core/middlewares/errorHandler');
+
 
 // --- REMOVE THIS if you replaced it with the generic hackathonRoutes file I gave you ---
 // const adminHackathonRoutes = require('./routes/adminHackathonRoutes'); 
@@ -16,8 +18,8 @@ const User = require('./models/User');
 
 // Feeder + notifications
 const cron = require('node-cron');
-const { runFeederOnce } = require('./services/sihFeeder');
-const { notifyUsersNewUpdates } = require('./services/updateNotifications');
+const { runFeederOnce } = require('./shared/services/sihFeeder.service');
+const { notifyUsersNewUpdates } = require('./shared/services/updateNotifications.service');
 // -------------------- Feeder scheduler --------------------
 // 1. DEFINE THE VARIABLES FIRST
 const FEEDER_ENABLED = String(process.env.FEEDER_ENABLED || 'true') === 'true';
@@ -26,7 +28,7 @@ const FEEDER_SOURCE_URL = process.env.FEEDER_SOURCE_URL || 'https://sih.gov.in/'
 const PLAYWRIGHT_ENABLED = String(process.env.PLAYWRIGHT_ENABLED || 'true') === 'true';
 
 // DB
-const connectDB = require('./config/db');
+const connectDB = require('./core/database/db');
 
 const app = express();
 
@@ -58,29 +60,8 @@ app.use((req, _res, next) => {
   next();
 });
 
-// -------------------- Routes --------------------
-
-app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/teams', require('./routes/teamRoutes')); // <--- This handles the Submit button
-app.use('/api/me', require('./routes/meRoutes'));
-app.use('/api/admin', require('./routes/adminRoutes'));
-app.use('/api/ideas', require('./routes/ideaRoutes'));
-app.use('/api/updates', require('./routes/updateRoutes'));
-app.use('/api/resources', require('./routes/resourceRoutes'));
-app.use('/api/admin/resources', require('./routes/adminResourceRoutes'));
-app.use('/api/public/updates', require('./routes/publicUpdateRoutes'));
-app.use('/api/admin/updates', require('./routes/adminUpdateRoutes'));
-app.use('/api/users/social', require('./routes/socialRoutes'));
-app.use('/api/admin/social-config', require('./routes/adminSocialConfigRoutes'));
-app.use('/api/comments', require('./routes/commentRoutes'));
-app.use('/api/invitations', require('./routes/invitationRoutes'));
-app.use('/api/archive', require('./routes/archiveRoutes'));
-
-// --- FIX START: Add this so the Frontend can fetch Active Rules ---
-app.use('/api/hackathon', require('./routes/hackathonRoutes')); 
-// --- FIX END ---
-
-app.use('/api/profile', require('./routes/profileRoutes'));
+const registerRoutes = require('./modules/index');
+registerRoutes(app);
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
@@ -122,6 +103,8 @@ if (FEEDER_ENABLED) {
 }
 
 const PORT = process.env.PORT || 5001;
+
+app.use(errorHandler);
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
