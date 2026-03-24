@@ -15,6 +15,7 @@ const SocialSchema = new mongoose.Schema(
     kaggle: { type: String, trim: true, default: '' },
     codeforces: { type: String, trim: true, default: '' },
     codechef: { type: String, trim: true, default: '' },
+    website: { type: String, trim: true, default: '' },
   },
   { _id: false }
 );

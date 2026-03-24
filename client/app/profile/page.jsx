@@ -9,17 +9,17 @@ import {
 } from 'lucide-react';
 
 const PLATFORMS_META = {
-  linkedin: { label: 'LinkedIn', icon: Linkedin, placeholder: 'https://www.linkedin.com/in/your-id' },
-  github: { label: 'GitHub', icon: Github, placeholder: 'https://github.com/your-id' },
-  stackoverflow: { label: 'Stack Overflow', icon: Database, placeholder: 'https://stackoverflow.com/users/your-id'},
-  devto: { label: 'Dev.to', icon: Code, placeholder: 'https://dev.to/your-id'},
-  medium: { label: 'Medium', icon: BookOpen, placeholder: 'https://medium.com/@your-id'},
-  leetcode: { label: 'LeetCode', icon: Terminal, placeholder: 'https://leetcode.com/your-id'},
-  geeksforgeeks: { label: 'GeeksforGeeks', icon: Code, placeholder: 'https://auth.geeksforgeeks.org/user/your-id'},
-  kaggle: { label: 'Kaggle', icon: Cpu, placeholder: 'https://kaggle.com/your-id' },
-  codeforces: { label: 'Codeforces', icon: Terminal, placeholder: 'https://codeforces.com/profile/your-id' },
-  codechef: { label: 'CodeChef', icon: Code, placeholder: 'https://www.codechef.com/users/your-id' },
-  website: { label: 'Portfolio / Website', icon: Globe, placeholder: 'https://your-portfolio.com' },
+  linkedin:      { label: 'LinkedIn',           icon: Linkedin,  placeholder: 'https://www.linkedin.com/in/your-id' },
+  github:        { label: 'GitHub',             icon: Github,    placeholder: 'https://github.com/your-id' },
+  stackoverflow: { label: 'Stack Overflow',     icon: Database,  placeholder: 'https://stackoverflow.com/users/your-id' },
+  devto:         { label: 'Dev.to',             icon: Code,      placeholder: 'https://dev.to/your-id' },
+  medium:        { label: 'Medium',             icon: BookOpen,  placeholder: 'https://medium.com/@your-id' },
+  leetcode:      { label: 'LeetCode',           icon: Terminal,  placeholder: 'https://leetcode.com/your-id' },
+  geeksforgeeks: { label: 'GeeksforGeeks',      icon: Code,      placeholder: 'https://auth.geeksforgeeks.org/user/your-id' },
+  kaggle:        { label: 'Kaggle',             icon: Cpu,       placeholder: 'https://kaggle.com/your-id' },
+  codeforces:    { label: 'Codeforces',         icon: Terminal,  placeholder: 'https://codeforces.com/profile/your-id' },
+  codechef:      { label: 'CodeChef',           icon: Code,      placeholder: 'https://www.codechef.com/users/your-id' },
+  website:       { label: 'Portfolio / Website',icon: Globe,     placeholder: 'https://your-portfolio.com' },
 };
 
 export default function ProfilePage() {
@@ -42,25 +42,26 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       setProfileData({
-        name: user.name || '',
-        email: user.email || '',
+        name:   user.name   || '',
+        email:  user.email  || '',
         course: user.course || '',
-        year: user.year || '',
+        year:   user.year   || '',
       });
       setLinks(user.socialProfiles || {});
     }
   }, [user]);
 
   // --- HANDLERS ---
-  const handleProfileChange = (e) => setProfileData({ ...profileData, [e.target.name]: e.target.value });
+  const handleProfileChange  = (e) => setProfileData({ ...profileData,  [e.target.name]: e.target.value });
   const handlePasswordChange = (e) => setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
 
+  // PUT /api/users/profile — user routes
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
     setProfileMsg('');
     try {
       const res = await fetch(`/api/users/profile`, {
-        method: 'PUT',
+        method:  'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(profileData),
@@ -74,6 +75,7 @@ export default function ProfilePage() {
     }
   };
 
+  // PUT /api/users/change-password — user routes
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setPasswordMsg('');
@@ -83,7 +85,7 @@ export default function ProfilePage() {
     }
     try {
       const res = await fetch(`/api/users/change-password`, {
-        method: 'PUT',
+        method:  'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(passwordData),
@@ -101,35 +103,43 @@ export default function ProfilePage() {
     if (!file) return 'Select a file.';
     const max = 2 * 1024 * 1024; // 2 MB
     if (file.size > max) return 'File too large. Maximum size is 2 MB.';
-    const ok = ['image/jpeg','image/jpg','image/png','image/webp'].includes(file.type);
+    const ok = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type);
     if (!ok) return 'Only JPG/PNG/WEBP allowed.';
     return '';
   }
 
+  // POST /api/profile/photo — profile routes
   async function uploadPhoto() {
     const validationError = validateFile(file);
     if (validationError) { setPhotoMsg(validationError); return; }
     setPhotoMsg('Uploading...');
     const fd = new FormData();
     fd.append('photo', file);
-
     try {
-      const res = await fetch(`/api/profile/photo`, { method: 'POST', credentials: 'include', body: fd });
+      const res = await fetch(`/api/profile/photo`, {
+        method: 'POST',
+        credentials: 'include',
+        body: fd,
+      });
       const j = await res.json();
       if (!res.ok) throw new Error(j.msg || 'Upload failed');
       setPhotoMsg('Photo updated successfully!');
-      setFile(null); // Clear file input
+      setFile(null);
       recheckUser();
     } catch (e) {
       setPhotoMsg(e.message || 'Upload failed. Please try again.');
     }
   }
 
+  // DELETE /api/profile/photo — profile routes
   async function removePhoto() {
     setPhotoMsg('');
     if (!window.confirm('Are you sure you want to remove your photo?')) return;
     try {
-      const res = await fetch(`/api/profile/photo`, { method: 'DELETE', credentials: 'include' });
+      const res = await fetch(`/api/profile/photo`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
       const j = await res.json();
       if (!res.ok) throw new Error(j.msg || 'Remove failed');
       setPhotoMsg('Photo removed.');
@@ -141,19 +151,21 @@ export default function ProfilePage() {
 
   const onChangeLink = (key, v) => setLinks((prev) => ({ ...prev, [key]: v }));
 
+  // PUT /api/users/social — user routes
+  // Body is sent flat (not nested under socialProfiles) — matches user.service.js
   async function saveLinks() {
     setLinksMsg('');
     try {
-      const res = await fetch(`/api/users/social/me`, {
-        method: 'PUT',
+      const res = await fetch(`/api/users/social`, {
+        method:  'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ socialProfiles: links }),
+        body: JSON.stringify(links),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.msg || 'Save failed');
       setLinksMsg('Links saved successfully!');
-    } catch(e) {
+    } catch (e) {
       setLinksMsg(e.message);
     }
   }
@@ -372,7 +384,7 @@ export default function ProfilePage() {
 
                 <div className="mt-6 flex flex-col gap-4">
                   <div className="relative">
-                     <input 
+                    <input 
                       type="file" 
                       id="photo-upload"
                       accept="image/png,image/jpeg,image/webp" 
@@ -446,7 +458,7 @@ export default function ProfilePage() {
 
               {/* Mobile Save Button */}
               <div className="mt-6 sm:hidden">
-                 <button onClick={saveLinks} className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
+                <button onClick={saveLinks} className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
                   <Save size={18} /> Save All
                 </button>
               </div>

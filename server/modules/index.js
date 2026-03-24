@@ -1,7 +1,8 @@
 
 module.exports = function registerRoutes(app) {
   require('dotenv').config();
-  // USERS
+  // 
+  app.use('/api/auth',    require('./users/auth.routes'));
   app.use('/api/users', require('./users/user.routes'));
   app.use('/api/me', require('./users/me.routes'));
   app.use('/api/profile', require('./users/profile.routes'));

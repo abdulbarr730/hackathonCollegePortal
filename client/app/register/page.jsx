@@ -61,7 +61,7 @@ export default function RegisterPage() {
     setEmailStatus('checking');
     const debounceTimer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/users/check-email`, {
+        const res = await fetch(`/api/auth/check-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email }),
@@ -92,7 +92,7 @@ export default function RegisterPage() {
     setError('');
     
     try {
-      const res = await fetch('/api/users/send-otp', {
+      const res = await fetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -154,7 +154,7 @@ export default function RegisterPage() {
     }
 
     try {
-      const res = await fetch(`/api/users/register`, {
+      const res = await fetch(`/api/auth/register`, {
         method: 'POST',
         body: formData,
       });

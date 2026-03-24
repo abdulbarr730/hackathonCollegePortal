@@ -1,147 +1,43 @@
 const express = require('express');
-const router = express.Router();
-const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const multer = require('multer');
-
-const auth = require('../../core/middlewares/auth');
-const User = require('./user.model');
-const Otp = require('../auth/otp.model');
-const PreapprovedStudent = require('./prepprovedStudent.model');
-const { sendEmail } = require('../../shared/services/email.service');
-const cloudinary = require('../../shared/services/cloudinary.service');
-
+const router  = express.Router();
+const multer  = require('multer');
+const auth    = require('../../core/middlewares/auth');
 const controller = require('./auth.controller');
 
-// ============================================================================
-// MULTER CONFIG (Memory Storage)
-// ============================================================================
+/* ============================================================================
+   AUTH ROUTES
+   All business logic lives in auth.service.js (via auth.controller.js).
+   Base path (mounted in app.js):  /api/auth
+============================================================================ */
+
+
+// ── Multer — memory storage for document uploads on registration ─────────────
 const upload = multer({ storage: multer.memoryStorage() });
 
-const uploadToCloudinary = (fileBuffer) => {
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      { resource_type: 'auto' },
-      (error, result) => {
-        if (error) reject(error);
-        else resolve(result);
-      }
-    );
-    uploadStream.end(fileBuffer);
-  });
-};
 
+// GET  /api/auth/supabase-token        — Issue a short-lived Supabase JWT
+router.get('/supabase-token', auth, controller.getSupabaseToken);
 
-/* ============================================================================
-   GET SUPABASE TOKEN
-============================================================================ */
-router.get('/supabase-token', auth, async (req, res) => {
-  try {
-    const payload = {
-      id: req.user.id,
-      role: 'authenticated',
-      exp: Math.floor(Date.now() / 1000) + (60 * 60)
-    };
-
-    const token = jwt.sign(
-      payload,
-      process.env.SUPABASE_JWT_SECRET,
-      { algorithm: 'HS256' }
-    );
-
-    res.json({
-      token,
-      config: {
-        supabaseUrl: process.env.SUPABASE_URL,
-        supabaseAnonKey: process.env.SUPABASE_ANON_KEY
-      }
-    });
-  } catch (err) {
-    res.status(500).json({ msg: 'Server Error' });
-  }
-});
-
-
-/* ============================================================================
-   SEND OTP
-============================================================================ */
+// POST /api/auth/send-otp              — Send OTP to email for verification
 router.post('/send-otp', controller.sendOtp);
 
-
-/* ============================================================================
-   CHECK EMAIL AVAILABILITY
-============================================================================ */
+// POST /api/auth/check-email           — Check if an email is available
 router.post('/check-email', controller.checkEmail);
 
+// POST /api/auth/register              — Register new user (with optional document upload)
+router.post('/register', upload.single('document'), controller.register);
 
-// ============================================================================
-// REGISTER ROUTE
-// ============================================================================
-router.post('/register',upload.single('document'),controller.register);
-
-
-
-/* ============================================================================
-   LOGIN USER
-============================================================================ */
+// POST /api/auth/login                 — Login and receive JWT (cookie + body)
 router.post('/login', controller.login);
 
+// POST /api/auth/logout                — Clear auth cookie
+router.post('/logout', controller.logout);
 
-/* ============================================================================
-   LOGOUT USER
-============================================================================ */
-router.post('/logout', (_req, res) => {
-  try {
-    res.clearCookie('token', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax'
-    });
-
-    res.json({ msg: 'Logged out successfully' });
-  } catch (err) {
-    res.status(500).json({ msg: 'Server Error' });
-  }
-});
-
-
-/* ============================================================================
-   FORGOT PASSWORD
-============================================================================ */
+// POST /api/auth/forgot-password       — Send password reset email
 router.post('/forgot-password', controller.forgotPassword);
 
-
-/* ============================================================================
-   RESET PASSWORD
-============================================================================ */
-router.post('/reset-password/:token', async (req, res) => {
-  try {
-    const { password } = req.body;
-
-    const hashedToken =
-      crypto.createHash('sha256').update(req.params.token).digest('hex');
-
-    const user = await User.findOne({
-      passwordResetToken: hashedToken,
-      passwordResetExpires: { $gt: Date.now() }
-    });
-
-    if (!user)
-      return res.status(400).json({ msg: 'Token is invalid or has expired.' });
-
-    user.password = await bcrypt.hash(password, 10);
-    user.passwordResetToken = undefined;
-    user.passwordResetExpires = undefined;
-
-    await user.save();
-
-    res.json({ msg: 'Password has been reset successfully.' });
-
-  } catch (err) {
-    res.status(500).send('Server Error');
-  }
-});
+// POST /api/auth/reset-password/:token — Reset password using email link token
+router.post('/reset-password/:token', controller.resetPassword);
 
 
 module.exports = router;

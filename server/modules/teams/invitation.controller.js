@@ -1,97 +1,166 @@
 const invitationService = require('./invitation.service');
 
 /* ============================================================================
-   SEND INVITATION
+   INVITATION CONTROLLER
+   Thin HTTP layer — extracts params, calls the service, and sends the response.
+   All business/validation logic lives in invitation.service.js.
+   Errors thrown by the service as { status, msg } are forwarded to the client.
 ============================================================================ */
-exports.sendInvitation = async (req, res) => {
+
+
+// =============================================================================
+// 1. SEND INVITATION   POST /api/invitations
+// =============================================================================
+/**
+ * Body: { teamId, inviteeId }
+ * Auth: Team leader only (enforced inside service)
+ */
+const sendInvitation = async (req, res) => {
+  const { teamId, inviteeId } = req.body;
+
   try {
-    const invitation = await invitationService.sendInvitation({
-      teamId: req.body.teamId,
-      inviterId: req.user.id,
-      inviteeId: req.body.inviteeId
-    });
+    const invitation = await invitationService.sendInvitation(
+      teamId,
+      inviteeId,
+      req.user.id
+    );
 
     res.json(invitation);
+
   } catch (err) {
-    res.status(err.status || 500).json({ msg: err.message });
+    // Structured validation errors come back as { status, msg }
+    if (err.status && err.msg) {
+      return res.status(err.status).json({ msg: err.msg });
+    }
+    console.error('Send Invite Error:', err);
+    res.status(500).send('Server Error');
   }
 };
 
-/* ============================================================================
-   ACCEPT INVITATION
-============================================================================ */
-exports.acceptInvitation = async (req, res) => {
+
+// =============================================================================
+// 2. GET SENT INVITATIONS   GET /api/invitations/sent
+// =============================================================================
+/**
+ * Returns all pending invites sent by the team that the caller leads.
+ */
+const getSentInvitations = async (req, res) => {
   try {
-    const result = await invitationService.acceptInvitation({
-      invitationId: req.params.id,
-      userId: req.user.id
-    });
-
-    res.json(result);
-  } catch (err) {
-    res.status(err.status || 500).json({ msg: err.message });
-  }
-};
-
-/* ============================================================================
-   CANCEL INVITATION
-============================================================================ */
-exports.cancelInvitation = async (req, res) => {
-  try {
-    const result = await invitationService.cancelInvitation({
-      invitationId: req.params.id,
-      userId: req.user.id
-    });
-
-    res.json(result);
-  } catch (err) {
-    res.status(err.status || 500).json({ msg: err.message });
-  }
-};
-
-/* ============================================================================
-   REJECT INVITATION
-============================================================================ */
-exports.rejectInvitation = async (req, res) => {
-  try {
-    const result = await invitationService.rejectInvitation({
-      invitationId: req.params.id,
-      userId: req.user.id
-    });
-
-    res.json(result);
-  } catch (err) {
-    res.status(err.status || 500).json({ msg: err.message });
-  }
-};
-
-/* ============================================================================
-   GET SENT INVITATIONS (FOR TEAM LEADER)
-============================================================================ */
-exports.getSentInvitations = async (req, res) => {
-  try {
-    const invites = await invitationService.getSentInvitations({
-      userId: req.user.id
-    });
-
+    const invites = await invitationService.getSentInvitations(req.user.id);
     res.json(invites);
+
   } catch (err) {
-    res.status(err.status || 500).json({ msg: err.message });
+    if (err.status && err.msg) {
+      return res.status(err.status).json({ msg: err.msg });
+    }
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
 };
 
 
-/* ============================================================================
-   GET RECEIVED INVITATIONS (FOR USER)
-============================================================================ */
-exports.getMyInvitations = async (req, res) => {
+// =============================================================================
+// 3. GET RECEIVED INVITATIONS   GET /api/invitations/my-invitations
+// =============================================================================
+/**
+ * Returns all pending invites addressed to the authenticated user.
+ */
+const getMyInvitations = async (req, res) => {
   try {
-    const invites = await invitationService.getMyInvitations({
-      userId: req.user.id
-    });
-
+    const invites = await invitationService.getMyInvitations(req.user.id);
     res.json(invites);
+
   } catch (err) {
-    res.status(err.status || 500).json({ msg: err.message });
+    if (err.status && err.msg) {
+      return res.status(err.status).json({ msg: err.msg });
+    }
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
+};
+
+
+// =============================================================================
+// 4. CANCEL INVITATION   DELETE /api/invitations/:id
+// =============================================================================
+/**
+ * Can be called by the inviter (leader) OR the invitee.
+ */
+const cancelInvitation = async (req, res) => {
+  try {
+    const result = await invitationService.cancelInvitation(
+      req.params.id,
+      req.user.id
+    );
+    res.json(result);
+
+  } catch (err) {
+    if (err.status && err.msg) {
+      return res.status(err.status).json({ msg: err.msg });
+    }
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+};
+
+
+// =============================================================================
+// 5. ACCEPT INVITATION   POST /api/invitations/:id/accept
+// =============================================================================
+/**
+ * Joins the team and wipes all other pending invites for the user (ghost-buster).
+ * Runs inside a MongoDB transaction.
+ */
+const acceptInvitation = async (req, res) => {
+  try {
+    const result = await invitationService.acceptInvitation(
+      req.params.id,
+      req.user.id
+    );
+    res.json(result);
+
+  } catch (err) {
+    if (err.status && err.msg) {
+      return res.status(err.status).json({ msg: err.msg });
+    }
+    console.error('Accept Invite Error:', err);
+    res.status(500).send('Server Error');
+  }
+};
+
+
+// =============================================================================
+// 6. REJECT INVITATION   POST /api/invitations/:id/reject
+// =============================================================================
+/**
+ * Deletes the invitation to free the slot and keep the DB clean.
+ */
+const rejectInvitation = async (req, res) => {
+  try {
+    const result = await invitationService.rejectInvitation(
+      req.params.id,
+      req.user.id
+    );
+    res.json(result);
+
+  } catch (err) {
+    if (err.status && err.msg) {
+      return res.status(err.status).json({ msg: err.msg });
+    }
+    console.error(`Error in POST /api/invitations/:id/reject: ${err.message}`);
+    res.status(500).send('Server Error');
+  }
+};
+
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+module.exports = {
+  sendInvitation,
+  getSentInvitations,
+  getMyInvitations,
+  cancelInvitation,
+  acceptInvitation,
+  rejectInvitation,
 };

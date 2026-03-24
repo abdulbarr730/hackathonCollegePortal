@@ -1,15 +1,18 @@
 const Resource = require('./resource.model');
-const supabase = require('../../shared/services/supabase.service');
+const getSupabase = require('../../shared/services/supabase.service');
 const axios = require('axios');
-const BUCKET = 'resources';
-
-
 
 /* ============================================================================
-   CREATE URL-BASED RESOURCE
+   RESOURCE SERVICE
+   Uses getSupabase() (lazy singleton) instead of a top-level supabase import
+   so the client is only created after dotenv has loaded the env vars.
 ============================================================================ */
-exports.createUrlResource = async (body, userId) => {
 
+
+// =============================================================================
+// CREATE URL-BASED RESOURCE
+// =============================================================================
+exports.createUrlResource = async (body, userId) => {
   const { title, url, description, category } = body;
 
   if (!title || !category || !url) {
@@ -23,17 +26,17 @@ exports.createUrlResource = async (body, userId) => {
     description: description || '',
     category,
     url,
-    status: 'pending',
+    status:  'pending',
     addedBy: userId,
   });
 
   return doc;
 };
 
-/* ============================================================================
-   FILE UPLOAD RESOURCE
-============================================================================ */
 
+// =============================================================================
+// FILE UPLOAD RESOURCE
+// =============================================================================
 exports.createFileResource = async (body, file, userId) => {
   if (!file) {
     const err = new Error('File is required');
@@ -50,9 +53,12 @@ exports.createFileResource = async (body, file, userId) => {
   }
 
   try {
-    // Clean filename
+    // Clean filename — replace any non-safe chars with underscores
     const cleanName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-    const filePath = `uploads/${Date.now()}_${cleanName}`;
+    const filePath  = `uploads/${Date.now()}_${cleanName}`;
+
+    // Get the lazily-initialized Supabase client
+    const supabase = getSupabase();
 
     // Upload to Supabase bucket "resources"
     const { data, error } = await supabase.storage
@@ -77,15 +83,15 @@ exports.createFileResource = async (body, file, userId) => {
       title,
       category,
       description: description || '',
-      status: 'pending',
+      status:  'pending',
       addedBy: userId,
       file: {
-        key: filePath,
-        url: publicData.publicUrl,
-        downloadUrl: `${publicData.publicUrl}?download=${encodeURIComponent(file.originalname)}`,
+        key:          filePath,
+        url:          publicData.publicUrl,
+        downloadUrl:  `${publicData.publicUrl}?download=${encodeURIComponent(file.originalname)}`,
         originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size,
+        mimeType:     file.mimetype,
+        size:         file.size,
       },
     });
 
@@ -98,14 +104,19 @@ exports.createFileResource = async (body, file, userId) => {
 };
 
 
-/* ============================================================================
-   LIST APPROVED RESOURCES
-============================================================================ */
+// =============================================================================
+// LIST APPROVED RESOURCES
+// =============================================================================
 exports.listApprovedResources = async (query) => {
+  const {
+    q        = '',
+    category = '',
+    page     = '1',
+    limit    = '20',
+    sort     = '-createdAt',
+  } = query;
 
-  const { q = '', category = '', page = '1', limit = '20', sort = '-createdAt' } = query;
-
-  const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+  const pageNum = Math.max(parseInt(page,  10) || 1,  1);
   const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
   const filters = { status: 'approved' };
@@ -114,8 +125,8 @@ exports.listApprovedResources = async (query) => {
 
   if (q) {
     filters.$or = [
-      { title: new RegExp(q, 'i') },
-      { description: new RegExp(q, 'i') }
+      { title:       new RegExp(q, 'i') },
+      { description: new RegExp(q, 'i') },
     ];
   }
 
@@ -126,33 +137,34 @@ exports.listApprovedResources = async (query) => {
       .skip((pageNum - 1) * perPage)
       .limit(perPage),
 
-    Resource.countDocuments(filters)
+    Resource.countDocuments(filters),
   ]);
 
   return {
     items,
     pagination: {
-      page: pageNum,
+      page:  pageNum,
       pages: Math.ceil(total / perPage) || 1,
       total,
       limit: perPage,
-    }
+    },
   };
 };
 
-/* ============================================================================
-   GET APPROVED CATEGORIES
-============================================================================ */
+
+// =============================================================================
+// GET APPROVED CATEGORIES
+// =============================================================================
 exports.getApprovedCategories = async () => {
   const cats = await Resource.distinct('category', { status: 'approved' });
   return cats.sort();
 };
 
-/* ============================================================================
-   VIEW FILE (INLINE PROXY)
-============================================================================ */
-exports.viewFile = async (id) => {
 
+// =============================================================================
+// VIEW FILE (INLINE PROXY)
+// =============================================================================
+exports.viewFile = async (id) => {
   const resource = await Resource.findById(id);
 
   if (!resource || !resource.file?.url) {
@@ -162,21 +174,21 @@ exports.viewFile = async (id) => {
   }
 
   const response = await axios.get(resource.file.url, {
-    responseType: 'arraybuffer'
+    responseType: 'arraybuffer',
   });
 
   return {
-    buffer: response.data,
+    buffer:   response.data,
     mimeType: resource.file.mimeType || 'application/octet-stream',
-    filename: resource.file.originalName
+    filename: resource.file.originalName,
   };
 };
 
-/* ============================================================================
-   DOWNLOAD FILE (ATTACHMENT PROXY)
-============================================================================ */
-exports.downloadFile = async (id) => {
 
+// =============================================================================
+// DOWNLOAD FILE (ATTACHMENT PROXY)
+// =============================================================================
+exports.downloadFile = async (id) => {
   const resource = await Resource.findById(id);
 
   if (!resource || !resource.file?.downloadUrl) {
@@ -186,12 +198,12 @@ exports.downloadFile = async (id) => {
   }
 
   const response = await axios.get(resource.file.downloadUrl, {
-    responseType: 'arraybuffer'
+    responseType: 'arraybuffer',
   });
 
   return {
-    buffer: response.data,
+    buffer:   response.data,
     mimeType: resource.file.mimeType || 'application/octet-stream',
-    filename: resource.file.originalName
+    filename: resource.file.originalName,
   };
 };

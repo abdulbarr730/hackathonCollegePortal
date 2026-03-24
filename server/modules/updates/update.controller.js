@@ -1,31 +1,35 @@
 const updateService = require('./update.service');
 
 /* ============================================================================
-   GET PUBLIC UPDATES
+   UPDATE CONTROLLER
+   Thin HTTP layer — extracts params, calls the service, and sends the response.
+   All business logic lives in update.service.js.
 ============================================================================ */
-exports.getPublicUpdates = async (req, res) => {
+
+
+// =============================================================================
+// GET PUBLIC UPDATES   GET /api/updates
+// =============================================================================
+/**
+ * Returns public updates scoped to the active hackathon.
+ * Falls back to the 10 most recent public updates when none are found.
+ * Access: Public
+ */
+const getPublicUpdates = async (req, res) => {
   try {
-    const updates = await updateService.getPublicUpdates();
-    res.json({ items: updates });
+    const result = await updateService.getPublicUpdates();
+    res.json(result);
+
   } catch (err) {
-    console.error(err);
+    console.error('Error in GET /api/updates:', err);
     res.status(500).send('Server Error');
   }
 };
 
 
-/* ============================================================================
-   ADMIN MANUAL SCRAPE
-============================================================================ */
-exports.runManualScrape = async (req, res) => {
-  try {
-    const result = await updateService.runManualScrape();
-    res.json({
-      message: 'Scrape completed',
-      data: result
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: err.message });
-  }
+// =============================================================================
+// EXPORTS
+// =============================================================================
+module.exports = {
+  getPublicUpdates,
 };

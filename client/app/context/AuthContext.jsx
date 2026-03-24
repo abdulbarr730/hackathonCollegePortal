@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   // 1. Stable Check User Function
+  // GET /api/users/me — stays on user routes (not auth)
   const checkUser = useCallback(async () => {
     try {
       const res = await fetch(`/api/users/me`, { credentials: 'include' });
@@ -29,9 +30,9 @@ export function AuthProvider({ children }) {
     checkUser();
   }, [checkUser]);
 
-  // 2. Login: Fetches, updates state, and then HARD REDIRECTS to dashboard
+  // 2. Login: POST /api/auth/login — moved to auth routes
   const login = useCallback(async (email, password) => {
-    const res = await fetch(`/api/users/login`, {
+    const res = await fetch(`/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -44,30 +45,30 @@ export function AuthProvider({ children }) {
     }
 
     // Force a hard refresh to the dashboard to ensure all state is clean
-    window.location.href = '/dashboard'; 
+    window.location.href = '/dashboard';
   }, []);
 
-  // 3. Logout: Kills session and HARD REDIRECTS to login
+  // 3. Logout: POST /api/auth/logout — moved to auth routes
   const logout = useCallback(async () => {
     try {
-      await fetch(`/api/users/logout`, {
+      await fetch(`/api/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       });
     } catch (error) {
-      console.error("Logout failed", error);
+      console.error('Logout failed', error);
     }
-    
+
     setUser(null);
-    // This forces the browser to reload the page, clearing all memory/cache
+    // Forces the browser to reload, clearing all memory/cache
     window.location.href = '/login';
   }, []);
-  
+
   const recheckUser = useCallback(() => {
     setLoading(true);
     checkUser();
   }, [checkUser]);
-  
+
   const value = useMemo(
     () => ({
       user,
