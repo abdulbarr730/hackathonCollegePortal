@@ -34,16 +34,17 @@ exports.register = async (data, file) => {
   return withTransaction(async (session) => {
 
     const {
-      name,
-      email,
-      password,
-      otp,
-      rollNumber,
-      verificationMethod,
-      gender,
-      year,
-      course,
-    } = data;
+        name,
+        email,
+        password,
+        otp,
+        rollNumber,
+        verificationMethod,
+        gender,
+        year,
+        course,
+        phone
+      } = data;
 
     if (!otp) throw new Error('Verification code is required.');
 
@@ -72,6 +73,9 @@ exports.register = async (data, file) => {
       course,
       rollNumber,
       verificationMethod,
+
+      phone: phone || '',
+      mustAddPhone: phone ? false : true,
     };
 
     // ── Pre-approved student check ────────────────────────────────────────────
@@ -138,8 +142,9 @@ exports.login = async (email, password) => {
 
   const payload = {
     user: {
-      id:      user.id,
+      id: user.id,
       isAdmin: user.isAdmin,
+      mustAddPhone: user.mustAddPhone
     },
   };
 
@@ -150,8 +155,9 @@ exports.login = async (email, password) => {
   return {
     token,
     user: {
-      id:      user.id,
+      id: user.id,
       isAdmin: user.isAdmin,
+      mustAddPhone: user.mustAddPhone
     },
   };
 };

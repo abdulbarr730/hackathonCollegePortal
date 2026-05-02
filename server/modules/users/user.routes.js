@@ -37,5 +37,8 @@ router.put('/social', auth, controller.updateSocial);
 // PUT  /api/users/change-password — Change password (requires current password)
 router.put('/change-password', auth, controller.changePassword);
 
+// PUT  /api/users/update-phone    — Add or update phone number
+router.put('/update-phone', auth, controller.updatePhone);
+
 
 module.exports = router;

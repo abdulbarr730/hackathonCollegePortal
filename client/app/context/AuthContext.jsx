@@ -1,6 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback
+} from 'react';
 
 const AuthContext = createContext(null);
 
@@ -8,29 +15,38 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Stable Check User Function
-  // GET /api/users/me — stays on user routes (not auth)
+  // =============================
+  // CHECK USER (single source of truth)
+  // =============================
   const checkUser = useCallback(async () => {
     try {
-      const res = await fetch(`/api/users/me`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data);
-      } else {
+      const res = await fetch(`/api/users/me`, {
+        credentials: 'include'
+      });
+
+      if (!res.ok) {
         setUser(null);
+        setLoading(false);
+        return null;
       }
+
+      const data = await res.json();
+
+      setUser(data);
+      setLoading(false);
+
+      return data;
+
     } catch (error) {
       setUser(null);
-    } finally {
       setLoading(false);
+      return null;
     }
   }, []);
 
-  useEffect(() => {
-    checkUser();
-  }, [checkUser]);
-
-  // 2. Login: POST /api/auth/login — moved to auth routes
+  // =============================
+  // LOGIN
+  // =============================
   const login = useCallback(async (email, password) => {
     const res = await fetch(`/api/auth/login`, {
       method: 'POST',
@@ -39,16 +55,21 @@ export function AuthProvider({ children }) {
       body: JSON.stringify({ email, password }),
     });
 
+    const data = await res.json();
+
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.msg || 'Login failed');
+      throw new Error(data.msg || 'Login failed');
     }
 
-    // Force a hard refresh to the dashboard to ensure all state is clean
-    window.location.href = '/dashboard';
+    // ❌ DO NOT trust login user
+    // ❌ DO NOT setUser here
+
+    return data;
   }, []);
 
-  // 3. Logout: POST /api/auth/logout — moved to auth routes
+  // =============================
+  // LOGOUT
+  // =============================
   const logout = useCallback(async () => {
     try {
       await fetch(`/api/auth/logout`, {
@@ -60,13 +81,15 @@ export function AuthProvider({ children }) {
     }
 
     setUser(null);
-    // Forces the browser to reload, clearing all memory/cache
     window.location.href = '/login';
   }, []);
 
-  const recheckUser = useCallback(() => {
-    setLoading(true);
-    checkUser();
+  // =============================
+  // RECHECK USER (NOW FIXED)
+  // =============================
+  const recheckUser = useCallback(async () => {
+    const user = await checkUser();
+    return user;
   }, [checkUser]);
 
   const value = useMemo(

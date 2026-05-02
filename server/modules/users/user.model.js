@@ -27,6 +27,19 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true },
     nameUpdateCount: { type: Number, default: 0 },
 
+    // Contact info
+    phone: {
+      type: String,
+      trim: true,
+      match: [/^[0-9]{10}$/, 'Invalid phone number'],
+      default: ''
+    },
+
+    mustAddPhone: {
+      type: Boolean,
+      default: false
+    },
+
     // Profile picture
     photoUrl: { type: String, default: '' },
     photoPublicId: { type: String, default: '' },

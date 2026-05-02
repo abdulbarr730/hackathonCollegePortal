@@ -1,0 +1,29 @@
+
+> client@0.1.0 dev
+> next dev -p 3000
+
+   ▲ Next.js 15.5.9
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.23:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.5s
+ ✓ Compiled /middleware in 196ms (114 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 1531ms (1502 modules)
+ GET / 200 in 2168ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 3.2s (1541 modules)
+ GET /login 200 in 3657ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 876ms (849 modules)
+ GET /favicon.ico 200 in 1387ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 3.1s (1787 modules)
+ GET /dashboard 200 in 3827ms
+ ○ Compiling /admin/dashboard ...
+ ✓ Compiled /admin/dashboard in 845ms (1803 modules)
+ GET /admin/dashboard 200 in 1066ms
+ GET /admin/dashboard 200 in 387ms
+ GET /favicon.ico 200 in 305ms

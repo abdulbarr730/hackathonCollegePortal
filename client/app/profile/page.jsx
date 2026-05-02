@@ -29,7 +29,13 @@ export default function ProfilePage() {
   // State for Forms
   const [file, setFile] = useState(null);
   const [links, setLinks] = useState({});
-  const [profileData, setProfileData] = useState({ name: '', email: '', year: '', course: '' });
+  const [profileData, setProfileData] = useState({
+    name: '',
+    email: '',
+    year: '',
+    course: '',
+    phone: ''
+  });
   const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
 
@@ -42,11 +48,12 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       setProfileData({
-        name:   user.name   || '',
-        email:  user.email  || '',
-        course: user.course || '',
-        year:   user.year   || '',
-      });
+      name:   user.name   || '',
+      email:  user.email  || '',
+      course: user.course || '',
+      year:   user.year   || '',
+      phone:  user.phone  || ''
+    });
       setLinks(user.socialProfiles || {});
     }
   }, [user]);
@@ -242,6 +249,22 @@ export default function ProfilePage() {
                     <p className="text-xs font-medium text-slate-500 mt-1.5 flex items-center gap-1">
                       Changes remaining: <span className="text-indigo-600 dark:text-indigo-400">{Math.max(0, 2 - (user?.nameUpdateCount || 0))}</span>
                     </p>
+                  </div>
+
+                {/* Phone */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Phone Number
+                    </label>
+                    <div className="relative">
+                      <input
+                        name="phone"
+                        value={profileData.phone}
+                        onChange={handleProfileChange}
+                        placeholder="Enter phone number"
+                        className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                      />
+                    </div>
                   </div>
 
                   {/* Email */}

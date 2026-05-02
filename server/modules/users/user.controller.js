@@ -109,6 +109,28 @@ const changePassword = async (req, res) => {
   }
 };
 
+// =============================================================================
+// 6. UPDATE PHONE   PUT /api/users/update-phone
+// =============================================================================
+
+const updatePhone = async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    const result = await userService.updatePhone(
+      req.user.id,
+      phone
+    );
+
+    res.json(result);
+
+  } catch (err) {
+    res.status(err.status || 500).json({
+      msg: err.msg || err.message
+    });
+  }
+};
+
 
 // =============================================================================
 // EXPORTS
@@ -119,4 +141,5 @@ module.exports = {
   updateProfile,
   updateSocial,
   changePassword,
+  updatePhone,
 };

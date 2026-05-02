@@ -1,0 +1,30 @@
+(node:18284) [MONGOOSE] Warning: Duplicate schema index on {"rollNumber":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Feeder cron error: TypeError: runFeederOnce is not a function
+    at D:\Development2\sihCollegePortal\server\index.js:78:57
+    at D:\Development2\sihCollegePortal\server\index.js:97:7
+    at Runner.onMatch (D:\Development2\sihCollegePortal\server\node_modules\node-cron\dist\cjs\tasks\inline-scheduled-task.js:69:20)
+    at Timeout._onTimeout (D:\Development2\sihCollegePortal\server\node_modules\node-cron\dist\cjs\scheduler\runner.js:70:55)
+    at listOnTimeout (node:internal/timers:588:17)
+    at process.processTimers (node:internal/timers:523:7)
+Feeder cron error: TypeError: runFeederOnce is not a function
+    at D:\Development2\sihCollegePortal\server\index.js:78:57
+    at D:\Development2\sihCollegePortal\server\index.js:97:7
+    at Runner.onMatch (D:\Development2\sihCollegePortal\server\node_modules\node-cron\dist\cjs\tasks\inline-scheduled-task.js:69:20)
+    at Timeout._onTimeout (D:\Development2\sihCollegePortal\server\node_modules\node-cron\dist\cjs\scheduler\runner.js:70:55)
+    at listOnTimeout (node:internal/timers:588:17)
+    at process.processTimers (node:internal/timers:523:7)
+Feeder cron error: TypeError: runFeederOnce is not a function
+    at D:\Development2\sihCollegePortal\server\index.js:78:57
+    at D:\Development2\sihCollegePortal\server\index.js:97:7
+    at Runner.onMatch (D:\Development2\sihCollegePortal\server\node_modules\node-cron\dist\cjs\tasks\inline-scheduled-task.js:69:20)
+    at Timeout._onTimeout (D:\Development2\sihCollegePortal\server\node_modules\node-cron\dist\cjs\scheduler\runner.js:70:55)
+    at listOnTimeout (node:internal/timers:588:17)
+    at process.processTimers (node:internal/timers:523:7)
+Feeder cron error: TypeError: runFeederOnce is not a function
+    at D:\Development2\sihCollegePortal\server\index.js:78:57
+    at D:\Development2\sihCollegePortal\server\index.js:97:7
+    at Runner.onMatch (D:\Development2\sihCollegePortal\server\node_modules\node-cron\dist\cjs\tasks\inline-scheduled-task.js:69:20)
+    at Timeout._onTimeout (D:\Development2\sihCollegePortal\server\node_modules\node-cron\dist\cjs\scheduler\runner.js:70:55)
+    at listOnTimeout (node:internal/timers:588:17)
+    at process.processTimers (node:internal/timers:523:7)

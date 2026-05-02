@@ -8,6 +8,7 @@ import { gsap } from 'gsap';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff, Mail, Lock, Loader2, LogIn, AlertCircle } from 'lucide-react';
 
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,7 +16,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isUserNotFound, setIsUserNotFound] = useState(false);
-  const { login } = useAuth();
+  const { login, recheckUser } = useAuth();
   const router = useRouter();
   const formRef = useRef(null);
 
@@ -28,24 +29,32 @@ export default function LoginPage() {
       setError('Please enter both email and password.');
       return;
     }
+
     setLoading(true);
+
     try {
-      await login(email, password);
-      // Force navigation to dashboard to ensure state refresh
-      window.location.href = '/dashboard'; 
-    } catch (err) {
-      if (err.message && err.message.includes('USER_NOT_FOUND')) {
-        setIsUserNotFound(true);
-      } else if (err.message && err.message.includes('INVALID_PASSWORD')) {
-        setError('Invalid password. Please try again.');
-      } else if (err.message && err.message.includes('ACCOUNT_NOT_VERIFIED')) { 
-        setError('Your account is awaiting admin verification. Need it faster? Contact us at +91 7479934706 or email at abdulbarr730@gmail.com');
-      } else {
-        setError('An unexpected error occurred. Please try again.');
-      }
-    } finally {
-      setLoading(false);
+    await login(email, password);
+
+    const user = await recheckUser();
+
+    if (user?.mustAddPhone) {
+      router.push('/complete-profile');
+    } else {
+      router.push('/dashboard');
     }
+
+  } catch (err) {
+    if (err.message?.includes('USER_NOT_FOUND')) {
+      setIsUserNotFound(true);
+    } else if (err.message?.includes('INVALID_PASSWORD')) {
+      setError('Invalid password. Please try again.');
+    } else if (err.message?.includes('ACCOUNT_NOT_VERIFIED')) {
+      setError('Your account is awaiting admin verification.');
+    } else {
+      setError('An unexpected error occurred.');
+    }
+  }
+    
   };
 
   // GSAP Hover Effect
@@ -86,7 +95,7 @@ export default function LoginPage() {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60%] h-[300px] bg-indigo-500/10 dark:bg-indigo-500/20 blur-[120px] rounded-full pointer-events-none" />
 
       {/* Main Content Area (flex-grow pushes footer down) */}
-      <div className="flex-grow flex items-center justify-center py-12 px-4 z-10">
+      <div className="flex-grow flex items-start justify-center min-h-[110vh] pt-20 pb-32 px-4 z-10">
         <div
           ref={formRef}
           className="relative w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-8 shadow-2xl shadow-indigo-500/10 transition-colors duration-300"

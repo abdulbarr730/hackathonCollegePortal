@@ -192,7 +192,7 @@ export default function DashboardPage() {
   if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="animate-bounce text-2xl">🚀</div>
+        <div className="animate-bounce text-2xl">Loading...</div>
       </div>
     );
   }

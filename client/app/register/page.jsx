@@ -16,6 +16,7 @@ export default function RegisterPage() {
   // --- Form States ---
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [gender, setGender] = useState('');
   const [year, setYear] = useState('');
@@ -139,6 +140,7 @@ export default function RegisterPage() {
     
     const formData = new FormData();
     formData.append('name', name);
+    formData.append('phone', phone);
     formData.append('email', email);
     formData.append('password', password);
     formData.append('gender', gender);
@@ -151,6 +153,10 @@ export default function RegisterPage() {
       formData.append('rollNumber', rollNumber);
     } else if (document) {
       formData.append('document', document);
+    }
+
+    if (phone && !/^[0-9]{10}$/.test(phone)) {
+      return setError('Invalid phone number.');
     }
 
     try {
@@ -313,6 +319,19 @@ export default function RegisterPage() {
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
                       <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="John Doe" className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"/>
                     </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
+                      Phone Number
+                    </label>
+
+                    <input
+                      type="text"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="Enter 10-digit phone"
+                      className="w-full px-4 py-2.5 rounded-xl border"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Gender</label>

@@ -95,7 +95,7 @@ const getAllUsers = async (query, requesterId) => {
  * @returns {Promise<User>}
  */
 const updateProfile = async (userId, fields) => {
-  const { name, email, year, course } = fields;
+  const { name, email, year, course, phone } = fields;
 
   const user = await User.findById(userId);
 
@@ -106,6 +106,15 @@ const updateProfile = async (userId, fields) => {
     }
     user.name = name;
     user.nameUpdateCount += 1;
+  }
+
+  // ── Phone ─────────────────────────────────────────────────────────────────
+  if (phone !== undefined) {
+    if (!/^[6-9]\d{9}$/.test(phone))
+      fail(400, 'Invalid phone number.');
+
+    user.phone = phone;
+    user.mustAddPhone = false;
   }
 
   // ── Course ────────────────────────────────────────────────────────────────
@@ -211,6 +220,30 @@ const changePassword = async (userId, currentPassword, newPassword) => {
   return { msg: 'Password updated successfully.' };
 };
 
+// =============================================================================
+// 6. UPDATE PHONE
+// =============================================================================
+const updatePhone = async (userId, phone) => {
+
+  if (!phone)
+    fail(400, 'Phone is required.');
+
+  // 🔥 proper validation (India)
+  if (!/^[6-9]\d{9}$/.test(phone))
+    fail(400, 'Invalid phone number.');
+
+  const user = await User.findById(userId);
+
+  if (!user)
+    fail(404, 'User not found.');
+
+  user.phone = phone;
+  user.mustAddPhone = false;
+
+  await user.save();
+
+  return { msg: 'Phone updated successfully.' };
+};
 
 // =============================================================================
 // EXPORTS
@@ -221,4 +254,5 @@ module.exports = {
   updateProfile,
   updateSocial,
   changePassword,
+  updatePhone,
 };
