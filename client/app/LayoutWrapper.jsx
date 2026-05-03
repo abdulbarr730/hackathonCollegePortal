@@ -48,9 +48,9 @@ export default function LayoutWrapper({ children }) {
       
       {/* Render Navbar everywhere except auth pages usually. 
           Adjusting logic to ensure Navbar shows on Resources but container doesn't. */}
-      {(!['/login', '/register', '/forgot-password'].includes(pathname)) && <Navbar />}
+      {(!['/login', '/register', '/forgot-password', '/complete-profile', '/reset-password'].includes(pathname)) && <Navbar />}
       
-      {['/login', '/register', '/forgot-password'].includes(pathname) && <ThemeToggle floating={true} />}
+      {['/login', '/register', '/forgot-password', '/complete-profile', '/reset-password'].includes(pathname) && <ThemeToggle floating={true} />}
 
       <main
         className={
@@ -62,7 +62,7 @@ export default function LayoutWrapper({ children }) {
         {children}
       </main>
 
-      {(!['/login', '/register', '/forgot-password'].includes(pathname)) && <Footer />}
+      {(!['/login', '/register', '/forgot-password', '/complete-profile', '/reset-password'].includes(pathname)) && <Footer />}
     </>
   );
 }

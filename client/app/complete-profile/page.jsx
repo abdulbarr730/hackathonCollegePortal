@@ -69,12 +69,7 @@ export default function CompleteProfile() {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60%] h-[250px] bg-indigo-500/10 dark:bg-indigo-500/20 blur-[100px] rounded-full pointer-events-none" />
 
       {/* Theme toggle */}
-      <button
-        onClick={toggleTheme}
-        className="absolute top-5 right-5 z-20 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 backdrop-blur text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 transition-all"
-      >
-        {isDark ? <Sun size={18} /> : <Moon size={18} />}
-      </button>
+      
 
       <div className="relative z-10 w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-8 shadow-2xl shadow-indigo-500/10 transition-colors duration-300">
 
