@@ -244,7 +244,7 @@ exports.sendOtp = async (email) => {
               <!-- Footer -->
               <tr>
                 <td style="background:#f8f8fb;border-top:1px solid #e4e4ed;padding:18px 40px;text-align:center;">
-                  <p style="color:#c0c0d8;font-size:11px;margin:0;">© 2025 CampXCode · All rights reserved</p>
+                  <p style="color:#c0c0d8;font-size:11px;margin:0;">© 2026 CampXCode · All rights reserved</p>
                 </td>
               </tr>
 
@@ -375,7 +375,7 @@ exports.forgotPassword = async (email) => {
               <!-- Footer -->
               <tr>
                 <td style="background:#f8f8fb;border-top:1px solid #e4e4ed;padding:18px 40px;text-align:center;">
-                  <p style="color:#c0c0d8;font-size:11px;margin:0;">© 2025 CampXCode · All rights reserved</p>
+                  <p style="color:#c0c0d8;font-size:11px;margin:0;">© 2026 CampXCode · All rights reserved</p>
                 </td>
               </tr>
 
