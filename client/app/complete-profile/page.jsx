@@ -115,10 +115,11 @@ export default function CompleteProfile() {
               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none">
                 <Phone size={18} />
               </div>
+              {/* text not tel - kills browser phone icon; numeric inputMode for mobile keyboard; no autocomplete */}
               <input
-                type="text"           {/* ← text not tel, kills browser phone icon */}
-                inputMode="numeric"   {/* ← still shows numeric keyboard on mobile */}
-                autoComplete="off"    {/* ← no autocomplete dropdown */}
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
                 id="phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}

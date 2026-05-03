@@ -43,17 +43,19 @@ export default function LoginPage() {
       router.push('/dashboard');
     }
 
-  } catch (err) {
-    if (err.message?.includes('USER_NOT_FOUND')) {
-      setIsUserNotFound(true);
-    } else if (err.message?.includes('INVALID_PASSWORD')) {
-      setError('Invalid password. Please try again.');
-    } else if (err.message?.includes('ACCOUNT_NOT_VERIFIED')) {
-      setError('Your account is awaiting admin verification.');
-    } else {
-      setError('An unexpected error occurred.');
+  }  catch (err) {
+      if (err.message?.includes('USER_NOT_FOUND')) {
+        setIsUserNotFound(true);
+      } else if (err.message?.includes('INVALID_PASSWORD')) {
+        setError('Invalid password. Please try again.');
+      } else if (err.message?.includes('ACCOUNT_NOT_VERIFIED')) {
+        setError('Your account is awaiting admin verification.');
+      } else {
+        setError('An unexpected error occurred.');
+      }
+    } finally {
+      setLoading(false); // ← always runs, success or error
     }
-  }
     
   };
 
