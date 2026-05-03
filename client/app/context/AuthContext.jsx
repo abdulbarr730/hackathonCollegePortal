@@ -1,5 +1,7 @@
 'use client';
 
+  // runs once on mount
+
 import React, {
   createContext,
   useContext,
@@ -48,6 +50,10 @@ export function AuthProvider({ children }) {
       return null;
     }
   }, []);
+
+  useEffect(() => {
+    checkUser();
+  }, [checkUser]);
 
   // =============================
   // LOGIN
