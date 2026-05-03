@@ -6,7 +6,7 @@ const Otp = require('../auth/otp.model');
 const PreapprovedStudent = require('./prepprovedStudent.model');
 const cloudinary = require('../../shared/services/cloudinary.service');
 const withTransaction = require('../../shared/utils/withTransaction');
-const { sendEmail } = require('../../shared/services/email.service');
+const { sendMail } = require('../../shared/services/email.service');
 
 /* ============================================================================
    AUTH SERVICE
@@ -189,16 +189,70 @@ exports.sendOtp = async (email) => {
     { upsert: true, new: true }
   );
 
-  await sendEmail({
-    to:      email,
-    subject: 'Your Verification Code',
-    html: `
-      <div style="font-family: Arial; padding: 20px;">
-        <h2>Your Verification Code</h2>
-        <h1>${otp}</h1>
-        <p>This code is valid for 5 minutes.</p>
-      </div>
-    `,
+  await sendMail({
+    to: email,
+    subject: 'Your CampXCode verification code',
+    html: `<!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+      <body style="margin:0;padding:0;background:#f8f8fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8fb;padding:40px 16px;">
+          <tr><td align="center">
+            <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;border:1px solid #e4e4ed;overflow:hidden;">
+
+              <!-- Header -->
+              <tr>
+                <td style="background:linear-gradient(135deg,#6366f1,#9333ea);padding:36px 40px;text-align:center;">
+                  <div style="display:inline-block;background:rgba(255,255,255,0.2);border-radius:10px;padding:8px 20px;margin-bottom:14px;">
+                    <span style="color:#fff;font-size:17px;font-weight:700;letter-spacing:1px;">CampXCode</span>
+                  </div>
+                  <div style="color:#fff;font-size:22px;font-weight:700;margin:0;">Verify your email</div>
+                  <div style="color:rgba(255,255,255,0.8);font-size:13px;margin-top:6px;">One step away from joining the hackathon portal</div>
+                </td>
+              </tr>
+
+              <!-- Body -->
+              <tr>
+                <td style="padding:40px;">
+                  <p style="color:#4a4a6a;font-size:15px;margin:0 0 28px;line-height:1.7;">
+                    Hey there! Use the verification code below to complete your registration. This code expires in <strong style="color:#1e1e2e;">5 minutes</strong>.
+                  </p>
+
+                  <!-- OTP Box -->
+                  <div style="background:#f4f4ff;border:1.5px solid #c7c7f5;border-radius:12px;padding:32px;text-align:center;margin-bottom:28px;">
+                    <div style="color:#8888aa;font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px;">Verification Code</div>
+                    <div style="color:#4f46e5;font-size:48px;font-weight:700;letter-spacing:12px;font-family:'Courier New',monospace;">${otp}</div>
+                    <div style="margin-top:16px;display:inline-block;background:#ededff;border-radius:20px;padding:6px 18px;">
+                      <span style="color:#6366f1;font-size:12px;font-weight:600;">⏱ Valid for 5 minutes</span>
+                    </div>
+                  </div>
+
+                  <p style="color:#9090aa;font-size:13px;margin:0 0 24px;line-height:1.7;">
+                    If you didn't request this code, you can safely ignore this email. Someone may have entered your email by mistake.
+                  </p>
+
+                  <div style="border-top:1px solid #ebebf5;margin:24px 0;"></div>
+
+                  <div style="text-align:center;">
+                    <p style="color:#b0b0c8;font-size:12px;margin:0;line-height:1.6;">
+                      Automated message from <strong style="color:#6366f1;">CampXCode</strong> · Do not reply
+                    </p>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background:#f8f8fb;border-top:1px solid #e4e4ed;padding:18px 40px;text-align:center;">
+                  <p style="color:#c0c0d8;font-size:11px;margin:0;">© 2025 CampXCode · All rights reserved</p>
+                </td>
+              </tr>
+
+            </table>
+          </td></tr>
+        </table>
+      </body>
+      </html>`,
   });
 
   return { msg: 'Verification code sent successfully' };
@@ -256,14 +310,80 @@ exports.forgotPassword = async (email) => {
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
   const resetUrl  = `${clientUrl}/reset-password/${resetToken}`;
 
-  await sendEmail({
-    to:      user.email,
-    subject: 'Password Reset Request',
-    html: `
-      <h3>Password Reset</h3>
-      <p>Click below to reset your password:</p>
-      <a href="${resetUrl}">${resetUrl}</a>
-    `,
+  await sendMail({
+    to: user.email,
+    subject: 'Reset your CampXCode password',
+    html: `<!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+      <body style="margin:0;padding:0;background:#f8f8fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8fb;padding:40px 16px;">
+          <tr><td align="center">
+            <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;border:1px solid #e4e4ed;overflow:hidden;">
+
+              <!-- Header -->
+              <tr>
+                <td style="background:linear-gradient(135deg,#6366f1,#9333ea);padding:36px 40px;text-align:center;">
+                  <div style="display:inline-block;background:rgba(255,255,255,0.2);border-radius:10px;padding:8px 20px;margin-bottom:14px;">
+                    <span style="color:#fff;font-size:17px;font-weight:700;letter-spacing:1px;">CampXCode</span>
+                  </div>
+                  <div style="color:#fff;font-size:22px;font-weight:700;margin:0;">Reset your password</div>
+                  <div style="color:rgba(255,255,255,0.8);font-size:13px;margin-top:6px;">We received a request to reset your account password</div>
+                </td>
+              </tr>
+
+              <!-- Body -->
+              <tr>
+                <td style="padding:40px;">
+                  <p style="color:#4a4a6a;font-size:15px;margin:0 0 6px;line-height:1.7;">
+                    Hi <strong style="color:#1e1e2e;">${user.name}</strong>,
+                  </p>
+                  <p style="color:#4a4a6a;font-size:15px;margin:0 0 28px;line-height:1.7;">
+                    Click the button below to reset your password. This link is valid for <strong style="color:#1e1e2e;">15 minutes</strong> and can only be used once.
+                  </p>
+
+                  <!-- CTA -->
+                  <div style="text-align:center;margin-bottom:28px;">
+                    <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#9333ea);color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 36px;border-radius:10px;">
+                      Reset my password →
+                    </a>
+                  </div>
+
+                  <!-- Link fallback -->
+                  <div style="background:#f4f4ff;border:1px solid #ddddf5;border-radius:10px;padding:16px;margin-bottom:24px;">
+                    <p style="color:#9090aa;font-size:11px;margin:0 0 6px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Or copy this link</p>
+                    <p style="color:#6366f1;font-size:12px;margin:0;word-break:break-all;font-family:'Courier New',monospace;">${resetUrl}</p>
+                  </div>
+
+                  <!-- Warning -->
+                  <div style="background:#fff8f8;border:1px solid #fcd5d5;border-radius:10px;padding:14px 16px;margin-bottom:24px;">
+                    <p style="color:#e05555;font-size:13px;margin:0;line-height:1.6;">
+                      ⚠️ If you didn't request a password reset, ignore this email. Your password will not change.
+                    </p>
+                  </div>
+
+                  <div style="border-top:1px solid #ebebf5;margin:24px 0;"></div>
+
+                  <div style="text-align:center;">
+                    <p style="color:#b0b0c8;font-size:12px;margin:0;line-height:1.6;">
+                      Automated message from <strong style="color:#6366f1;">CampXCode</strong> · Do not reply
+                    </p>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background:#f8f8fb;border-top:1px solid #e4e4ed;padding:18px 40px;text-align:center;">
+                  <p style="color:#c0c0d8;font-size:11px;margin:0;">© 2025 CampXCode · All rights reserved</p>
+                </td>
+              </tr>
+
+            </table>
+          </td></tr>
+        </table>
+      </body>
+      </html>`,
   });
 
   return { msg: 'If a user with that email exists, a reset link has been sent.' };
