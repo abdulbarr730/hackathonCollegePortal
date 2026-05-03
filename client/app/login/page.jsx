@@ -38,9 +38,9 @@ export default function LoginPage() {
     const user = await recheckUser();
 
     if (user?.mustAddPhone) {
-      router.push('/complete-profile');
+      window.location.href = '/complete-profile';
     } else {
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     }
 
   }  catch (err) {
