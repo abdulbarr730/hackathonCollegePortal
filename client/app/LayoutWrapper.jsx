@@ -16,7 +16,9 @@ export default function LayoutWrapper({ children }) {
     '/login', 
     '/register', 
     '/forgot-password', 
-    '/resources' // <--- ADDED THIS
+    '/resources', // <--- ADDED THIS
+    '/complete-profile',
+    '/reset-password'
   ];
 
   // We check if the current path STARTS with any of the fullScreenPages
