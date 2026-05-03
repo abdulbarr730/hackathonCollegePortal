@@ -19,25 +19,30 @@ export function AuthProvider({ children }) {
   // CHECK USER (single source of truth)
   // =============================
   const checkUser = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setUser(null);
+      setLoading(false);
+      return null;
+    }
+
     try {
       const res = await fetch(`/api/users/me`, {
-        credentials: 'include'
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {
+        localStorage.removeItem('token'); // clear bad token
         setUser(null);
         setLoading(false);
         return null;
       }
 
       const data = await res.json();
-
       setUser(data);
       setLoading(false);
-
       return data;
-
-    } catch (error) {
+    } catch (err) {
       setUser(null);
       setLoading(false);
       return null;
@@ -51,19 +56,15 @@ export function AuthProvider({ children }) {
     const res = await fetch(`/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
+      // remove credentials: 'include' — no longer using cookies
       body: JSON.stringify({ email, password }),
     });
 
     const data = await res.json();
+    if (!res.ok) throw new Error(data.msg || 'Login failed');
 
-    if (!res.ok) {
-      throw new Error(data.msg || 'Login failed');
-    }
-
-    // ❌ DO NOT trust login user
-    // ❌ DO NOT setUser here
-
+    // Store token
+    localStorage.setItem('token', data.token);
     return data;
   }, []);
 
@@ -71,18 +72,21 @@ export function AuthProvider({ children }) {
   // LOGOUT
   // =============================
   const logout = useCallback(async () => {
-    try {
-      await fetch(`/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-    } catch (error) {
-      console.error('Logout failed', error);
-    }
+  try {
+    await fetch(`/api/auth/logout`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    });
+  } catch (err) {
+    console.error('Logout failed', err);
+  }
 
-    setUser(null);
-    window.location.href = '/login';
-  }, []);
+  localStorage.removeItem('token');
+  setUser(null);
+  window.location.href = '/login';
+}, []);
+
+
 
   // =============================
   // RECHECK USER (NOW FIXED)
