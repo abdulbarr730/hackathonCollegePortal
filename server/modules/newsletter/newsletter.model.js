@@ -27,6 +27,18 @@ const subscriberSchema = new mongoose.Schema({
     type: String,
     default: 'footer'
   },
+  termsAccepted: {
+    type: Boolean,
+    default: true
+  },
+  termsAcceptedAt: {
+    type: Date,
+    default: Date.now
+  },
+  acceptedIp: {
+    type: String,
+    default: ''
+  },
   subscribedAt: {
     type: Date,
     default: Date.now

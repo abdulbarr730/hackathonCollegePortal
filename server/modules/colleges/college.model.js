@@ -103,6 +103,74 @@ const collegeSchema = new mongoose.Schema({
   },
 
   /* ============================================================================
+     INSTITUTIONAL METADATA & COMPLIANCE
+  ============================================================================ */
+  aisheCode: {
+    type: String,
+    trim: true,
+  },
+
+  institutionType: {
+    type: String,
+    trim: true,
+    default: 'Engineering & Technology',
+  },
+
+  affiliatedUniversity: {
+    type: String,
+    trim: true,
+  },
+
+  address: {
+    type: String,
+    trim: true,
+  },
+
+  pincode: {
+    type: String,
+    trim: true,
+  },
+
+  spocAlternatePhone: {
+    type: String,
+    trim: true,
+  },
+
+  estimatedStudents: {
+    type: String,
+    trim: true,
+    default: '500-1500',
+  },
+
+  /* ============================================================================
+     LEGAL & INSTITUTIONAL AGREEMENT AUDIT TRAIL
+  ============================================================================ */
+  termsAccepted: {
+    type: Boolean,
+    default: true,
+  },
+
+  termsAcceptedAt: {
+    type: Date,
+    default: Date.now,
+  },
+
+  collegeAgreementAcceptedAt: {
+    type: Date,
+    default: Date.now,
+  },
+
+  institutionalAgreementSignedBy: {
+    type: String,
+    default: '',
+  },
+
+  acceptedIp: {
+    type: String,
+    default: '',
+  },
+
+  /* ============================================================================
      PLATFORM META
   ============================================================================ */
   createdBy: {
@@ -123,14 +191,8 @@ const collegeSchema = new mongoose.Schema({
   timestamps: true
 });
 
-
-/* ============================================================================
-   INDEXES (IMPORTANT FOR PERFORMANCE)
-============================================================================ */
-
 collegeSchema.index({ name: 1 });
 collegeSchema.index({ spocEmail: 1 });
 collegeSchema.index({ status: 1 });
-
 
 module.exports = mongoose.model('College', collegeSchema);

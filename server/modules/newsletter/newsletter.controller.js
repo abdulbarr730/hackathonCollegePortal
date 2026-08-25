@@ -3,7 +3,12 @@ const asyncHandler = require('../../core/utils/asyncHandler');
 
 exports.subscribe = asyncHandler(async (req, res) => {
   const clientUrl = req.protocol + '://' + req.get('host');
-  const result = await newsletterService.subscribe(req.body.email, req.body.clientUrl || clientUrl);
+  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+  const result = await newsletterService.subscribe(
+    req.body.email, 
+    req.body.clientUrl || clientUrl,
+    { acceptedIp: String(clientIp).split(',')[0].trim() }
+  );
   res.status(201).json(result);
 });
 

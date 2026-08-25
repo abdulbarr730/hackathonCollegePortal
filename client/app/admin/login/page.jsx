@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { ShieldCheck, Mail, Lock, Eye, EyeOff, Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
+import Captcha from '../../components/Captcha';
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -24,6 +26,12 @@ export default function AdminLoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!isCaptchaVerified) {
+      setError('Please solve the security verification puzzle correctly.');
+      return;
+    }
+
     setLoading(true);
     try {
       await adminLogin(email, password);
@@ -122,11 +130,14 @@ export default function AdminLoginPage() {
             </div>
           </div>
 
+          {/* Security CAPTCHA */}
+          <Captcha onVerify={setIsCaptchaVerified} id="admin-login-captcha" />
+
           <div className="pt-2">
             <button
               type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-3.5 font-bold text-white shadow-md shadow-indigo-600/20 active:scale-[0.98] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+              disabled={loading || !isCaptchaVerified}
+              className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-3.5 font-bold text-white shadow-md shadow-indigo-600/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

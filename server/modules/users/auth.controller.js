@@ -19,7 +19,11 @@ const authService = require('./auth.service');
  */
 exports.register = async (req, res) => {
   try {
-    const result = await authService.register(req.body, req.file);
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    const result = await authService.register({
+      ...req.body,
+      acceptedIp: String(clientIp).split(',')[0].trim()
+    }, req.file);
     res.status(201).json(result);
   } catch (err) {
     console.error('Error in POST /api/auth/register:', err.message);

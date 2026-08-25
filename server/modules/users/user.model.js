@@ -103,6 +103,13 @@ const userSchema = new mongoose.Schema(
     passwordResetToken: { type: String },
     passwordResetExpires: { type: Date },
 
+    // Legal Compliance & Audit Trail
+    termsAccepted: { type: Boolean, default: true },
+    termsAcceptedAt: { type: Date, default: Date.now },
+    privacyAcceptedAt: { type: Date, default: Date.now },
+    termsVersion: { type: String, default: '2026.1' },
+    acceptedIp: { type: String, default: '' },
+
     // Admin notes
     adminNotes: { type: String, default: '' },
   },
@@ -119,8 +126,6 @@ userSchema.virtual('nameWithYear').get(function () {
   return this.name;
 });
 
-// --- ADD THIS VIRTUAL FOR SOCIAL BADGES ---
-// This allows your frontend to quickly check if it should even render the SocialBadges component
 userSchema.virtual('hasSocials').get(function () {
   return !!(this.socialProfiles?.linkedin || this.socialProfiles?.github);
 });

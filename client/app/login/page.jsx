@@ -7,12 +7,13 @@ import Footer from '../components/Footer'; // Ensure this path is correct
 import { gsap } from 'gsap';
 import { useAuth, getRoleRedirect } from '../context/AuthContext';
 import { Eye, EyeOff, Mail, Lock, Loader2, LogIn, AlertCircle } from 'lucide-react';
-
+import Captcha from '../components/Captcha';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isUserNotFound, setIsUserNotFound] = useState(false);
@@ -27,6 +28,11 @@ export default function LoginPage() {
 
     if (!email || !password) {
       setError('Please enter both email and password.');
+      return;
+    }
+
+    if (!isCaptchaVerified) {
+      setError('Please solve the security verification puzzle correctly.');
       return;
     }
 
@@ -183,11 +189,14 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Security CAPTCHA */}
+            <Captcha onVerify={setIsCaptchaVerified} id="login-captcha" />
+
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-3.5 font-bold text-white shadow-md shadow-indigo-600/20 active:scale-[0.98] transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                disabled={loading || !isCaptchaVerified}
+                className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-3.5 font-bold text-white shadow-md shadow-indigo-600/20 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>

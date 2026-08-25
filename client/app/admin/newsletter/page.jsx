@@ -524,6 +524,11 @@ export default function AdminNewsletterPage() {
                           <p className="text-[10px] text-slate-400 truncate">
                             {item.email}
                           </p>
+                          {item.termsAcceptedAt && (
+                            <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-mono">
+                              ✓ Terms: {new Date(item.termsAcceptedAt).toLocaleDateString()}
+                            </p>
+                          )}
                         </div>
                       </div>
 

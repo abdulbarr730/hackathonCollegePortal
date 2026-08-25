@@ -179,13 +179,13 @@ export default function HomePage() {
               <Link href="/register" className="w-full sm:w-auto px-8 sm:px-12 py-3.5 sm:py-5 rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border-2 border-slate-200 dark:border-slate-800 font-bold text-base sm:text-lg hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-md">
                 Register Profile
               </Link>
-              <button 
-                onClick={() => setIsOnboardModalOpen(true)}
+              <Link 
+                href="/onboard-college"
                 className="w-full sm:w-auto px-8 sm:px-10 py-3.5 sm:py-5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border-2 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold text-base sm:text-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all shadow-md flex items-center justify-center gap-2"
               >
                 <Building2 size={20} className="text-indigo-600 dark:text-indigo-400" />
                 Onboard College
-              </button>
+              </Link>
             </div>
           </motion.div>
         </section>
@@ -250,12 +250,12 @@ export default function HomePage() {
                   <Link href="/login" className="px-10 py-4 rounded-[2rem] bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-lg hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-500 dark:hover:text-white transition-all text-center shadow-xl">
                     Enter Portal
                   </Link>
-                  <button 
-                    onClick={() => setIsOnboardModalOpen(true)}
+                  <Link 
+                    href="/onboard-college"
                     className="px-10 py-4 rounded-[2rem] border-2 border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold text-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all text-center"
                   >
                     Onboard Your College
-                  </button>
+                  </Link>
                 </div>
               </motion.div>
               
@@ -286,13 +286,13 @@ export default function HomePage() {
               </p>
               
               <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-                <button
-                  onClick={() => setIsOnboardModalOpen(true)}
+                <Link
+                  href="/onboard-college"
                   className="w-full sm:w-auto px-8 sm:px-12 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base sm:text-lg shadow-md shadow-indigo-600/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
                   <Building2 size={20} />
                   Submit College Onboarding Request
-                </button>
+                </Link>
                 <Link
                   href="/admin/login"
                   className="w-full sm:w-auto px-8 sm:px-10 py-4 rounded-2xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold text-base sm:text-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-center shadow-sm"

@@ -77,6 +77,10 @@ exports.register = async (data, file) => {
       college: college || undefined,
       phone: phone || '',
       mustAddPhone: phone ? false : true,
+      termsAccepted: data.termsAccepted !== false,
+      termsAcceptedAt: new Date(),
+      privacyAcceptedAt: new Date(),
+      acceptedIp: data.acceptedIp || '',
     };
 
     // ── Pre-approved student check ────────────────────────────────────────────

@@ -55,13 +55,15 @@ export default function Navbar() {
 
         {/* --- DESKTOP NAVIGATION (Hidden on Mobile) --- */}
         <div className="hidden md:flex items-center gap-5">
-          <Link 
-            href="/#onboard" 
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all shadow-sm"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-            College Onboarding
-          </Link>
+          {!isAuthenticated && (
+            <Link 
+              href="/onboard-college" 
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all shadow-sm"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              College Onboarding
+            </Link>
+          )}
 
           <ThemeToggle />
 
@@ -178,7 +180,7 @@ export default function Navbar() {
               ) : (
                 <div className="space-y-3 pt-2">
                   <button 
-                    onClick={() => handleNavigation('/#onboard')}
+                    onClick={() => handleNavigation('/onboard-college')}
                     className="w-full py-3 rounded-xl font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition-colors text-sm flex items-center justify-center gap-2"
                   >
                     🏛️ College Onboarding

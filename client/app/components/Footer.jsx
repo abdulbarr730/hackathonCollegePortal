@@ -6,6 +6,7 @@ import { Github, Linkedin, Twitter, ExternalLink, Mail, Phone, Globe, Send, Load
 
 export default function Footer() {
   const [email, setEmail] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
@@ -13,6 +14,11 @@ export default function Footer() {
   const handleNewsletterSubmit = async (e) => {
     e.preventDefault();
     if (!email || !email.includes('@')) return;
+    if (!agreedToTerms) {
+      setIsError(true);
+      setMessage('Please agree to the Privacy Policy and Terms & Conditions to subscribe.');
+      return;
+    }
 
     setLoading(true);
     setMessage('');
@@ -26,8 +32,9 @@ export default function Footer() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.msg || 'Subscription failed');
-      setMessage(data.msg || "🎉 You're subscribed to hackathon updates!");
+      setMessage(data.msg || "🎉 Check your email to confirm your subscription!");
       setEmail('');
+      setAgreedToTerms(false);
     } catch (err) {
       setIsError(true);
       setMessage(err.message || 'Could not subscribe. Please try again.');
@@ -37,49 +44,74 @@ export default function Footer() {
   };
 
   return (
-    <footer className="relative z-[99] border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 transition-colors duration-300 overflow-hidden">
+    <footer className="relative z-[99] border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 transition-colors duration-300 overflow-hidden">
       
-      {/* BACKGROUND PATTERN (Subtle Tech Grid) */}
+      {/* Subtle Background Accent */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
       <div className="container relative z-10 mx-auto px-6 py-16">
         
-        {/* TOP ROW: NEWSLETTER BANNER */}
-        <div className="mb-14 p-6 sm:p-8 rounded-3xl bg-slate-900 dark:bg-slate-900 border border-slate-800 text-white shadow-xl flex flex-col lg:flex-row items-center justify-between gap-6">
-          <div className="space-y-1.5 text-center lg:text-left max-w-xl">
-            <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center justify-center lg:justify-start gap-2.5">
-              <Mail className="h-6 w-6 text-indigo-400" /> Stay Ahead of Hackathon Deadlines
+        {/* TOP ROW: CLEAN HUMAN-READABLE NEWSLETTER */}
+        <div className="max-w-xl mb-16 p-8 rounded-3xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+              Newsletter
             </h3>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Subscribe to official SIH bulletins, problem statement alerts, and campus hackathon schedules. No spam, guaranteed.
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+              Get notified when official hackathon updates, schedules, and alerts are published.
             </p>
           </div>
 
-          <form onSubmit={handleNewsletterSubmit} className="w-full lg:w-auto flex-1 max-w-md">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your college email"
-                  className="w-full rounded-2xl bg-slate-800/90 border border-slate-700 text-white placeholder:text-slate-400 pl-10 pr-4 py-3 text-xs sm:text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-md active:scale-[0.98] transition-all disabled:opacity-60 flex items-center justify-center gap-2 whitespace-nowrap"
-              >
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                Subscribe
-              </button>
+          <form onSubmit={handleNewsletterSubmit} className="space-y-3.5">
+            <div className="relative">
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                className="w-full rounded-xl bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 px-4 py-3 text-sm outline-none focus:border-indigo-600 dark:focus:border-indigo-400 focus:ring-1 focus:ring-indigo-600 transition-all shadow-sm"
+              />
             </div>
 
+            <div className="flex items-start gap-2.5 pt-0.5">
+              <input
+                type="checkbox"
+                id="newsletter-terms"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                required
+              />
+              <label htmlFor="newsletter-terms" className="text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none leading-relaxed">
+                I agree to the{' '}
+                <Link href="/privacy" className="text-slate-900 dark:text-white font-medium underline hover:text-indigo-600">
+                  Privacy Policy
+                </Link>{' '}
+                and{' '}
+                <Link href="/terms" className="text-slate-900 dark:text-white font-medium underline hover:text-indigo-600">
+                  Terms & Conditions
+                </Link>
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full sm:w-auto px-8 py-3 rounded-xl bg-slate-800 hover:bg-slate-900 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-sm font-bold shadow-sm active:scale-[0.98] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Subscribing...</span>
+                </>
+              ) : (
+                'Subscribe'
+              )}
+            </button>
+
             {message && (
-              <div className={`mt-2.5 text-xs flex items-center gap-1.5 font-medium ${isError ? 'text-rose-400' : 'text-emerald-400'}`}>
+              <div className={`mt-2 text-xs flex items-center gap-1.5 font-medium ${isError ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
                 {isError ? <AlertCircle size={14} /> : <CheckCircle2 size={14} />}
                 <span>{message}</span>
               </div>
@@ -97,7 +129,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="text-sm leading-relaxed max-w-sm text-slate-500 dark:text-slate-400">
-              Stop searching and start building. The ultimate platform to connect with skilled developers, designers, and innovators for your next project.
+              Stop searching and start building. The unified platform to connect with skilled developers, designers, and innovators for your next hackathon.
             </p>
             
             {/* Socials */}
@@ -110,19 +142,20 @@ export default function Footer() {
 
           {/* COLUMN 2: QUICK LINKS */}
           <div className="md:col-span-3">
-            <h3 className="font-bold text-slate-900 dark:text-white mb-6">Platform</h3>
+            <h3 className="font-bold text-slate-900 dark:text-white mb-6">Platform & Governance</h3>
             <ul className="space-y-3 text-sm">
               <FooterLink href="/dashboard">Dashboard</FooterLink>
-              <FooterLink href="/#onboard">College Onboarding</FooterLink>
+              <FooterLink href="/onboard-college">College Onboarding</FooterLink>
               <FooterLink href="/updates">Live Updates</FooterLink>
               <FooterLink href="/ideas">Idea Board</FooterLink>
               <FooterLink href="/resources">Resource Hub</FooterLink>
+              <FooterLink href="/college-terms">Institutional Agreement</FooterLink>
             </ul>
           </div>
 
           {/* COLUMN 3: DEVELOPER INFO */}
           <div className="md:col-span-4">
-            <h3 className="font-bold text-slate-900 dark:text-white mb-6">Contact Developer</h3>
+            <h3 className="font-bold text-slate-900 dark:text-white mb-6">Contact & Inquiries</h3>
             <ul className="space-y-4 text-sm">
               <li className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400">
@@ -147,7 +180,7 @@ export default function Footer() {
                   href="https://www.abdulbarr.in" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="group inline-flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 w-full sm:w-auto"
+                  className="group inline-flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 w-full sm:w-auto"
                 >
                   <div className="p-1 rounded-full bg-white/20 dark:bg-slate-900/10">
                     <Globe size={18} />
@@ -168,7 +201,9 @@ export default function Footer() {
           <p>&copy; {new Date().getFullYear()} SIH & Campus Hackathon Portal. All rights reserved.</p>
           <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
             <Link href="/privacy" className="hover:text-slate-900 dark:hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-slate-900 dark:hover:text-white transition-colors">Terms of Service</Link>
+            <Link href="/terms" className="hover:text-slate-900 dark:hover:text-white transition-colors">Terms & Conditions</Link>
+            <Link href="/college-terms" className="hover:text-slate-900 dark:hover:text-white transition-colors">College Agreement</Link>
+            <a href="mailto:hello@abdulbarr.in" className="hover:text-slate-900 dark:hover:text-white transition-colors">Contact</a>
           </div>
         </div>
       </div>

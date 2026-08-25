@@ -7,7 +7,7 @@ const emailService = require('../../shared/services/email.service');
 // ---------------------------------------------------------------------------
 // 1. SUBSCRIBE (Double Opt-In Trigger)
 // ---------------------------------------------------------------------------
-exports.subscribe = async (email, clientUrl) => {
+exports.subscribe = async (email, clientUrl, metadata = {}) => {
   if (!email || !email.includes('@')) {
     throw new ApiError(400, 'A valid email address is required');
   }
@@ -29,6 +29,9 @@ exports.subscribe = async (email, clientUrl) => {
     sub.verificationToken = token;
     sub.verificationTokenExpires = tokenExpiry;
     sub.status = 'pending_verification';
+    sub.termsAccepted = true;
+    sub.termsAcceptedAt = new Date();
+    if (metadata.acceptedIp) sub.acceptedIp = metadata.acceptedIp;
     await sub.save();
   } else {
     sub = await Subscriber.create({
@@ -36,7 +39,10 @@ exports.subscribe = async (email, clientUrl) => {
       status: 'pending_verification',
       verificationToken: token,
       verificationTokenExpires: tokenExpiry,
-      source: 'footer'
+      termsAccepted: true,
+      termsAcceptedAt: new Date(),
+      acceptedIp: metadata.acceptedIp || '',
+      source: metadata.source || 'footer'
     });
   }
 

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 
 import Footer from '../components/Footer'; 
+import Captcha from '../components/Captcha';
 
 export default function RegisterPage() {
   // --- Form States ---
@@ -24,6 +25,8 @@ export default function RegisterPage() {
   const [rollNumber, setRollNumber] = useState('');
   const [document, setDocument] = useState(null);
   const [verificationMethod, setVerificationMethod] = useState('rollNumber');
+  const [agreedToLegal, setAgreedToLegal] = useState(false);
+  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
   
   // --- College States ---
   const [colleges, setColleges] = useState([]);
@@ -235,6 +238,19 @@ export default function RegisterPage() {
       setLoading(false);
       return setError('Invalid 10-digit phone number.');
     }
+
+    if (!agreedToLegal) {
+      setLoading(false);
+      return setError('You must read and agree to the Terms of Service and Privacy Policy to create an account.');
+    }
+
+    if (!isCaptchaVerified) {
+      setLoading(false);
+      return setError('Please complete the security verification challenge.');
+    }
+
+    formData.append('termsAccepted', 'true');
+    formData.append('termsAcceptedAt', new Date().toISOString());
 
     try {
       const res = await fetch('/api/auth/register', {
@@ -550,8 +566,39 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
+                {/* --- LEGAL TERMS & CONDITIONS CHECKBOX --- */}
+                <div className="flex items-start gap-2.5 pt-2">
+                  <input
+                    type="checkbox"
+                    id="register-terms"
+                    checked={agreedToLegal}
+                    onChange={(e) => setAgreedToLegal(e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    required
+                  />
+                  <label htmlFor="register-terms" className="text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none leading-relaxed">
+                    I confirm that the academic details provided are accurate and I agree to the{' '}
+                    <Link href="/terms" target="_blank" className="font-semibold text-indigo-600 dark:text-indigo-400 underline hover:text-indigo-500">
+                      Terms of Service
+                    </Link>{' '}
+                    and{' '}
+                    <Link href="/privacy" target="_blank" className="font-semibold text-indigo-600 dark:text-indigo-400 underline hover:text-indigo-500">
+                      Privacy Policy
+                    </Link>.
+                  </label>
+                </div>
+
+                {/* --- SECURITY CAPTCHA --- */}
+                <div className="pt-2">
+                  <Captcha onVerify={setIsCaptchaVerified} id="register-captcha" />
+                </div>
+
                 <div className="pt-4">
-                  <button type="submit" disabled={loading} className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-4 font-bold text-white shadow-md shadow-indigo-600/20 active:scale-[0.98] transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  <button 
+                    type="submit" 
+                    disabled={loading || !agreedToLegal || !isCaptchaVerified} 
+                    className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-4 font-bold text-white shadow-md shadow-indigo-600/20 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
                     {loading ? (<><Loader2 size={20} className="animate-spin" /> Verifying & Creating...</>) : (<>Join Now <ArrowRight size={20} /></>)}
                   </button>
                 </div>

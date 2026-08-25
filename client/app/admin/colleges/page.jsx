@@ -265,11 +265,19 @@ export default function AdminCollegesPage() {
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {college.city || 'City not set'}{college.state ? `, ${college.state}` : ''} {college.website ? `• ${college.website}` : ''}
+                  {college.city || 'City not set'}{college.state ? `, ${college.state}` : ''} {college.website ? `• ${college.website}` : ''} {college.aisheCode ? `• AISHE: ${college.aisheCode}` : ''}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
                   <span><strong>SPOC:</strong> {college.spocName} ({college.spocEmail})</span>
                   <span><strong>Admin Account:</strong> {college.adminUser?.email || 'Not provisioned'}</span>
+                  {college.affiliatedUniversity && (
+                    <span><strong>Affiliation:</strong> {college.affiliatedUniversity}</span>
+                  )}
+                  {college.termsAcceptedAt && (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-mono">
+                      ✓ DPA Signed: {new Date(college.termsAcceptedAt).toLocaleDateString()}
+                    </span>
+                  )}
                   {college.adminUser?.mustChangePassword && (
                     <span className="text-amber-600 dark:text-amber-400 font-semibold">• First Login Password Change Pending</span>
                   )}

@@ -6,11 +6,13 @@ const asyncHandler = require('../../core/utils/asyncHandler');
 // REGISTER COLLEGE
 // ============================================================================
 exports.registerCollege = asyncHandler(async (req, res) => {
-
-  const result = await collegeService.registerCollege(req.body);
+  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+  const result = await collegeService.registerCollege({
+    ...req.body,
+    acceptedIp: String(clientIp).split(',')[0].trim()
+  });
 
   res.status(201).json(result);
-
 });
 
 

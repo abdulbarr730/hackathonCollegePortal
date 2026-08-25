@@ -326,6 +326,12 @@ export default function AdminUsersPage() {
                 <div className="col-span-3">
                   <p className="font-bold text-slate-900 dark:text-white truncate">{u.nameWithYear || u.name}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{u.email}</p>
+                  {u.termsAcceptedAt && (
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-1 mt-0.5">
+                      <span>✓ Terms Accepted:</span>
+                      <span>{new Date(u.termsAcceptedAt).toLocaleDateString()}</span>
+                    </p>
+                  )}
                 </div>
                 <div className="col-span-2 text-xs font-mono font-semibold text-indigo-600 dark:text-indigo-400">{u.rollNumber || 'N/A'}</div>
                 <div className="col-span-2">
