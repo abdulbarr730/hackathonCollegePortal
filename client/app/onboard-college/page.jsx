@@ -9,7 +9,6 @@ import {
   FileText, Lock, Eye, EyeOff, Sparkles, School, ChevronRight
 } from 'lucide-react';
 import Captcha from '../components/Captcha';
-import Footer from '../components/Footer';
 
 export default function CollegeOnboardingPage() {
   const router = useRouter();
@@ -670,8 +669,6 @@ export default function CollegeOnboardingPage() {
           </form>
         )}
       </div>
-
-      <Footer />
     </div>
   );
 }

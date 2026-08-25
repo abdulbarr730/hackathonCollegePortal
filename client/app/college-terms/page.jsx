@@ -1,8 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { Building2, ShieldCheck, FileCheck, CheckCircle2, Scale, Users, ChevronRight } from 'lucide-react';
-import Footer from '../components/Footer';
+import { 
+  Building2, ShieldCheck, FileCheck, CheckCircle2, 
+  Scale, Users, ChevronRight, Server, Lock, Award, 
+  FileText, Mail, Phone
+} from 'lucide-react';
 
 export default function CollegeTermsPage() {
   return (
@@ -11,13 +14,13 @@ export default function CollegeTermsPage() {
       {/* Background Decor */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-      <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-24 max-w-4xl">
+      <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-20 max-w-5xl">
         
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-8">
           <Link href="/" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Home</Link>
           <ChevronRight size={14} />
-          <span className="text-slate-900 dark:text-white">Institutional Agreement</span>
+          <span className="text-slate-900 dark:text-white">Institutional MSA</span>
         </div>
 
         {/* Header */}
@@ -26,28 +29,28 @@ export default function CollegeTermsPage() {
             <Building2 size={14} /> Institutional Master Services Agreement &amp; DPA
           </div>
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white">
-            Institutional Master Services Agreement
+            Institutional Master Services Agreement (MSA)
           </h1>
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed">
-            Framework governing Academic Institution Onboarding, Faculty SPOC Delegated Authority, and Student Data Processing under Indian Law.
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed max-w-4xl">
+            Legal Framework governing Educational Institution Onboarding, Faculty SPOC Delegated Authority, and Student Data Processing Addendum (DPA).
           </p>
         </div>
 
         {/* Content Body */}
-        <div className="space-y-10 text-sm sm:text-base text-slate-700 dark:text-slate-300 leading-relaxed">
+        <div className="space-y-12 text-sm sm:text-base text-slate-700 dark:text-slate-300 leading-relaxed">
           
           {/* Section 1 */}
           <section className="space-y-3">
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
-              1. Institutional Authority &amp; Representation
+              1. Institutional Authority &amp; Legal Capacity
             </h2>
             <p>
-              By submitting an Institutional Onboarding Application on this Platform, the individual submitting the application explicitly represents and warrants that:
+              By completing the Institutional Onboarding process on the <strong>SIH &amp; Campus Hackathon Management Portal</strong>, the registering individual certifies that:
             </p>
-            <ul className="list-disc list-inside space-y-1.5 pl-2 text-slate-600 dark:text-slate-400">
-              <li>They are a full-time academic faculty member, Head of Department, Dean, or designated Single Point of Contact (SPOC) authorized by their college/university administration.</li>
-              <li>They possess the institutional authority to register the academic institution on the Platform and manage student hackathon rosters.</li>
-              <li>All AISHE codes, university affiliations, and campus details submitted are true, complete, and verifiable against statutory regulatory portals.</li>
+            <ul className="list-disc list-inside space-y-2 pl-2 text-slate-600 dark:text-slate-400">
+              <li>They are a full-time academic faculty member, Head of Department, Dean, or designated Single Point of Contact (SPOC) authorized by the leadership of their college or university.</li>
+              <li>They hold the requisite delegated power of attorney to establish an institutional node on the Platform and administer student hackathon rosters.</li>
+              <li>All institutional data submitted—including AISHE Code, university affiliation, accreditation details, and campus addresses—is authentic and verifiable against Ministry of Education / UGC records.</li>
             </ul>
           </section>
 
@@ -57,13 +60,14 @@ export default function CollegeTermsPage() {
               2. Student Data Processing Addendum (DPA)
             </h2>
             <p>
-              Under the Digital Personal Data Protection Act (DPDP), 2023, the onboarded institution acts as the <strong>Data Fiduciary</strong>, and the Platform acts as the <strong>Data Processor</strong>:
+              In compliance with Section 8 of the Digital Personal Data Protection Act (DPDP), 2023:
             </p>
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">
-              <ul className="list-disc list-inside text-xs sm:text-sm text-slate-600 dark:text-slate-400 space-y-1.5">
-                <li><strong>Purpose Limitation:</strong> Uploaded pre-approved student rosters (roll numbers, names, departments) are utilized solely for authenticating student registrations and preventing impersonation.</li>
-                <li><strong>Confidentiality:</strong> Institutional rosters are strictly isolated by multi-tenant database partitions and are never disclosed to third parties or other academic institutions.</li>
-                <li><strong>Audit Logs:</strong> All SPOC actions, student roster modifications, and team approvals are recorded with immutable cryptographic timestamps and operator IDs.</li>
+            <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
+              <ul className="list-disc list-inside text-xs sm:text-sm text-slate-600 dark:text-slate-400 space-y-2">
+                <li><strong>Purpose Limitation:</strong> Uploaded pre-approved student rosters (roll numbers, names, departments) shall be used solely for authenticating participant registration and preventing unauthorized entries.</li>
+                <li><strong>Tenant Isolation:</strong> All institutional records are isolated within dedicated database partitions and are never accessible to competing educational institutions.</li>
+                <li><strong>Confidentiality:</strong> The Platform shall maintain strict confidentiality over all student identification datasets and shall not monetize, sell, or disclose such data to third-party marketing entities.</li>
+                <li><strong>Sub-Processor Safeguards:</strong> Sub-processors utilized for transactional email relays (Resend) and encrypted media vaults (Cloudinary) operate under binding SOC-2 and data protection covenants.</li>
               </ul>
             </div>
           </section>
@@ -71,41 +75,51 @@ export default function CollegeTermsPage() {
           {/* Section 3 */}
           <section className="space-y-3">
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
-              3. SPOC Governance &amp; SIH Nomination Responsibilities
+              3. Faculty SPOC Governance &amp; SIH Nomination Protocols
             </h2>
             <p>
-              The verified faculty SPOC undertakes the following operational responsibilities:
+              The appointed Faculty SPOC undertakes the following operational responsibilities:
             </p>
-            <ul className="list-disc list-inside space-y-1.5 pl-2 text-slate-600 dark:text-slate-400">
-              <li>Verify that all teams selected for SIH 2025 nomination satisfy the mandatory 6-member count and female diversity mandate.</li>
-              <li>Ensure that initial administrative credentials provided during onboarding are updated to a permanent secure password upon first login.</li>
-              <li>Promptly notify the platform administrator of any change in designated faculty coordinator or SPOC appointment.</li>
+            <ul className="list-disc list-inside space-y-2 pl-2 text-slate-600 dark:text-slate-400">
+              <li><strong>Roster Verification:</strong> Ensure all nominated teams fulfill national criteria (exactly 6 members with mandatory female representation).</li>
+              <li><strong>Account Security:</strong> Complete initial password reset upon first administrative login and maintain credential confidentiality.</li>
+              <li><strong>Staff Delegation:</strong> Appoint and manage assistant coordinators or evaluators using the OTP-verified staff provisioning workflow.</li>
+              <li><strong>Nomination Export:</strong> Validate and download official nomination spreadsheets for upload to the SIH central coordination portal.</li>
             </ul>
           </section>
 
           {/* Section 4 */}
           <section className="space-y-3">
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
-              4. Termination &amp; Roster Deletion
+              4. Domain Configuration &amp; Generic Email Policy
             </h2>
             <p>
-              Institutions may terminate their node or request complete deletion of student rosters at the conclusion of an academic hackathon season by submitting a signed written request to <code>hello@abdulbarr.in</code>. All associated student rosters will be permanently expunged within 30 business days.
+              Institutions with official domain infrastructure (e.g. <code>@bbdit.edu.in</code>) can enforce custom domain matching to ensure seamless student registration. Institutions lacking dedicated domains may permit generic email providers (e.g. Gmail), with each account subject to mandatory real-time OTP validation and roll number verification.
             </p>
           </section>
 
-          <div className="pt-6 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs text-slate-500">
-            <Link href="/onboard-college" className="font-bold text-indigo-600 hover:underline">
-              ← Go to College Onboarding Form
+          {/* Section 5 */}
+          <section className="space-y-3">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
+              5. Term, Season Closure &amp; Secure Data Expungement
+            </h2>
+            <p>
+              This Agreement remains in effect for the active academic hackathon cycle. Upon season conclusion, institutions may request complete expungement of student rosters by submitting an authenticated request to <code>hello@abdulbarr.in</code>. All corresponding student roster datasets will be securely purged within thirty (30) business days.
+            </p>
+          </section>
+
+          {/* Quick Links Nav */}
+          <div className="pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-wrap justify-between items-center gap-4 text-xs">
+            <Link href="/onboard-college" className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+              ← Institutional Onboarding Portal
             </Link>
-            <Link href="/privacy" className="font-bold text-indigo-600 hover:underline">
-              View Student Privacy Policy →
+            <Link href="/privacy" className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+              View Privacy Policy →
             </Link>
           </div>
 
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 }
