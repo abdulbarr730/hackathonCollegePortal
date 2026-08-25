@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Loader2, Users, CheckCircle, Users2, RefreshCcw, ArrowRight, Trophy, FileSpreadsheet, Megaphone, Lightbulb, FileText } from 'lucide-react';
+import { Building2, Loader2, Users, CheckCircle, Users2, RefreshCcw, ArrowRight, Trophy, FileSpreadsheet, Megaphone, Lightbulb, FileText, Mail } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const StatCard = ({ title, value, icon: Icon, accent }) => {
@@ -174,6 +174,16 @@ export default function AdminDashboardPage() {
             icon={FileText}
             onClick={() => router.push('/admin/resources')}
           />
+
+          {isSuperAdmin && (
+            <ActionCard
+              title="Newsletter & Audience Broadcasts"
+              description="Inspect active subscribers and broadcast official bulletins to subscribed students and staff."
+              buttonText="Broadcast"
+              icon={Mail}
+              onClick={() => router.push('/admin/newsletter')}
+            />
+          )}
 
           <ActionCard
             title="Idea Repository"

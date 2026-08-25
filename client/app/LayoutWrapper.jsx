@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import AdminSidebar from './components/AdminSidebar';
+import AdminNavbar from './components/AdminNavbar';
 import ThemeToggle from './components/ThemeToggle';
 
 export default function LayoutWrapper({ children }) {
@@ -31,7 +32,10 @@ export default function LayoutWrapper({ children }) {
     return (
       <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
         <AdminSidebar />
-        <main className="flex-1 pl-20 lg:pl-64 p-4 sm:p-6 lg:p-8 min-w-0">{children}</main>
+        <div className="flex-1 pl-20 lg:pl-64 flex flex-col min-w-0">
+          <AdminNavbar />
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">{children}</main>
+        </div>
       </div>
     );
   }

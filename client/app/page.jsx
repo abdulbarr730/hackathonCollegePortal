@@ -23,7 +23,7 @@ import {
   Loader2
 } from "lucide-react";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 // We don't strictly need the context for the text anymore, 
 // but we keep it to show the *active event badge* dynamically if desired.
 import { useHackathon } from './context/HackathonContext'; 
@@ -48,6 +48,19 @@ export default function HomePage() {
   const [onboardSubmitting, setOnboardSubmitting] = useState(false);
   const [onboardSuccess, setOnboardSuccess] = useState('');
   const [onboardError, setOnboardError] = useState('');
+  // Auto-open modal on #onboard or ?onboard=college
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (window.location.hash === '#onboard' || window.location.search.includes('onboard')) {
+        setIsOnboardModalOpen(true);
+      }
+      const handleHash = () => {
+        if (window.location.hash === '#onboard') setIsOnboardModalOpen(true);
+      };
+      window.addEventListener('hashchange', handleHash);
+      return () => window.removeEventListener('hashchange', handleHash);
+    }
+  }, []);
 
   const handleOnboardSubmit = async (e) => {
     e.preventDefault();
@@ -261,7 +274,7 @@ export default function HomePage() {
         </section>
 
         {/* --- DEDICATED COLLEGE ONBOARDING & VERIFICATION EXPLAINER --- */}
-        <section className="container mx-auto px-4 sm:px-6 py-20 sm:py-32">
+        <section id="onboard" className="container mx-auto px-4 sm:px-6 py-20 sm:py-32 scroll-mt-24">
           <div className="relative rounded-3xl sm:rounded-[3rem] border border-indigo-200 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/80 dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/40 p-8 sm:p-14 lg:p-20 shadow-2xl overflow-hidden">
             
             {/* Background Glow */}

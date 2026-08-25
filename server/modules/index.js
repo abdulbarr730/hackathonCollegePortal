@@ -35,6 +35,9 @@ module.exports = function registerRoutes(app) {
   // SOCIAL
   app.use('/api/users/social', require('./social/social.routes'));
 
+  // NEWSLETTER
+  app.use('/api/newsletter', require('./newsletter/newsletter.routes'));
+
   // ADMIN
   app.use('/api/admin', require('./admin/admin.routes'));
   app.use('/api/admin/approved-students', require('./admin/approvedStudents.routes'));

@@ -1,19 +1,92 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { Github, Linkedin, Twitter, ExternalLink, Mail, Phone, Globe } from 'lucide-react';
+import { Github, Linkedin, Twitter, ExternalLink, Mail, Phone, Globe, Send, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function Footer() {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [isError, setIsError] = useState(false);
+
+  const handleNewsletterSubmit = async (e) => {
+    e.preventDefault();
+    if (!email || !email.includes('@')) return;
+
+    setLoading(true);
+    setMessage('');
+    setIsError(false);
+
+    try {
+      const res = await fetch('/api/newsletter/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.msg || 'Subscription failed');
+      setMessage(data.msg || "🎉 You're subscribed to hackathon updates!");
+      setEmail('');
+    } catch (err) {
+      setIsError(true);
+      setMessage(err.message || 'Could not subscribe. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    /* FIX: Added 'z-40' to stay above the toggle and 'bg-slate-50 dark:bg-slate-950' 
-       to ensure it's not transparent so the toggle doesn't show through.
-    */
     <footer className="relative z-[99] border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 transition-colors duration-300 overflow-hidden">
       
       {/* BACKGROUND PATTERN (Subtle Tech Grid) */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
       <div className="container relative z-10 mx-auto px-6 py-16">
+        
+        {/* TOP ROW: NEWSLETTER BANNER */}
+        <div className="mb-14 p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 text-white shadow-xl shadow-indigo-500/10 flex flex-col lg:flex-row items-center justify-between gap-6">
+          <div className="space-y-1.5 text-center lg:text-left max-w-xl">
+            <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center justify-center lg:justify-start gap-2">
+              <Mail className="h-6 w-6" /> Stay Ahead of Hackathon Deadlines
+            </h3>
+            <p className="text-xs sm:text-sm text-indigo-100 leading-relaxed">
+              Subscribe to official SIH bulletins, problem statement alerts, and campus hackathon schedules. No spam, guaranteed.
+            </p>
+          </div>
+
+          <form onSubmit={handleNewsletterSubmit} className="w-full lg:w-auto flex-1 max-w-md">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your college email"
+                  className="w-full rounded-2xl bg-white/95 text-slate-900 placeholder:text-slate-400 pl-10 pr-4 py-3 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-white shadow-inner"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-60 flex items-center justify-center gap-2 whitespace-nowrap"
+              >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                Subscribe
+              </button>
+            </div>
+
+            {message && (
+              <div className={`mt-2 text-xs flex items-center gap-1.5 font-semibold ${isError ? 'text-rose-200' : 'text-emerald-200'}`}>
+                {isError ? <AlertCircle size={14} /> : <CheckCircle2 size={14} />}
+                <span>{message}</span>
+              </div>
+            )}
+          </form>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12">
           
           {/* COLUMN 1: BRANDING */}
@@ -40,6 +113,7 @@ export default function Footer() {
             <h3 className="font-bold text-slate-900 dark:text-white mb-6">Platform</h3>
             <ul className="space-y-3 text-sm">
               <FooterLink href="/dashboard">Dashboard</FooterLink>
+              <FooterLink href="/#onboard">College Onboarding</FooterLink>
               <FooterLink href="/updates">Live Updates</FooterLink>
               <FooterLink href="/ideas">Idea Board</FooterLink>
               <FooterLink href="/resources">Resource Hub</FooterLink>
@@ -91,10 +165,10 @@ export default function Footer() {
 
         {/* BOTTOM BAR */}
         <div className="mt-16 pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <p>&copy; {new Date().getFullYear()} SIH Portal. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} SIH & Campus Hackathon Portal. All rights reserved.</p>
           <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
-            <a href="#" className="hover:text-slate-900 dark:hover:text-white transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-slate-900 dark:hover:text-white transition-colors">Terms of Service</a>
+            <Link href="/privacy" className="hover:text-slate-900 dark:hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-slate-900 dark:hover:text-white transition-colors">Terms of Service</Link>
           </div>
         </div>
       </div>

@@ -56,6 +56,14 @@ export default function Navbar() {
 
         {/* --- DESKTOP NAVIGATION (Hidden on Mobile) --- */}
         <div className="hidden md:flex items-center gap-5">
+          <Link 
+            href="/#onboard" 
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all shadow-sm"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+            College Onboarding
+          </Link>
+
           <ThemeToggle />
 
           {isAuthenticated && user ? (
@@ -170,6 +178,12 @@ export default function Navbar() {
                 </>
               ) : (
                 <div className="space-y-3 pt-2">
+                  <button 
+                    onClick={() => handleNavigation('/#onboard')}
+                    className="w-full py-3 rounded-xl font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition-colors text-sm flex items-center justify-center gap-2"
+                  >
+                    🏛️ College Onboarding
+                  </button>
                   <button 
                     onClick={() => handleNavigation('/login')}
                     className="w-full py-3.5 rounded-xl font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"

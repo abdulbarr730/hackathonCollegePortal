@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import { 
   Building2, FileText, LayoutGrid, Megaphone, Trophy, 
-  Users, Lightbulb, ShieldCheck, ArrowLeft, FileSpreadsheet, LogOut
+  Users, Lightbulb, ShieldCheck, ArrowLeft, FileSpreadsheet, LogOut, Mail
 } from 'lucide-react';
 
 export default function AdminSidebar() {
@@ -52,6 +52,7 @@ export default function AdminSidebar() {
       { href: '/admin/ideas', label: 'Idea Repository', icon: Lightbulb },
       { href: '/admin/resources', label: 'Resources', icon: FileText },
       { href: '/admin/updates', label: 'Updates & Announcements', icon: Megaphone },
+      { href: '/admin/newsletter', label: 'Newsletter Broadcast', icon: Mail },
     ];
   };
 

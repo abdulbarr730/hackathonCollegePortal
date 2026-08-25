@@ -157,7 +157,7 @@ export function AuthProvider({ children }) {
 
     if (typeof window !== 'undefined') localStorage.removeItem('token');
     setUser(null);
-    window.location.href = '/login';
+    window.location.href = '/';
   }, []);
 
   // =============================
