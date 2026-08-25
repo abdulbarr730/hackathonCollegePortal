@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { 
-  Plus, Calendar, Trophy, Pencil, X, Lock, Venus, Loader2, Clock, CheckCircle 
+  Plus, Calendar, Trophy, Pencil, X, Lock, Venus, Loader2, Clock, CheckCircle, Trash2
 } from 'lucide-react';
 import { useHackathon } from '../../context/HackathonContext'; 
 
@@ -126,6 +126,24 @@ export default function AdminHackathonsPage() {
     fetchHackathons();
   };
 
+  const handleDeleteHackathon = async (id, name) => {
+    if (!confirm(`Are you sure you want to delete the hackathon "${name}"? This action cannot be undone.`)) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/hackathon/${id}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || 'Failed to delete hackathon');
+      fetchHackathons();
+      refreshEvent();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   if (loading) return <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-indigo-600" size={40} /></div>;
 
   return (
@@ -204,8 +222,10 @@ export default function AdminHackathonsPage() {
             </div>
             
             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-              <button onClick={() => handleEditClick(h)} className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:text-indigo-600 transition-colors"><Pencil size={20} /></button>
+              <button onClick={() => handleEditClick(h)} className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:text-indigo-600 transition-colors" title="Edit Hackathon"><Pencil size={20} /></button>
               
+              <button onClick={() => handleDeleteHackathon(h._id, h.name)} className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-600 hover:text-white transition-all" title="Delete Hackathon"><Trash2 size={20} /></button>
+
               {/* LOCK BUTTON */}
               <button onClick={() => handleBulkLock(h._id)} className="px-5 py-2.5 rounded-xl bg-red-50 text-red-600 border border-red-100 hover:bg-red-600 hover:text-white text-xs font-black uppercase transition-all flex items-center gap-2"><Lock size={14}/> Freeze Subs</button>
               

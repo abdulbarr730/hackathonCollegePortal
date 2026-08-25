@@ -34,9 +34,11 @@ router.put('/update/:id', adminAuth, controller.updateHackathon);
 // 6. MIGRATE LEGACY TEAMS
 router.put('/migrate-legacy-teams', adminAuth, controller.migrateLegacyTeams);
 
-// ==========================================
-// 7. BULK LOCK TEAMS (THE ROUTE YOU WERE MISSING)
-// ==========================================
+// 7. BULK LOCK TEAMS
 router.put('/lock-all-teams', adminAuth, controller.lockAllTeams);
+
+// 8. DELETE HACKATHON
+router.delete('/:id', adminAuth, controller.deleteHackathon);
+router.delete('/delete/:id', adminAuth, controller.deleteHackathon);
 
 module.exports = router;

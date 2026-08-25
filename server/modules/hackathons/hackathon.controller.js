@@ -104,3 +104,17 @@ exports.lockAllTeams = async (req, res) => {
     });
   }
 };
+
+/* ============================================================================
+   DELETE HACKATHON CONTROLLER
+============================================================================ */
+exports.deleteHackathon = async (req, res) => {
+  try {
+    const result = await service.deleteHackathon(req.params.id, req.user);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({
+      msg: err.message || 'Server Error during hackathon deletion'
+    });
+  }
+};

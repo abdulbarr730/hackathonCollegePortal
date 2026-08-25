@@ -42,33 +42,73 @@ export default function ArchivePage() {
 
         {loading ? (
           <div className="text-center py-20 animate-pulse text-slate-400 font-mono tracking-widest uppercase">Syncing Archives...</div>
-        ) : (
+        ) : archives.length > 0 ? (
           <div className="space-y-32">
             {archives.map(event => (
               <div key={event._id} className="space-y-10">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
                   <div className="space-y-1">
-                        <h2 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">{event.name}</h2>
-                       <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-mono text-sm font-bold">
-                            <Calendar size={14} /> 
-                            {/* BRUTALLY LOGICAL FIX:
-                                1. Check for startDate (best case)
-                                2. If missing, use createdAt (which you already have)
-                                3. Final fallback to 2026
-                            */}
-                            {event.startDate ? (
-                                `${new Date(event.startDate).getFullYear()} Edition`
-                            ) : event.createdAt ? (
-                                `${new Date(event.createdAt).getFullYear()} Edition`
-                            ) : (
-                                "2026 Edition"
-                            )}
+                    <h2 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">{event.name}</h2>
+                    <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-mono text-sm font-bold">
+                      <Calendar size={14} /> 
+                      {event.startDate ? (
+                        `${new Date(event.startDate).getFullYear()} Edition`
+                      ) : event.createdAt ? (
+                        `${new Date(event.createdAt).getFullYear()} Edition`
+                      ) : (
+                        "Previous Edition"
+                      )}
                     </div>
                   </div>
                 </div>
                 <EventTeamGrid hackathonId={event._id} setViewingTeam={setViewingTeam} />
               </div>
             ))}
+          </div>
+        ) : (
+          <div className="max-w-4xl mx-auto space-y-10">
+            {/* Live Hackathon Spotlight */}
+            <div className="rounded-3xl border border-indigo-200 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/80 dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/40 p-8 sm:p-12 text-center space-y-6 shadow-xl">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                <Trophy size={32} />
+              </div>
+              <div className="space-y-2">
+                <span className="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-xs uppercase tracking-wider">
+                  Live in Session
+                </span>
+                <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white">
+                  Smart India Hackathon 2025 (SIH 25)
+                </h2>
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-xl mx-auto leading-relaxed">
+                  Teams are currently competing in the internal college selection round. Winning teams and grand finalists will be inducted here once judging is completed!
+                </p>
+              </div>
+            </div>
+
+            {/* Legacy Edition Highlights */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-6 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase text-indigo-600 dark:text-indigo-400">SIH 2024 Legacy</span>
+                  <Crown size={18} className="text-amber-500" />
+                </div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">BBDIT Grand Finalists</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Demonstrated AI-powered disaster management drone networks and automated disaster response systems at the national finale.
+                </p>
+              </div>
+
+              <div className="p-6 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase text-purple-600 dark:text-purple-400">SIH 2023 Legacy</span>
+                  <Crown size={18} className="text-amber-500" />
+                </div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">National Innovation Award</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Recognized for smart agricultural soil monitoring sensors and IoT irrigation controllers deployed across 15+ test farms.
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </main>

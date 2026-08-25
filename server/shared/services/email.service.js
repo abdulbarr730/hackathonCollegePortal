@@ -1,27 +1,148 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || 'dummy_key');
 
-const FROM = 'CampXCode <no-reply@campxcode.in>'; // ← put your actual domain here
+const DEFAULT_FROM = process.env.RESEND_FROM || process.env.EMAIL_FROM || 'CampXCode <no-reply@campxcode.in>';
+const FALLBACK_FROM = 'Hackathon Portal <onboarding@resend.dev>';
 
-async function sendMail({ to, subject, html, text }) {
+async function sendMail({ to, subject, html, text, from = DEFAULT_FROM }) {
   if (!to) throw new Error('Missing recipient');
 
-  const { data, error } = await resend.emails.send({
-    from: FROM,
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not configured. Email logged to console:', { to, subject });
+    return { success: true, id: 'mock-id-' + Date.now() };
+  }
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from,
+      to,
+      subject,
+      html,
+      text,
+    });
+
+    if (error) {
+      // If error is domain verification related, attempt with fallback from address
+      if (from !== FALLBACK_FROM && (error.message?.includes('domain') || error.message?.includes('from'))) {
+        console.warn(`Resend domain error with "${from}", attempting with fallback: "${FALLBACK_FROM}"`);
+        const fallbackRes = await resend.emails.send({
+          from: FALLBACK_FROM,
+          to,
+          subject,
+          html,
+          text
+        });
+        if (fallbackRes.error) throw new Error(fallbackRes.error.message);
+        return { success: true, id: fallbackRes.data?.id };
+      }
+      throw new Error(error.message);
+    }
+
+    return { success: true, id: data?.id };
+  } catch (err) {
+    console.error('Failed to dispatch email via Resend:', err.message);
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// NEWSLETTER VERIFICATION EMAIL TEMPLATE
+// ---------------------------------------------------------------------------
+async function sendNewsletterVerification({ email, token, clientUrl }) {
+  const verifyLink = `${clientUrl || 'http://localhost:3000'}/verify-newsletter?token=${token}&email=${encodeURIComponent(email)}`;
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 40px 20px; }
+        .container { max-width: 560px; margin: 0 auto; background-color: #1e293b; border-radius: 24px; border: 1px solid #334155; padding: 40px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+        .logo { font-size: 20px; font-weight: 900; color: #6366f1; letter-spacing: -0.5px; margin-bottom: 24px; }
+        h1 { font-size: 24px; font-weight: 800; color: #ffffff; margin: 0 0 16px 0; }
+        p { font-size: 15px; line-height: 1.6; color: #94a3b8; margin: 0 0 24px 0; }
+        .btn { display: inline-block; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 15px; padding: 14px 32px; border-radius: 9999px; box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3); }
+        .footer { font-size: 12px; color: #64748b; margin-top: 36px; border-top: 1px solid #334155; padding-top: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="logo">⚡ Hackathon & SIH Portal</div>
+        <h1>Confirm Your Newsletter Subscription</h1>
+        <p>You recently requested to subscribe to official Smart India Hackathon announcements, campus problem statements, and schedule alerts.</p>
+        <p>Please click the button below to verify your email address and activate your subscription:</p>
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${verifyLink}" class="btn" target="_blank">Confirm Subscription</a>
+        </div>
+        <p style="font-size: 13px; color: #64748b;">If the button doesn't work, copy and paste this URL into your browser:<br/><a href="${verifyLink}" style="color: #818cf8; word-break: break-all;">${verifyLink}</a></p>
+        <div class="footer">
+          If you did not request this subscription, you can safely ignore this email.<br/>
+          &copy; ${new Date().getFullYear()} Official Campus Hackathon Portal.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendMail({
+    to: email,
+    subject: 'Action Required: Confirm your Hackathon Newsletter Subscription',
+    html,
+    text: `Please confirm your newsletter subscription by visiting: ${verifyLink}`
+  });
+}
+
+// ---------------------------------------------------------------------------
+// BROADCAST ANNOUNCEMENT EMAIL TEMPLATE
+// ---------------------------------------------------------------------------
+async function sendBroadcastEmail({ to, subject, content, clientUrl }) {
+  const formattedContent = String(content).replace(/\n/g, '<br/>');
+  const portalLink = clientUrl || 'http://localhost:3000';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 40px 20px; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; border: 1px solid #e2e8f0; padding: 40px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+        .badge { display: inline-block; background-color: #e0e7ff; color: #4338ca; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 16px; }
+        h1 { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 20px 0; line-height: 1.3; }
+        .content { font-size: 15px; line-height: 1.7; color: #334155; margin-bottom: 32px; }
+        .btn { display: inline-block; background-color: #0f172a; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 28px; border-radius: 14px; }
+        .footer { font-size: 12px; color: #94a3b8; margin-top: 36px; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="badge">Official Hackathon Bulletin</div>
+        <h1>${subject}</h1>
+        <div class="content">${formattedContent}</div>
+        <div style="text-align: left; margin: 24px 0;">
+          <a href="${portalLink}" class="btn" target="_blank">Open Hackathon Portal &rarr;</a>
+        </div>
+        <div class="footer">
+          You are receiving this official communication as a registered participant, SPOC, or subscriber of the Campus Hackathon Portal.<br/>
+          &copy; ${new Date().getFullYear()} Campus Hackathon Portal. All rights reserved.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendMail({
     to,
     subject,
     html,
-    text,
+    text: content
   });
-
-  if (error) {
-    console.error('Resend error:', error);
-    throw new Error(error.message);
-  }
-
-  console.log('Email sent:', data?.id);
-  return { success: true, id: data?.id };
 }
 
-module.exports = { sendMail };
+module.exports = {
+  sendMail,
+  sendNewsletterVerification,
+  sendBroadcastEmail
+};

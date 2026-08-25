@@ -21,7 +21,8 @@ export default function LayoutWrapper({ children }) {
     '/complete-profile',
     '/reset-password',
     '/change-password',
-    '/admin/login'
+    '/admin/login',
+    '/verify-newsletter'
   ];
 
   const isFullScreenPage = 
@@ -47,7 +48,8 @@ export default function LayoutWrapper({ children }) {
     '/complete-profile',
     '/reset-password',
     '/change-password',
-    '/admin/login'
+    '/admin/login',
+    '/verify-newsletter'
   ].some(page => pathname === page || pathname.startsWith(page + '/'));
 
   return (

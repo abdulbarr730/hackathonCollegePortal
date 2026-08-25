@@ -147,7 +147,6 @@ exports.updateHackathon = async (id, body) => {
    MIGRATE LEGACY TEAMS (ADD hackathonId TO OLD TEAMS)
 ============================================================================ */
 exports.migrateLegacyTeams = async (targetHackathonId) => {
-
   if (!targetHackathonId) {
     const err = new Error('Target Hackathon ID required');
     err.status = 400;
@@ -166,7 +165,6 @@ exports.migrateLegacyTeams = async (targetHackathonId) => {
    BULK LOCK TEAMS FOR A HACKATHON
 ============================================================================ */
 exports.lockAllTeams = async (hackathonId) => {
-
   if (!hackathonId) {
     const err = new Error('Hackathon ID is required.');
     err.status = 400;
@@ -179,4 +177,26 @@ exports.lockAllTeams = async (hackathonId) => {
   );
 
   return result.modifiedCount;
+};
+
+/* ============================================================================
+   DELETE HACKATHON
+============================================================================ */
+exports.deleteHackathon = async (id, requester) => {
+  const hackathon = await Hackathon.findById(id);
+  if (!hackathon) {
+    const err = new Error('Hackathon not found');
+    err.status = 404;
+    throw err;
+  }
+
+  // If college admin, ensure it belongs to their college
+  if (requester?.role === 'college_admin' && hackathon.college && String(hackathon.college) !== String(requester.college)) {
+    const err = new Error('Unauthorized to delete hackathon from another institution');
+    err.status = 403;
+    throw err;
+  }
+
+  await Hackathon.findByIdAndDelete(id);
+  return { msg: 'Hackathon deleted successfully' };
 };

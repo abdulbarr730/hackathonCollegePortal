@@ -3,8 +3,10 @@ const router = express.Router();
 const controller = require('./newsletter.controller');
 const superAdmin = require('../../core/middlewares/superAdminAuth');
 
-// Public Subscription
+// Public Subscription & Double Opt-in Verification
 router.post('/subscribe', controller.subscribe);
+router.get('/verify', controller.verifySubscription);
+router.post('/verify', controller.verifySubscription);
 
 // Super Admin Only Governance
 router.get('/subscribers', superAdmin, controller.getSubscribers);
