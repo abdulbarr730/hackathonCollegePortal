@@ -49,6 +49,20 @@ exports.approveCollege = asyncHandler(async (req, res) => {
 
 });
 
+// ============================================================================
+// REJECT COLLEGE
+// ============================================================================
+exports.rejectCollege = asyncHandler(async (req, res) => {
+
+  const result = await collegeService.rejectCollege(
+    req.params.id,
+    req.body?.reason
+  );
+
+  res.json(result);
+
+});
+
 exports.listPublicColleges = asyncHandler(async (_req, res) => {
   const result = await collegeService.listPublicColleges();
   res.json({ items: result });
