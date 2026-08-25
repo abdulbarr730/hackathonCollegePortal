@@ -192,6 +192,7 @@ const getPublicUpdates = async () => {
     updates = await Update.find({
       isPublic:  true,
       hackathon: activeHackathon._id,
+      source: { $ne: 'scraper' },
     })
       .populate('hackathon', 'name shortName')
       .sort({ pinned: -1, publishedAt: -1, createdAt: -1 });
@@ -201,7 +202,7 @@ const getPublicUpdates = async () => {
   if (!updates.length) {
     console.log('No active hackathon updates, showing recent updates instead.');
 
-    updates = await Update.find({ isPublic: true })
+    updates = await Update.find({ isPublic: true, source: { $ne: 'scraper' } })
       .populate('hackathon', 'name shortName')
       .sort({ pinned: -1, publishedAt: -1, createdAt: -1 })
       .limit(10); // Keep the dashboard clean

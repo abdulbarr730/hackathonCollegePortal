@@ -39,5 +39,19 @@ router.post('/forgot-password', controller.forgotPassword);
 // POST /api/auth/reset-password/:token — Reset password using email link token
 router.post('/reset-password/:token', controller.resetPassword);
 
+// POST /api/auth/change-initial-password — Change password on first login
+router.post('/change-initial-password', (req, res, next) => {
+  // Optional auth wrapper: if token exists, decode and set req.user
+  const token = req.cookies?.token || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.split(' ')[1] : null);
+  if (token) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded.user || decoded;
+    } catch (_) {}
+  }
+  next();
+}, controller.changeInitialPassword);
 
-module.exports = router;
+
+module.exports = router;

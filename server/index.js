@@ -18,14 +18,17 @@ const errorHandler = require('./core/middlewares/errorHandler');
 
 // Feeder + notifications
 const cron = require('node-cron');
-const { runFeederOnce } = require('./shared/services/sihFeeder.service');
 const { notifyUsersNewUpdates } = require('./shared/services/updateNotifications.service');
 // -------------------- Feeder scheduler --------------------
 // 1. DEFINE THE VARIABLES FIRST
-const FEEDER_ENABLED = String(process.env.FEEDER_ENABLED || 'true') === 'true';
+const FEEDER_ENABLED = String(process.env.FEEDER_ENABLED || 'false') === 'true';
 const FEEDER_CRON = process.env.FEEDER_CRON || '*/15 * * * *';
 const FEEDER_SOURCE_URL = process.env.FEEDER_SOURCE_URL || 'https://sih.gov.in/';
 const PLAYWRIGHT_ENABLED = String(process.env.PLAYWRIGHT_ENABLED || 'true') === 'true';
+let runFeederOnce = null;
+if (FEEDER_ENABLED) {
+  ({ runFeederOnce } = require('./shared/services/sihFeeder.service'));
+}
 
 // DB
 const connectDB = require('./core/database/db');

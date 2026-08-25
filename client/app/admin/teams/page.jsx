@@ -5,13 +5,18 @@ import {
   RefreshCw, Trash2, Unlock, Lock, Clock, Edit3, FileSpreadsheet,
   Search, Filter, Users, Venus, Mars, Mail, Loader2, 
   UserPlus, UserMinus, ShieldCheck, MoreVertical, X, ChevronDown, ChevronUp, UserCog,
-  LayoutDashboard, CheckCircle, AlertCircle, Trophy, Ban // Added Ban icon for unmarking
+  LayoutDashboard, CheckCircle, AlertCircle, Trophy, Ban, ExternalLink, Building2
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 export default function AdminTeamsPage() {
+  const { user } = useAuth();
   const [teams, setTeams] = useState([]);
   const [hackathons, setHackathons] = useState([]);
+  const [colleges, setColleges] = useState([]);
   const [selectedHackathon, setSelectedHackathon] = useState('all');
+  const [selectedCollege, setSelectedCollege] = useState('all');
+  const [submissionFilter, setSubmissionFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -31,29 +36,52 @@ export default function AdminTeamsPage() {
     } catch (err) { return 'all'; }
   };
 
+  const fetchColleges = async () => {
+    try {
+      const res = await fetch('/api/colleges?status=approved', { credentials: 'include' });
+      const data = await res.json();
+      setColleges(data.items || []);
+    } catch (err) { console.error(err); }
+  };
+
   const fetchTeams = useCallback(async (hId) => {
     setLoading(true);
     try {
-      const url = hId === 'all' ? `/api/admin/teams` : `/api/admin/teams?hackathonId=${hId}`;
-      const res = await fetch(url);
+      const params = new URLSearchParams();
+      if (hId && hId !== 'all') params.set('hackathonId', hId);
+      if (selectedCollege !== 'all') params.set('collegeId', selectedCollege);
+      if (submissionFilter !== 'all') params.set('submitted', submissionFilter);
+      const res = await fetch(`/api/admin/teams?${params.toString()}`, { credentials: 'include' });
       const data = await res.json();
       setTeams(data.items || []);
     } catch (err) { console.error(err); } 
     finally { setLoading(false); }
-  }, []);
+  }, [selectedCollege, submissionFilter]);
 
   useEffect(() => {
     const init = async () => {
       const hId = await fetchHackathons();
+      fetchColleges();
       fetchTeams(hId);
     };
     init();
   }, [fetchTeams]);
 
+  useEffect(() => {
+    fetchTeams(selectedHackathon);
+  }, [selectedCollege, submissionFilter, selectedHackathon, fetchTeams]);
+
   // --- ACTIONS ---
   const handleExport = (type) => {
-    const hId = type === 'filtered' ? selectedHackathon : 'all';
-    window.open(`/api/admin/teams/export?hackathonId=${hId}`, '_blank');
+    const params = new URLSearchParams();
+    if (type === 'filtered' && selectedHackathon !== 'all') params.set('hackathonId', selectedHackathon);
+    if (type === 'filtered' && selectedCollege !== 'all') params.set('collegeId', selectedCollege);
+    if (type === 'filtered' && submissionFilter !== 'all') params.set('submitted', submissionFilter);
+    window.open(`/api/admin/teams/export?${params.toString()}`, '_blank');
+  };
+
+  const openSihSubmission = () => {
+    window.open('https://www.sih.gov.in/sih2025PS', '_blank', 'noopener,noreferrer');
   };
 
   const handleUnlock = async (e, id) => {
@@ -73,174 +101,210 @@ export default function AdminTeamsPage() {
   };
 
   const handleAddMember = async (id) => {
-    const email = prompt("Enter Email to force-add:");
+    const email = prompt("Enter Registered Member Email to Force Add:");
     if (!email) return;
-    const res = await fetch(`/api/admin/teams/${id}/members`, { 
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({email}) 
+    const res = await fetch(`/api/admin/teams/${id}/member`, {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({email})
     });
-    const d = await res.json();
-    if (!res.ok) alert(d.msg);
+    if (!res.ok) { const err = await res.json(); alert(err.msg || "Failed to add"); }
     fetchTeams(selectedHackathon);
   };
 
-  const handleKickMember = async (teamId, memberId, name) => {
-    if (!confirm(`Kick ${name} from squad?`)) return;
-    await fetch(`/api/admin/teams/${teamId}/members/${memberId}`, { method: 'DELETE' });
-    fetchTeams(selectedHackathon);
+  const handleKickMember = async (tId, mId, name) => {
+    if (!confirm(`Remove ${name} from team?`)) return;
+    await fetch(`/api/admin/teams/${tId}/member/${mId}`, { method: 'DELETE' });
     setOpenMemberMenuId(null);
+    fetchTeams(selectedHackathon);
   };
 
-  const handlePromoteToLeader = async (teamId, email) => {
-    if (!confirm(`Make ${email} the Team Leader?`)) return;
-    await fetch(`/api/admin/teams/${teamId}/leader`, { 
-      method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({email}) 
+  const handlePromoteToLeader = async (tId, email) => {
+    if (!confirm(`Promote ${email} to Team Leader?`)) return;
+    await fetch(`/api/admin/teams/${tId}/leader`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({email})
     });
-    fetchTeams(selectedHackathon);
     setOpenMemberMenuId(null);
+    fetchTeams(selectedHackathon);
   };
 
   const handleDeleteTeam = async (id) => {
-    if (!confirm("DELETE ENTIRE TEAM?")) return;
+    if (!confirm("CRITICAL: Disband this entire team? This cannot be undone.")) return;
     await fetch(`/api/admin/teams/${id}`, { method: 'DELETE' });
     fetchTeams(selectedHackathon);
   };
 
-  // --- WINNER ACTIONS ---
-  const handleMarkWinner = async (teamId) => {
-    const position = prompt("Enter Winner Position (e.g., '1st Place', 'Gold', 'Top 10'):");
-    if (!position) return;
-
-    try {
-      const res = await fetch(`/api/admin/teams/${teamId}/winner`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ position })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert(`Team marked as ${position}!`);
-        fetchTeams(selectedHackathon);
-      } else {
-        alert(data.msg);
-      }
-    } catch (err) { alert("Failed to mark winner"); }
+  const handleMarkWinner = async (id) => {
+    const position = prompt("Enter Winner Position (e.g., 1st Place, Runner Up, Category Winner):", "1st Place");
+    if (position === null) return;
+    const res = await fetch(`/api/admin/teams/${id}/winner`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ position: position || 'Winner' })
+    });
+    if (res.ok) fetchTeams(selectedHackathon);
+    else alert("Failed to mark winner");
   };
 
-  // --- NEW: UNMARK WINNER ---
-  const handleUnmarkWinner = async (teamId) => {
-    if (!confirm("Remove this team from the winners list?")) return;
-    
-    try {
-      // Assuming you handle DELETE on the same route to clear the status
-      const res = await fetch(`/api/admin/teams/${teamId}/winner`, {
-        method: 'DELETE' 
-      });
-      
-      if (res.ok) {
-        alert("Winner status removed.");
-        fetchTeams(selectedHackathon);
-      } else {
-        alert("Failed to unmark winner.");
-      }
-    } catch (err) { alert("Error removing winner status"); }
+  const handleUnmarkWinner = async (id) => {
+    if (!confirm("Are you sure you want to remove the winner tag from this team?")) return;
+    const res = await fetch(`/api/admin/teams/${id}/unmark-winner`, {
+      method: 'POST'
+    });
+    if (res.ok) fetchTeams(selectedHackathon);
+    else alert("Failed to unmark winner");
   };
 
-  const toggleAccordion = (id) => {
-    setExpandedTeamId(expandedTeamId === id ? null : id);
-  };
-
-  // --- STATS CALCULATION ---
-  const stats = {
-    total: teams.length,
-    locked: teams.filter(t => t.isSubmitted).length,
-    draft: teams.filter(t => !t.isSubmitted).length,
-    participants: teams.reduce((acc, t) => acc + (t.members?.length || 0), 0)
-  };
-
+  // --- STATS ---
   const filteredTeams = teams.filter(t => 
-    t.teamName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.teamName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.leader?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.leader?.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading && teams.length === 0) return <div className="p-20 text-center text-slate-500"><Loader2 className="animate-spin inline mr-2"/> Accessing Database...</div>;
+  const totalMembers = filteredTeams.reduce((acc, t) => acc + (t.members?.length || 0), 0);
+  const totalFemales = filteredTeams.reduce((acc, t) => acc + (t.members?.filter(m => ['female', 'f'].includes(m.gender?.toLowerCase())).length || 0), 0);
+  const totalMales = filteredTeams.reduce((acc, t) => acc + (t.members?.filter(m => ['male', 'm'].includes(m.gender?.toLowerCase())).length || 0), 0);
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="space-y-8 animate-in fade-in duration-300">
       
-      {/* 1. HEADER SECTION */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col lg:flex-row justify-between items-center gap-6">
+      {/* 1. HEADER & EXPORTS */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white">Squad Repository</h1>
-          <p className="text-slate-500 text-sm">Expand teams to manage members or export data.</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Teams & SIH Export</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Review team rosters, filter by college, and generate SPOC Excel submissions.</p>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-3">
-          <button onClick={() => handleExport('all')} className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700 transition-all"><FileSpreadsheet size={16}/> Export All</button>
-          <button onClick={() => handleExport('filtered')} disabled={selectedHackathon === 'all'} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-500 disabled:opacity-50 transition-all"><Filter size={16}/> Export Filtered</button>
-          <select value={selectedHackathon} onChange={(e) => { setSelectedHackathon(e.target.value); fetchTeams(e.target.value); }} className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-sm outline-none cursor-pointer">
-            <option value="all">All Events</option>
-            {hackathons.map(h => <option key={h._id} value={h._id}>{h.shortName || h.name}</option>)}
+        <div className="flex flex-wrap items-center gap-3">
+          <button 
+            onClick={() => handleExport('filtered')}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+          >
+            <FileSpreadsheet size={16} /> Export Selected ({filteredTeams.length})
+          </button>
+          
+          <button 
+            onClick={openSihSubmission}
+            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
+          >
+            <ExternalLink size={16} /> SIH Portal
+          </button>
+        </div>
+      </div>
+
+      {/* 2. STATS OVERVIEW CARDS */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Total Squads</p>
+          <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-1">{filteredTeams.length}</h3>
+        </div>
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Total Coders</p>
+          <h3 className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">{totalMembers}</h3>
+        </div>
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Females</p>
+          <h3 className="text-2xl font-black text-pink-500 mt-1">{totalFemales}</h3>
+        </div>
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Males</p>
+          <h3 className="text-2xl font-black text-blue-500 mt-1">{totalMales}</h3>
+        </div>
+      </div>
+
+      {/* 3. FILTERS PANEL */}
+      <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-center gap-4 justify-between shadow-sm">
+        
+        {/* Search */}
+        <div className="relative w-full md:w-96">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="Search Squad or Leader..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+          />
+        </div>
+
+        {/* Hackathon, College, and Status Selector */}
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          
+          <select 
+            value={selectedCollege} 
+            onChange={(e) => setSelectedCollege(e.target.value)}
+            className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
+          >
+            <option value="all">All Colleges</option>
+            {colleges.map(c => (
+              <option key={c._id} value={c._id}>{c.name} {c.shortName ? `(${c.shortName})` : ''}</option>
+            ))}
           </select>
+
+          <select 
+            value={selectedHackathon} 
+            onChange={(e) => setSelectedHackathon(e.target.value)}
+            className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
+          >
+            <option value="all">All Hackathons</option>
+            {hackathons.map(h => (
+              <option key={h._id} value={h._id}>{h.shortName || h.name} {h.isActive ? '(Active)' : ''}</option>
+            ))}
+          </select>
+
+          <select 
+            value={submissionFilter} 
+            onChange={(e) => setSubmissionFilter(e.target.value)}
+            className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
+          >
+            <option value="all">All Submissions</option>
+            <option value="true">Locked / Submitted</option>
+            <option value="false">Draft State</option>
+          </select>
+
+          <button 
+            onClick={() => fetchTeams(selectedHackathon)} 
+            className="p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-all"
+            title="Refresh List"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
       </div>
 
-      {/* 2. STATS BAR */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/50">
-          <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mb-1">
-            <LayoutDashboard size={16}/> <span className="text-xs font-bold uppercase tracking-wider">Total Teams</span>
+      {/* 4. TEAMS ACCORDION LIST */}
+      <div className="space-y-4">
+        {loading ? (
+          <div className="text-center py-16 text-slate-400">
+            <Loader2 className="animate-spin mx-auto mb-2 text-indigo-500" size={32} />
+            Loading squads...
           </div>
-          <p className="text-2xl font-black text-slate-800 dark:text-white">{stats.total}</p>
-        </div>
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-2xl border border-green-100 dark:border-green-800/50">
-          <div className="flex items-center gap-2 text-green-600 dark:text-green-400 mb-1">
-            <CheckCircle size={16}/> <span className="text-xs font-bold uppercase tracking-wider">Locked</span>
+        ) : filteredTeams.length === 0 ? (
+          <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl text-slate-400 font-medium">
+            No squads found matching your filters.
           </div>
-          <p className="text-2xl font-black text-slate-800 dark:text-white">{stats.locked}</p>
-        </div>
-        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-100 dark:border-amber-800/50">
-          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 mb-1">
-            <Clock size={16}/> <span className="text-xs font-bold uppercase tracking-wider">Drafts</span>
-          </div>
-          <p className="text-2xl font-black text-slate-800 dark:text-white">{stats.draft}</p>
-        </div>
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800/50">
-          <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 mb-1">
-            <Users size={16}/> <span className="text-xs font-bold uppercase tracking-wider">Participants</span>
-          </div>
-          <p className="text-2xl font-black text-slate-800 dark:text-white">{stats.participants}</p>
-        </div>
-      </div>
-
-      {/* 3. SEARCH BAR */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
-        <input 
-          type="text" placeholder="Search by team name or leader email..." 
-          className="pl-12 pr-4 py-4 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
-          value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      {/* 4. ACCORDION LIST */}
-      <div className="space-y-3">
-        {filteredTeams.length === 0 ? (
-          <div className="py-20 text-center border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">No teams found.</div>
         ) : filteredTeams.map(team => (
-          <div key={team._id} className={`bg-white dark:bg-slate-900 border ${expandedTeamId === team._id ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-200 dark:border-slate-800'} rounded-2xl overflow-hidden transition-all`}>
-            
-            {/* COLLAPSED ROW (The Header) */}
+          <div 
+            key={team._id} 
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm hover:border-indigo-500/50 transition-all duration-200"
+          >
+            {/* ACCORDION HEADER */}
             <div 
-              onClick={() => toggleAccordion(team._id)}
-              className="p-4 md:p-6 cursor-pointer flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+              onClick={() => setExpandedTeamId(expandedTeamId === team._id ? null : team._id)}
+              className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors"
             >
-              <div className="flex items-center gap-4 flex-1">
-                <div className={`w-3 h-3 rounded-full shrink-0 ${team.isSubmitted ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]'}`} />
-                <div className="min-w-0">
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white break-words flex items-center gap-2">
-                    {team.teamName}
-                    {team.isWinner && <span className="bg-yellow-100 text-yellow-800 text-[10px] px-2 py-0.5 rounded-full border border-yellow-200 uppercase">{team.winnerPosition || 'Winner'}</span>}
-                  </h3>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-lg border border-indigo-100 dark:border-indigo-800 shrink-0">
+                  {team.teamName?.charAt(0) || 'T'}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">{team.teamName}</h3>
+                    {team.isWinner && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-yellow-400/20 text-yellow-600 dark:text-yellow-400 border border-yellow-400/30">
+                        <Trophy size={11} className="text-yellow-500" /> {team.winnerPosition || 'Winner'}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500 flex items-center gap-1 mt-1"><Mail size={12}/> {team.leader?.email}</p>
                 </div>
               </div>
@@ -282,7 +346,9 @@ export default function AdminTeamsPage() {
                         </button>
                       )}
 
-                      <button onClick={() => handleDeleteTeam(team._id)} className="flex items-center gap-2 w-full px-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-600 hover:text-white transition-all"><Trash2 size={16}/> Disband Entire Team</button>
+                      {user?.role !== 'spoc' && (
+                        <button onClick={() => handleDeleteTeam(team._id)} className="flex items-center gap-2 w-full px-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-600 hover:text-white transition-all"><Trash2 size={16}/> Disband Entire Team</button>
+                      )}
                     </div>
                   </div>
 

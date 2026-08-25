@@ -9,11 +9,16 @@ const supabase = require('../../shared/services/supabase.service');
 ============================================================================ */
 exports.listUpdates = async () => {
 
-  const updates = await Update.find()
+  const updates = await Update.find({ source: { $ne: 'scraper' } })
     .populate('hackathon', 'name shortName')
     .sort({ pinned: -1, publishedAt: -1 });
 
   return { items: updates };
+};
+
+exports.deleteScrapedUpdates = async () => {
+  const result = await Update.deleteMany({ source: 'scraper' });
+  return { count: result.deletedCount || 0 };
 };
 
 /* ============================================================================

@@ -2,22 +2,33 @@ const express = require('express');
 const router = express.Router();
 
 const controller = require('./college.controller');
-const auth = require('../../core/middlewares/auth');
-
+const superAdmin = require('../../core/middlewares/superAdminAuth');
+const adminAuth = require('../../core/middlewares/adminAuth');
 
 // ============================================================================
-// REGISTER COLLEGE
+// PUBLIC ROUTES
+// ============================================================================
+router.get('/public', controller.listPublicColleges);
+router.get('/active', controller.listPublicColleges);
+router.post('/request-onboarding', controller.requestCollegeOnboarding);
+
+// ============================================================================
+// REGISTER COLLEGE (ONBOARDING)
 // ============================================================================
 router.post('/register', controller.registerCollege);
 
 // ============================================================================
-// GET PENDING COLLEGES (SUPER ADMIN)
+// ADMIN COLLEGE ROUTES
 // ============================================================================
-router.get('/pending',auth.superAdmin, controller.getPendingColleges);
+router.get('/', adminAuth, controller.listColleges);
+router.get('/pending', superAdmin, controller.getPendingColleges);
+router.post('/approve/:id', superAdmin, controller.approveCollege);
+router.post('/reject/:id', superAdmin, controller.rejectCollege);
 
 // ============================================================================
-// APPROVE COLLEGE (SUPER ADMIN)
+// STAFF PROVISIONING (ADD COLLEGE ADMIN / SPOC)
 // ============================================================================
-router.post('/approve/:id', auth.superAdmin, controller.approveCollege);
+router.post('/:id/staff', adminAuth, controller.addCollegeStaff);
+router.post('/staff', adminAuth, controller.addCollegeStaff);
 
 module.exports = router;

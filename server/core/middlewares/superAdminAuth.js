@@ -43,8 +43,8 @@ module.exports = async function (req, res, next) {
       return res.status(401).json({ msg: 'User not found, authorization denied' });
     }
 
-    // Must be flagged as admin AND have the admin role
-    if (!user.isAdmin || user.role !== 'admin') {
+    // Must be flagged as admin AND have the admin role (and not scoped to a specific college)
+    if (!user.isAdmin || user.role !== 'admin' || (user.college && user.role !== 'admin')) {
       return res.status(403).json({ msg: 'Super admin access required' });
     }
 

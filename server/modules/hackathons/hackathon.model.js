@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const HackathonSchema = new mongoose.Schema({
   name: { type: String, required: true },       // e.g., "SIH 2025" or "Internal Hackathon 2026"
   shortName: { type: String, required: true },  // e.g., "SIH '25"
+  college: { type: mongoose.Schema.Types.ObjectId, ref: 'College', index: true },
   startDate: { type: Date, default: Date.now },
   
   // Configuration Rules

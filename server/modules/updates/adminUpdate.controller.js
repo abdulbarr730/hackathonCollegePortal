@@ -50,6 +50,18 @@ exports.deleteUpdate = async (req, res) => {
   }
 };
 
+exports.deleteScrapedUpdates = async (_req, res) => {
+  try {
+    const result = await service.deleteScrapedUpdates();
+    res.json({
+      msg: `Deleted ${result.count} scraped SIH notifications.`,
+      count: result.count
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({ msg: err.message || 'Cleanup Failed' });
+  }
+};
+
 /* ============================================================================
    RETAG UPDATES CONTROLLER
 ============================================================================ */

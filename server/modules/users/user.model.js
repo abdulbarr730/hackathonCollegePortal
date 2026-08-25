@@ -64,11 +64,11 @@ const userSchema = new mongoose.Schema(
     },
 
     course: {
-      type: String,
-      enum: ['B.Tech', 'BCA', 'Diploma'], // Add your course options here
-      required: true,
-    },
-    courseUpdateCount: { type: Number, default: 0 },
+      type: String,
+      enum: ['B.Tech', 'BCA', 'Diploma'], // Add your course options here
+      required: true,
+    },
+    courseUpdateCount: { type: Number, default: 0 },
 
     year: { type: Number, min: 1, max: 4 },
     yearUpdateCount: { type: Number, default: 0 },
@@ -76,19 +76,18 @@ const userSchema = new mongoose.Schema(
     // Permissions & verification
     isAdmin: { type: Boolean, default: false },
     isVerified: { type: Boolean, default: false },
+    mustChangePassword: { type: Boolean, default: false },
 
     // Roles
     role: {
       type: String,
-      enum: ['student', 'spoc', 'judge', 'admin'],
+      enum: ['student', 'spoc', 'judge', 'admin', 'college_admin'],
       default: 'student',
-      index: true,
     },
 
     // Relations
+    college: { type: mongoose.Schema.Types.ObjectId, ref: 'College' },
     team: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },
-
-    // Social profiles
     socialProfiles: { type: SocialSchema, default: () => ({}) },
 
     // Verification method
@@ -134,6 +133,7 @@ userSchema.index({ isVerified: 1 });
 userSchema.index({ isAdmin: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ team: 1 });
+userSchema.index({ college: 1 });
 userSchema.index({ createdAt: -1 });
 userSchema.index({ name: 'text', email: 'text' });
 

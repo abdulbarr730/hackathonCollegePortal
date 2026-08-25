@@ -8,49 +8,49 @@ import ThemeToggle from './components/ThemeToggle';
 
 export default function LayoutWrapper({ children }) {
   const pathname = usePathname();
-  const isAdminPage = pathname.startsWith('/admin');
+  const isAdminPage = pathname.startsWith('/admin') && pathname !== '/admin/login';
 
-  // FIX: Added '/resources' to this list so it can take up the full screen width
+  // Pages that take full width and handle their own layout
   const fullScreenPages = [
     '/', 
     '/login', 
     '/register', 
     '/forgot-password', 
-    '/resources', // <--- ADDED THIS
+    '/resources',
     '/complete-profile',
-    '/reset-password'
+    '/reset-password',
+    '/change-password',
+    '/admin/login'
   ];
 
-  // We check if the current path STARTS with any of the fullScreenPages
-  // This ensures /resources AND /resources/new both get full width
   const isFullScreenPage = 
     fullScreenPages.some(page => pathname === page || pathname.startsWith(page + '/')) ||
     pathname.startsWith('/reset-password');
 
   if (isAdminPage) {
     return (
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
         <AdminSidebar />
-        <main className="flex-1 pl-64 p-8">{children}</main>
+        <main className="flex-1 pl-20 lg:pl-64 p-4 sm:p-6 lg:p-8 min-w-0">{children}</main>
       </div>
     );
   }
 
+  const isAuthOrStandalonePage = [
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/complete-profile',
+    '/reset-password',
+    '/change-password',
+    '/admin/login'
+  ].some(page => pathname === page || pathname.startsWith(page + '/'));
+
   return (
     <>
-      {/* Navbar shows on all pages except explicit fullScreen ones if you want, 
-          BUT usually you want Navbar on resources too. 
-          If you want Navbar on resources, remove !isFullScreenPage check or adjust logic.
-          
-          Based on your previous request, you likely WANT the Navbar on resources, 
-          just not the container boxing.
-      */}
+      {!isAuthOrStandalonePage && <Navbar />}
       
-      {/* Render Navbar everywhere except auth pages usually. 
-          Adjusting logic to ensure Navbar shows on Resources but container doesn't. */}
-      {(!['/login', '/register', '/forgot-password', '/complete-profile', '/reset-password'].includes(pathname)) && <Navbar />}
-      
-      {['/login', '/register', '/forgot-password', '/complete-profile', '/reset-password'].includes(pathname) && <ThemeToggle floating={true} />}
+      {isAuthOrStandalonePage && <ThemeToggle floating={true} />}
 
       <main
         className={
@@ -62,7 +62,7 @@ export default function LayoutWrapper({ children }) {
         {children}
       </main>
 
-      {(!['/login', '/register', '/forgot-password', '/complete-profile', '/reset-password'].includes(pathname)) && <Footer />}
+      {!isAuthOrStandalonePage && <Footer />}
     </>
   );
 }

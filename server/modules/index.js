@@ -18,6 +18,12 @@ module.exports = function registerRoutes(app) {
   // HACKATHONS
   app.use('/api/hackathon', require('./hackathons/hackathon.routes'));
   app.use('/api/archive', require('./hackathons/archive.routes'));
+  app.use('/api/colleges', require('./colleges/college.routes'));
+
+  // RESOURCES
+  app.use('/api/resources', require('./resources/resource.routes'));
+
+  // UPDATES
 
   // RESOURCES
   app.use('/api/resources', require('./resources/resource.routes'));
@@ -31,6 +37,7 @@ module.exports = function registerRoutes(app) {
 
   // ADMIN
   app.use('/api/admin', require('./admin/admin.routes'));
+  app.use('/api/admin/approved-students', require('./admin/approvedStudents.routes'));
   app.use('/api/admin/resources', require('./resources/adminResource.routes'));
   app.use('/api/admin/updates', require('./updates/adminUpdate.routes'));
   app.use('/api/admin/social-config', require('./admin/adminSocialConfig.routes'));

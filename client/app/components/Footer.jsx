@@ -8,7 +8,7 @@ export default function Footer() {
     /* FIX: Added 'z-40' to stay above the toggle and 'bg-slate-50 dark:bg-slate-950' 
        to ensure it's not transparent so the toggle doesn't show through.
     */
-    <footer className="relative z-99 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 transition-colors duration-300 overflow-hidden">
+    <footer className="relative z-[99] border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 transition-colors duration-300 overflow-hidden">
       
       {/* BACKGROUND PATTERN (Subtle Tech Grid) */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
@@ -92,7 +92,7 @@ export default function Footer() {
         {/* BOTTOM BAR */}
         <div className="mt-16 pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <p>&copy; {new Date().getFullYear()} SIH Portal. All rights reserved.</p>
-          <div className="flex gap-6">
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
             <a href="#" className="hover:text-slate-900 dark:hover:text-white transition-colors">Privacy Policy</a>
             <a href="#" className="hover:text-slate-900 dark:hover:text-white transition-colors">Terms of Service</a>
           </div>

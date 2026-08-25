@@ -6,39 +6,6 @@ ADMIN CONTROLLER LAYER
 Purpose:
 Handles HTTP request/response logic for admin operations.
 Acts as the bridge between routes and business logic.
-
-Responsibilities:
-- Read request data (params, body, query)
-- Call appropriate service functions
-- Format HTTP responses
-- Handle try/catch for request lifecycle
-- Set cookies / headers / status codes
-
-What should NOT be here:
-✗ Complex business logic
-✗ Heavy DB aggregation logic
-✗ Reusable domain logic
-✗ Multi-step workflows
-
-Controllers should stay thin.
-If a function grows beyond simple orchestration,
-move the logic into admin.service.js.
-
-Architecture flow:
-Route → Controller → Service → DB → Service → Controller → Response
-
-Typical controller pattern:
-1. Validate minimal input
-2. Call service
-3. Return JSON/response
-4. Handle errors cleanly
-
-This file answers:
-“How does the API respond?”
-
-The service answers:
-“How does the system work internally?”
-
 ===============================================================================
 */
 
@@ -55,7 +22,7 @@ const ExcelJS = require('exceljs');
 /* ================= LOGIN ================= */
 exports.adminLogin = async (req, res) => {
   try {
-    const { token } = await adminService.loginAdmin(req.body);
+    const { token, user } = await adminService.loginAdmin(req.body);
 
     res.cookie('token', token, {
       httpOnly: true,
@@ -63,10 +30,14 @@ exports.adminLogin = async (req, res) => {
       sameSite: 'lax',
       path: '/',
       maxAge: 8 * 60 * 60 * 1000,
-    }).json({ msg: 'Admin login successful' });
+    }).json({
+      msg: 'Admin login successful',
+      token,
+      user
+    });
 
   } catch (err) {
-    res.status(err.status || 500).send(err.message || 'Server Error');
+    res.status(err.status || 500).json({ msg: err.message || 'Server Error' });
   }
 };
 
@@ -145,9 +116,30 @@ exports.getUser = async (req, res) => {
 /* ================= EXPORT USERS ================= */
 exports.exportUsers = async (req, res) => {
   try {
-    const users = await User.find({})
+    const filters = {};
+    const { q = '', verified, admin, role, teamId, collegeId } = req.query;
+
+    if (q) {
+      filters.$or = [
+        { name: new RegExp(q, 'i') },
+        { email: new RegExp(q, 'i') },
+        { rollNumber: new RegExp(q, 'i') }
+      ];
+    }
+
+    if (typeof verified !== 'undefined') filters.isVerified = verified === 'true';
+    if (typeof admin !== 'undefined') filters.isAdmin = admin === 'true';
+    if (role) filters.role = role;
+    if (collegeId && collegeId !== 'all') filters.college = collegeId;
+    if (teamId) {
+      const team = await Team.findById(teamId).select('members').lean();
+      filters._id = { $in: team?.members || [] };
+    }
+
+    const users = await User.find(filters)
       .select('-password')
       .populate('team', 'teamName')
+      .populate('college', 'name shortName')
       .lean();
 
     const formatted = users.map(u => ({
@@ -159,6 +151,7 @@ exports.exportUsers = async (req, res) => {
       Role: u.role,
       Verified: u.isVerified ? 'Yes' : 'No',
       Team: u.team?.teamName || 'N/A',
+      College: u.college?.shortName || u.college?.name || 'N/A',
       CreatedAt: new Date(u.createdAt).toLocaleString(),
     }));
 
@@ -168,8 +161,10 @@ exports.exportUsers = async (req, res) => {
     } else {
       const wb = new ExcelJS.Workbook();
       const sheet = wb.addWorksheet('Users');
-      sheet.columns = Object.keys(formatted[0]).map(k => ({ header: k, key: k }));
+      sheet.columns = Object.keys(formatted[0] || { Name: '' }).map(k => ({ header: k, key: k }));
       formatted.forEach(r => sheet.addRow(r));
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename="users.xlsx"');
       await wb.xlsx.write(res);
       res.end();
     }
@@ -199,8 +194,10 @@ exports.bulkAdminUsers = async (req, res) => {
 /* ================= TEAMS ================= */
 exports.listTeams = async (req, res) => {
   try {
-    const teams = await Team.find({})
+    const filters = await adminService.buildTeamFilters(req.query);
+    const teams = await Team.find(filters)
       .populate('leader members hackathonId')
+      .sort({ createdAt: -1 })
       .lean();
     res.json({ items: teams });
   } catch {
@@ -250,7 +247,7 @@ exports.deleteTeam = async (req,res)=>{
 
 /* ================= TEAM UTILITIES ================= */
 exports.listTeamsSimple = async (_req,res)=>{
-  const teams = await Team.find({}).select('teamName').lean();
+  const teams = await Team.find({}).select('teamName hackathonId').populate('hackathonId', 'shortName name').lean();
   res.json(teams.map(t=>({_id:t._id,name:t.teamName})));
 };
 
@@ -263,19 +260,46 @@ exports.getTeam = async (req,res)=>{
 
 
 /* ================= TEAM EXPORT ================= */
-exports.exportTeams = async (_req,res)=>{
-  const teams = await Team.find({}).populate('leader members hackathonId').lean();
+exports.exportTeams = async (req,res)=>{
+  const filters = await adminService.buildTeamFilters(req.query);
+  const teams = await Team.find(filters).populate('leader members hackathonId').lean();
   const wb = new ExcelJS.Workbook();
-  const sheet = wb.addWorksheet('Teams');
+  const sheet = wb.addWorksheet('SIH Teams');
+  sheet.columns = [
+    { header: 'Hackathon', key: 'hackathon', width: 24 },
+    { header: 'Team Name', key: 'team', width: 28 },
+    { header: 'Problem Statement', key: 'problem', width: 40 },
+    { header: 'Leader Name', key: 'leaderName', width: 24 },
+    { header: 'Leader Email', key: 'leaderEmail', width: 30 },
+    { header: 'Member Name', key: 'memberName', width: 24 },
+    { header: 'Member Email', key: 'memberEmail', width: 30 },
+    { header: 'Member Phone', key: 'memberPhone', width: 16 },
+    { header: 'Gender', key: 'gender', width: 12 },
+    { header: 'Course', key: 'course', width: 12 },
+    { header: 'Year', key: 'year', width: 8 },
+    { header: 'Submitted', key: 'submitted', width: 12 },
+  ];
   teams.forEach(t=>{
-    t.members.forEach(m=>{
+    const members = t.members?.length ? t.members : [t.leader].filter(Boolean);
+    members.forEach(m=>{
       sheet.addRow({
-        team:t.teamName,
-        leader:t.leader?.name,
-        member:m.name
+        hackathon: t.hackathonId?.shortName || t.hackathonId?.name || '',
+        team: t.teamName,
+        problem: t.problemStatementTitle || '',
+        leaderName: t.leader?.name || '',
+        leaderEmail: t.leader?.email || '',
+        memberName: m.name || '',
+        memberEmail: m.email || '',
+        memberPhone: m.phone || '',
+        gender: m.gender || '',
+        course: m.course || '',
+        year: m.year || '',
+        submitted: t.isSubmitted ? 'Yes' : 'No'
       });
     });
   });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="sih-teams.xlsx"');
   await wb.xlsx.write(res);
   res.end();
 };

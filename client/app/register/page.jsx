@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation';
 import { 
   Eye, EyeOff, User, Mail, Lock, GraduationCap, 
   Upload, CheckCircle, AlertCircle, Loader2, 
-  School, CreditCard, ArrowRight, Check, Key
+  School, CreditCard, ArrowRight, Check, Key,
+  Building2, HelpCircle, Send, X, Phone
 } from 'lucide-react';
 
-// IMPORT YOUR FOOTER HERE
 import Footer from '../components/Footer'; 
 
 export default function RegisterPage() {
@@ -24,6 +24,23 @@ export default function RegisterPage() {
   const [rollNumber, setRollNumber] = useState('');
   const [document, setDocument] = useState(null);
   const [verificationMethod, setVerificationMethod] = useState('rollNumber');
+  
+  // --- College States ---
+  const [colleges, setColleges] = useState([]);
+  const [selectedCollege, setSelectedCollege] = useState('');
+  const [collegesLoading, setCollegesLoading] = useState(true);
+
+  // --- Onboarding Request Modal ---
+  const [showModal, setShowModal] = useState(false);
+  const [modalCollegeName, setModalCollegeName] = useState('');
+  const [modalCity, setModalCity] = useState('');
+  const [modalState, setModalState] = useState('');
+  const [modalContactEmail, setModalContactEmail] = useState('');
+  const [modalContactName, setModalContactName] = useState('');
+  const [modalContactPhone, setModalContactPhone] = useState('');
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalSuccess, setModalSuccess] = useState(false);
+  const [modalError, setModalError] = useState('');
 
   // --- UI States ---
   const [showPassword, setShowPassword] = useState(false);
@@ -44,9 +61,27 @@ export default function RegisterPage() {
   const router = useRouter();
   const errorRef = useRef(null);
 
-  // --- 1. Email Availability Checker ---
+  // Fetch approved colleges list
   useEffect(() => {
-    // Reset OTP state if email changes
+    const fetchColleges = async () => {
+      try {
+        setCollegesLoading(true);
+        const res = await fetch('/api/colleges/public');
+        const data = await res.json();
+        if (res.ok) {
+          setColleges(data.items || []);
+        }
+      } catch (err) {
+        console.error('Failed to load colleges', err);
+      } finally {
+        setCollegesLoading(false);
+      }
+    };
+    fetchColleges();
+  }, []);
+
+  // 1. Email Availability Checker
+  useEffect(() => {
     if (isOtpSent) return; 
 
     if (!email) {
@@ -62,7 +97,7 @@ export default function RegisterPage() {
     setEmailStatus('checking');
     const debounceTimer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/auth/check-email`, {
+        const res = await fetch('/api/auth/check-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email }),
@@ -77,7 +112,7 @@ export default function RegisterPage() {
     return () => clearTimeout(debounceTimer);
   }, [email, isOtpSent]);
 
-  // --- 2. OTP Timer Logic ---
+  // 2. OTP Timer Logic
   useEffect(() => {
     let interval;
     if (otpTimer > 0) {
@@ -86,7 +121,7 @@ export default function RegisterPage() {
     return () => clearInterval(interval);
   }, [otpTimer]);
 
-  // --- 3. Send OTP Handler ---
+  // 3. Send OTP Handler
   const handleSendOtp = async () => {
     if (emailStatus !== 'available') return;
     setOtpLoading(true);
@@ -103,7 +138,7 @@ export default function RegisterPage() {
       if (!res.ok) throw new Error(data.msg || 'Failed to send OTP');
       
       setIsOtpSent(true);
-      setOtpTimer(60); // 60 seconds cooldown
+      setOtpTimer(60);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -111,19 +146,50 @@ export default function RegisterPage() {
     }
   };
 
-  // --- 4. File Upload Handler ---
+  // 4. File Upload Handler
   const handleFileChange = (e) => {
     if (e.target.files) {
       setDocument(e.target.files[0]);
     }
   };
 
-  // --- 5. Final Registration Submission ---
+  // 5. Submit College Onboarding Request
+  const handleModalSubmit = async (e) => {
+    e.preventDefault();
+    setModalError('');
+    setModalLoading(true);
+
+    try {
+      const res = await fetch('/api/colleges/request-onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: modalCollegeName,
+          city: modalCity,
+          state: modalState,
+          requesterName: modalContactName || name,
+          requesterEmail: modalContactEmail || email,
+          requesterPhone: modalContactPhone || phone,
+          notes: 'Requested via student registration unlisted college modal'
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || 'Submission failed');
+
+      setModalSuccess(true);
+    } catch (err) {
+      setModalError(err.message);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // 6. Final Registration Submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
-    // Validation
     if (emailStatus === 'unavailable') return setError('Email is already taken.');
     if (emailStatus === 'invalid') return setError('Invalid email address.');
     if (!isOtpSent) return setError('Please verify your email address first.');
@@ -133,6 +199,12 @@ export default function RegisterPage() {
       setError('Please fill out all required fields.');
       return;
     }
+
+    if (!selectedCollege) {
+      setError('Please select your college or choose "My college is not listed".');
+      return;
+    }
+
     if (verificationMethod === 'rollNumber' && !rollNumber) return setError('Roll Number is required.');
     if (verificationMethod === 'documentUpload' && !document) return setError('ID Document is required.');
 
@@ -146,9 +218,13 @@ export default function RegisterPage() {
     formData.append('gender', gender);
     formData.append('year', year);
     formData.append('course', course);
-    formData.append('otp', otp); // Passing OTP to backend
+    formData.append('otp', otp);
     formData.append('verificationMethod', verificationMethod);
     
+    if (selectedCollege && selectedCollege !== 'unlisted') {
+      formData.append('college', selectedCollege);
+    }
+
     if (verificationMethod === 'rollNumber') {
       formData.append('rollNumber', rollNumber);
     } else if (document) {
@@ -156,11 +232,12 @@ export default function RegisterPage() {
     }
 
     if (phone && !/^[0-9]{10}$/.test(phone)) {
-      return setError('Invalid phone number.');
+      setLoading(false);
+      return setError('Invalid 10-digit phone number.');
     }
 
     try {
-      const res = await fetch(`/api/auth/register`, {
+      const res = await fetch('/api/auth/register', {
         method: 'POST',
         body: formData,
       });
@@ -174,7 +251,7 @@ export default function RegisterPage() {
       setIsSuccess(true);
     } catch (err) {
       setError(err.message);
-      if(errorRef.current) errorRef.current.scrollIntoView({ behavior: 'smooth' });
+      if (errorRef.current) errorRef.current.scrollIntoView({ behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -201,7 +278,7 @@ export default function RegisterPage() {
                 <>
                   <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">Verified Student!</h2>
                   <p className="text-slate-600 dark:text-slate-300 text-lg mb-8 max-w-md">
-                    Your details matched our records. Your account has been created and verified successfully.
+                    Your details matched our approved student records. Your account has been created and verified automatically.
                   </p>
                   <button onClick={() => router.push('/login')} className="w-full max-w-xs rounded-xl bg-indigo-600 px-6 py-3.5 font-bold text-white shadow-lg hover:bg-indigo-500 hover:scale-[1.02] active:scale-[0.98] transition-all">
                     Proceed to Login
@@ -211,7 +288,7 @@ export default function RegisterPage() {
                 <>
                   <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">Registration Successful!</h2>
                   <p className="text-slate-600 dark:text-slate-300 mb-8 max-w-md">
-                    Your account is created and currently <span className="font-bold text-amber-500">Pending Approval</span>.
+                    Your account has been created and is currently <span className="font-bold text-amber-500">Pending Verification</span> by your college SPOC or platform administrators.
                   </p>
                   <Link href="/login" className="inline-block mt-4 text-indigo-600 dark:text-indigo-400 font-bold hover:underline">
                     Return to Login
@@ -221,12 +298,12 @@ export default function RegisterPage() {
             </div>
           ) : (
             <div className="p-6 sm:p-10">
-              <div className="text-center mb-10">
+              <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
                   Join the Squad
                 </h2>
                 <p className="text-slate-500 dark:text-slate-400 mt-2">
-                  Create your account to start participating.
+                  Create your student profile and connect with your college's hackathon teams.
                 </p>
               </div>
 
@@ -239,7 +316,66 @@ export default function RegisterPage() {
                   </div>
                 )}
 
-                {/* --- EMAIL & OTP SECTION (The New Part) --- */}
+                {/* --- COLLEGE SELECTION --- */}
+                <div className="space-y-2 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 p-4 sm:p-5 border border-indigo-100 dark:border-indigo-900/30">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Building2 size={16} /> Select Your College *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { setShowModal(true); setModalSuccess(false); }}
+                      className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                    >
+                      <HelpCircle size={13} /> Can't find yours?
+                    </button>
+                  </div>
+
+                  <select
+                    value={selectedCollege}
+                    onChange={(e) => setSelectedCollege(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer"
+                    required
+                  >
+                    <option value="">-- Choose your registered college --</option>
+                    {colleges.map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name} {c.shortName ? `(${c.shortName})` : ''} {c.city ? `- ${c.city}` : ''}
+                      </option>
+                    ))}
+                    <option value="unlisted">🚫 My college is NOT registered / listed</option>
+                  </select>
+
+                  {/* Warning banner when Unlisted College is picked */}
+                  {selectedCollege === 'unlisted' && (
+                    <div className="mt-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 text-xs text-amber-800 dark:text-amber-200 animate-in fade-in duration-300 space-y-2">
+                      <p className="font-bold flex items-center gap-1.5">
+                        <AlertCircle size={15} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                        College not yet registered on CampXCode
+                      </p>
+                      <p>
+                        Your college is not currently onboarding students. Please ask your Faculty / SPOC to register your college or request onboarding so our team can onboard your institution and verify your account.
+                      </p>
+                      <div className="pt-1 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setShowModal(true); setModalSuccess(false); }}
+                          className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition-all"
+                        >
+                          Request College Onboarding
+                        </button>
+                        <Link
+                          href="/"
+                          className="px-3 py-1.5 rounded-lg border border-amber-300 dark:border-amber-600 text-amber-800 dark:text-amber-200 font-medium text-xs hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-all"
+                        >
+                          Learn More
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* --- EMAIL & OTP SECTION --- */}
                 <div className="space-y-4 rounded-2xl bg-slate-50 dark:bg-slate-950/30 p-4 border border-slate-100 dark:border-slate-800">
                     
                     {/* Email Input */}
@@ -251,7 +387,7 @@ export default function RegisterPage() {
                                 type="email" 
                                 value={email} 
                                 onChange={(e) => setEmail(e.target.value)} 
-                                disabled={isOtpSent} // Lock email after sending
+                                disabled={isOtpSent}
                                 placeholder="name@example.com" 
                                 className={`w-full pl-10 pr-28 py-2.5 rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white outline-none transition-all ${emailStatus === 'available' ? 'border-emerald-500' : emailStatus === 'unavailable' ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
                             />
@@ -285,7 +421,7 @@ export default function RegisterPage() {
                         </div>
                     </div>
 
-                    {/* OTP Input (Conditionally Rendered) */}
+                    {/* OTP Input */}
                     {isOtpSent && (
                         <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-300">
                             <div className="flex justify-between items-center">
@@ -321,17 +457,19 @@ export default function RegisterPage() {
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">
                       Phone Number
                     </label>
-
-                    <input
-                      type="text"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="Enter 10-digit phone"
-                      className="w-full px-4 py-2.5 rounded-xl border"
-                    />
+                    <div className="relative group">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                      <input
+                        type="text"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="10-digit phone"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                      />
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Gender</label>
@@ -345,9 +483,6 @@ export default function RegisterPage() {
                       </select>
                     </div>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Course</label>
                     <div className="relative group">
@@ -360,6 +495,9 @@ export default function RegisterPage() {
                       </select>
                     </div>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Year</label>
                     <div className="relative group">
@@ -377,23 +515,23 @@ export default function RegisterPage() {
 
                 {/* --- VERIFICATION METHOD --- */}
                 <div className="space-y-3 pt-2">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Verification Method</label>
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Student Verification Method</label>
                   <div className="flex bg-slate-100 dark:bg-slate-950/50 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <button type="button" onClick={() => setVerificationMethod('rollNumber')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${verificationMethod === 'rollNumber' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Roll Number</button>
+                    <button type="button" onClick={() => setVerificationMethod('rollNumber')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${verificationMethod === 'rollNumber' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>University Roll Number</button>
                     <button type="button" onClick={() => setVerificationMethod('documentUpload')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${verificationMethod === 'documentUpload' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Upload ID Card</button>
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                       {verificationMethod === 'rollNumber' ? (
                         <div className="relative group">
                           <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
-                          <input type="text" value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} placeholder="University Roll No." className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"/>
+                          <input type="text" value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} placeholder="University Roll No. (matches pre-approved records)" className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"/>
                         </div>
                       ) : (
                         <div className="relative">
                             <input type="file" id="doc-upload" onChange={handleFileChange} accept="image/*,application/pdf" className="hidden" />
                             <label htmlFor="doc-upload" className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
                               <Upload className="text-slate-400 mb-2" size={24} />
-                              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{document ? document.name : "Click to Upload ID Card"}</span>
+                              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{document ? document.name : "Click to Upload Student ID Document"}</span>
                             </label>
                         </div>
                       )}
@@ -431,8 +569,132 @@ export default function RegisterPage() {
         </div>
       </div>
 
+      {/* --- ONBOARDING REQUEST MODAL --- */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl relative">
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-6 right-6 p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-200"
+            >
+              <X size={20} />
+            </button>
+
+            {modalSuccess ? (
+              <div className="text-center py-6">
+                <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Request Received!</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                  We've noted your college onboarding request. Our team will contact your institution to set up SPOC credentials and verify student submissions.
+                </p>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="mt-6 px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-500 transition-all"
+                >
+                  Close & Continue
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center gap-2 mb-2 text-indigo-600 dark:text-indigo-400">
+                  <Building2 size={24} />
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">Request College Onboarding</h3>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
+                  Fill in your college details so we can provision SPOC access and add your campus to the portal.
+                </p>
+
+                {modalError && (
+                  <div className="mb-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 text-xs text-red-600 dark:text-red-300">
+                    {modalError}
+                  </div>
+                )}
+
+                <form onSubmit={handleModalSubmit} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">College Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={modalCollegeName}
+                      onChange={(e) => setModalCollegeName(e.target.value)}
+                      placeholder="e.g. BBDIT Group of Institutions"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">City</label>
+                      <input
+                        type="text"
+                        value={modalCity}
+                        onChange={(e) => setModalCity(e.target.value)}
+                        placeholder="Ghaziabad"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">State</label>
+                      <input
+                        type="text"
+                        value={modalState}
+                        onChange={(e) => setModalState(e.target.value)}
+                        placeholder="Uttar Pradesh"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">SPOC / Contact Email *</label>
+                      <input
+                        type="email"
+                        required
+                        value={modalContactEmail}
+                        onChange={(e) => setModalContactEmail(e.target.value)}
+                        placeholder="spoc@college.edu or your email"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Contact Name</label>
+                      <input
+                        type="text"
+                        value={modalContactName}
+                        onChange={(e) => setModalContactName(e.target.value)}
+                        placeholder="Faculty / SPOC name"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowModal(false)}
+                      className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={modalLoading}
+                      className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-500 flex items-center gap-2 disabled:opacity-60"
+                    >
+                      {modalLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                      Submit Request
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <Footer />
-      
     </div>
   );
 }

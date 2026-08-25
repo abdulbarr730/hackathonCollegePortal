@@ -43,7 +43,8 @@ exports.register = async (data, file) => {
         gender,
         year,
         course,
-        phone
+        phone,
+        college
       } = data;
 
     if (!otp) throw new Error('Verification code is required.');
@@ -73,16 +74,20 @@ exports.register = async (data, file) => {
       course,
       rollNumber,
       verificationMethod,
-
+      college: college || undefined,
       phone: phone || '',
       mustAddPhone: phone ? false : true,
     };
 
     // ── Pre-approved student check ────────────────────────────────────────────
-    // If the roll number exists in the pre-approved list, auto-verify the account
+    // If the roll number exists in the pre-approved list (optionally matched by college), auto-verify
     if (rollNumber) {
+      const preapprovedFilter = { rollNumber };
+      if (college) {
+        preapprovedFilter.$or = [{ college }, { college: { $exists: false } }, { college: null }];
+      }
       const preapproved = await PreapprovedStudent
-        .findOne({ rollNumber })
+        .findOne(preapprovedFilter)
         .session(session);
 
       if (preapproved) newUserFields.isVerified = true;
@@ -123,16 +128,14 @@ exports.register = async (data, file) => {
 // 2. LOGIN
 // =============================================================================
 /**
- * Verifies credentials and returns a signed JWT + basic user info.
- * Throws machine-readable error codes so the controller can map them to
- * the correct HTTP status without string-matching human messages.
+ * Verifies credentials and returns a signed JWT + full user info.
  *
  * @param {string} email
  * @param {string} password - Plain-text password from the request
- * @returns {Promise<{ token: string, user: { id: string, isAdmin: boolean } }>}
+ * @returns {Promise<{ token: string, user: object }>}
  */
 exports.login = async (email, password) => {
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).populate('college', 'name shortName logoUrl');
 
   if (!user)          throw new Error('USER_NOT_FOUND');
   if (!user.isVerified) throw new Error('ACCOUNT_NOT_VERIFIED');
@@ -143,21 +146,102 @@ exports.login = async (email, password) => {
   const payload = {
     user: {
       id: user.id,
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
       isAdmin: user.isAdmin,
-      mustAddPhone: user.mustAddPhone
+      college: user.college?._id || user.college,
+      mustAddPhone: user.mustAddPhone,
+      mustChangePassword: user.mustChangePassword
     },
   };
 
   const token = jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: '5h',
+    expiresIn: '8h',
   });
 
   return {
     token,
     user: {
       id: user.id,
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      college: user.college,
       isAdmin: user.isAdmin,
-      mustAddPhone: user.mustAddPhone
+      isVerified: user.isVerified,
+      mustAddPhone: user.mustAddPhone,
+      mustChangePassword: user.mustChangePassword
+    },
+  };
+};
+
+// =============================================================================
+// 2.1 CHANGE INITIAL / FORCED PASSWORD
+// =============================================================================
+exports.changeInitialPassword = async ({ userId, email, currentPassword, newPassword, otp }) => {
+  if (!newPassword || newPassword.length < 6) {
+    throw new Error('New password must be at least 6 characters.');
+  }
+
+  let user;
+  if (userId) {
+    user = await User.findById(userId).populate('college', 'name shortName logoUrl');
+  } else if (email) {
+    user = await User.findOne({ email: String(email).toLowerCase().trim() }).populate('college', 'name shortName logoUrl');
+  }
+
+  if (!user) throw new Error('User not found.');
+
+  // Validate either with current temp password or OTP
+  if (otp) {
+    const validOtp = await Otp.findOne({ email: user.email, otp });
+    if (!validOtp) throw new Error('Invalid or expired OTP verification code.');
+    await Otp.deleteOne({ _id: validOtp._id });
+  } else if (currentPassword) {
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) throw new Error('Current temporary password is incorrect.');
+  } else {
+    throw new Error('Current password or OTP is required.');
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  user.password = await bcrypt.hash(newPassword, salt);
+  user.mustChangePassword = false;
+  await user.save();
+
+  const payload = {
+    user: {
+      id: user.id,
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isAdmin: user.isAdmin,
+      college: user.college?._id || user.college,
+      mustAddPhone: user.mustAddPhone,
+      mustChangePassword: false
+    },
+  };
+
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
+
+  return {
+    msg: 'Password successfully updated!',
+    token,
+    user: {
+      id: user.id,
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      college: user.college,
+      isAdmin: user.isAdmin,
+      isVerified: user.isVerified,
+      mustAddPhone: user.mustAddPhone,
+      mustChangePassword: false
     },
   };
 };

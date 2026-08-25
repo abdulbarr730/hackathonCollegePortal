@@ -24,7 +24,7 @@ exports.getActiveHackathon = async () => {
 ============================================================================ */
 exports.listHackathons = async (query) => {
 
-  const { status } = query;
+  const { status, collegeId } = query;
   let filter = {};
 
   // Archive logic
@@ -32,8 +32,13 @@ exports.listHackathons = async (query) => {
     filter.isActive = false;
   }
 
+  if (collegeId && collegeId !== 'all') {
+    filter.college = collegeId;
+  }
+
   const hackathons = await Hackathon
     .find(filter)
+    .populate('college', 'name shortName')
     .sort({ startDate: -1 });
 
   return hackathons;
@@ -44,7 +49,7 @@ exports.listHackathons = async (query) => {
 ============================================================================ */
 exports.createHackathon = async (body) => {
 
-  const { name, startDate, ...rest } = body;
+  const { name, startDate, college, ...rest } = body;
 
   // Ensure only one active hackathon
   if (body.isActive) {
@@ -53,6 +58,7 @@ exports.createHackathon = async (body) => {
 
   const newHackathon = new Hackathon({
     name,
+    college: college || null,
     startDate: startDate || new Date(),
     ...rest
   });
@@ -68,7 +74,15 @@ exports.createHackathon = async (body) => {
 exports.setActiveHackathon = async (id) => {
 
   // First deactivate all
-  await Hackathon.updateMany({}, { isActive: false });
+  const current = await Hackathon.findById(id);
+  if (!current) {
+    const err = new Error('Hackathon not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const scope = current.college ? { college: current.college } : { college: { $in: [null, undefined] } };
+  await Hackathon.updateMany(scope, { isActive: false });
 
   // Then activate selected one
   const updated = await Hackathon.findByIdAndUpdate(
@@ -96,6 +110,7 @@ exports.updateHackathon = async (id, body) => {
     name,
     shortName,
     tagline,
+    college,
     startDate,
     submissionDeadline,
     minTeamSize,
@@ -109,6 +124,7 @@ exports.updateHackathon = async (id, body) => {
       name,
       shortName,
       tagline,
+      college: college || null,
       startDate,
       submissionDeadline,
       minTeamSize,

@@ -137,39 +137,42 @@ export default function AdminResourcesPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold text-white">Moderate Resources</h1>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Moderate Resources</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Review learning materials and project documentation.</p>
+        </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 rounded-lg bg-slate-900/80 p-1">
+        <div className="flex gap-1.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 shadow-sm">
           {TABS.map(tab => (
             <button
               key={tab}
               onClick={() => setStatus(tab)}
-              className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+              className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all capitalize ${
                 status === tab
-                  ? 'bg-purple-600 text-white shadow-lg'
-                  : 'text-slate-300 hover:bg-slate-700'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)} ({counts[tab] || 0})
+              {tab} ({counts[tab] || 0})
             </button>
           ))}
         </div>
 
         {/* Bulk Delete + Select All */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {resources.length > 0 && (
-            <label className="flex items-center gap-2 text-slate-300">
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer">
               <input
                 type="checkbox"
                 checked={selected.length === resources.length}
                 onChange={(e) =>
                   setSelected(e.target.checked ? resources.map(r => r._id) : [])
                 }
-                className="accent-purple-600"
+                className="rounded text-indigo-600 focus:ring-indigo-500"
               />
               Select All
             </label>
@@ -178,7 +181,7 @@ export default function AdminResourcesPage() {
           {selected.length > 0 && (
             <button
               onClick={handleBulkDelete}
-              className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 shadow"
+              className="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-500 shadow-md shadow-red-500/20 transition-all"
             >
               Delete Selected ({selected.length})
             </button>
@@ -191,21 +194,23 @@ export default function AdminResourcesPage() {
         {loading ? (
           <p className="text-slate-400">Loading resources...</p>
         ) : resources.length === 0 ? (
-          <p className="text-slate-400">No resources found in this category.</p>
+          <div className="col-span-full p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl text-slate-400 font-medium">
+            No resources found in this category.
+          </div>
         ) : (
           resources.map(resource => (
             <div
               key={resource._id}
-              className={`rounded-xl border ${
-                selected.includes(resource._id) ? "border-red-500" : "border-slate-700"
-              } bg-slate-800 p-5 shadow hover:shadow-xl transition`}
+              className={`rounded-2xl border ${
+                selected.includes(resource._id) ? "border-red-500" : "border-slate-200 dark:border-slate-800"
+              } bg-white dark:bg-slate-900 p-5 shadow-sm hover:shadow-md transition`}
             >
               {/* Select Checkbox */}
               <input
                 type="checkbox"
                 checked={selected.includes(resource._id)}
                 onChange={() => toggleSelect(resource._id)}
-                className="mb-2 accent-purple-600"
+                className="mb-3 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
               />
 
               {editingId === resource._id ? (
@@ -213,62 +218,63 @@ export default function AdminResourcesPage() {
                   <input
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="w-full rounded bg-slate-700 text-white px-2 py-1 mb-2"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white px-3 py-2 text-sm mb-2"
                   />
                   <textarea
                     value={editDescription}
                     onChange={(e) => setEditDescription(e.target.value)}
-                    className="w-full rounded bg-slate-700 text-white px-2 py-1 mb-2"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white px-3 py-2 text-sm mb-3"
                   />
                   <div className="flex gap-2">
                     <button
                       onClick={() => saveEdit(resource._id)}
-                      className="flex items-center gap-1 rounded-md bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 shadow"
+                      className="flex items-center gap-1 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
                     >
-                      <Save className="w-4 h-4" /> Save
+                      <Save className="w-3.5 h-3.5" /> Save
                     </button>
                     <button
                       onClick={() => setEditingId(null)}
-                      className="flex items-center gap-1 rounded-md bg-gray-600 px-3 py-1 text-xs text-white hover:bg-gray-700 shadow"
+                      className="flex items-center gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200 shadow"
                     >
-                      <X className="w-4 h-4" /> Cancel
+                      <X className="w-3.5 h-3.5" /> Cancel
                     </button>
                   </div>
                 </>
               ) : (
                 <>
-                  <h2 className="text-lg font-bold text-indigo-400 mb-1">{resource.title}</h2>
+                  <h2 className="text-base sm:text-lg font-bold text-indigo-600 dark:text-indigo-400 mb-1">{resource.title}</h2>
 
                   {/* Submitted By */}
                   <p className="text-xs text-slate-400 mb-2">
                     Submitted by:{" "}
-                    {resource.addedBy?.name
-                      || resource.addedBy?.email
-                      || (typeof resource.addedBy === "string" ? resource.addedBy : "Unknown")}
+                    <span className="font-semibold text-slate-600 dark:text-slate-300">
+                      {resource.addedBy?.name
+                        || resource.addedBy?.email
+                        || (typeof resource.addedBy === "string" ? resource.addedBy : "Unknown")}
+                    </span>
                   </p>
 
                   {/* Description */}
-                  <p className="text-sm text-slate-300 mb-2 line-clamp-3">{resource.description}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 line-clamp-3 leading-relaxed">{resource.description}</p>
 
                   {/* File Size */}
                   {resource.file?.size && (
-                    <p className="text-xs text-slate-400 mb-2">Size: {(resource.file.size / 1024).toFixed(2)} KB</p>
+                    <p className="text-[11px] text-slate-400 mb-3">Size: {(resource.file.size / 1024).toFixed(2)} KB</p>
                   )}
 
-                  {/* Action Buttons (all in one row) */}
-                    <div className="flex flex-wrap gap-2 mt-3">
-                    {/* Approve/Reject depending on status */}
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80">
                     {status === "pending" && (
                         <>
                         <button
                             onClick={() => handleUpdateStatus(resource._id, "approved")}
-                            className="rounded-md bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 shadow"
+                            className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-sm"
                         >
                             Approve
                         </button>
                         <button
                             onClick={() => handleUpdateStatus(resource._id, "rejected")}
-                            className="rounded-md bg-yellow-600 px-3 py-1 text-xs text-white hover:bg-yellow-700 shadow"
+                            className="rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-500 shadow-sm"
                         >
                             Reject
                         </button>
@@ -277,7 +283,7 @@ export default function AdminResourcesPage() {
                     {status === "approved" && (
                         <button
                         onClick={() => handleUpdateStatus(resource._id, "rejected")}
-                        className="rounded-md bg-yellow-600 px-3 py-1 text-xs text-white hover:bg-yellow-700 shadow"
+                        className="rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-500 shadow-sm"
                         >
                         Reject
                         </button>
@@ -285,7 +291,7 @@ export default function AdminResourcesPage() {
                     {status === "rejected" && (
                         <button
                         onClick={() => handleUpdateStatus(resource._id, "approved")}
-                        className="rounded-md bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 shadow"
+                        className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-sm"
                         >
                         Approve
                         </button>
@@ -294,56 +300,51 @@ export default function AdminResourcesPage() {
                     {/* Edit */}
                     <button
                         onClick={() => startEdit(resource)}
-                        className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 shadow"
+                        className="flex items-center gap-1 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 text-xs font-bold hover:bg-indigo-100 transition"
                     >
-                        <Edit className="w-4 h-4" /> Edit
+                        <Edit className="w-3.5 h-3.5" /> Edit
                     </button>
 
                     {/* Delete */}
                     <button
                         onClick={() => handleDelete(resource._id)}
-                        className="flex items-center gap-1 rounded-md bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700 shadow"
+                        className="flex items-center gap-1 rounded-xl bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 px-3 py-1.5 text-xs font-bold hover:bg-red-100 transition"
                     >
-                        <Trash2 className="w-4 h-4" /> Delete
+                        <Trash2 className="w-3.5 h-3.5" /> Delete
                     </button>
-                    {/* ✨ NEW: View Link (if URL exists) ✨ */}
+
                     {resource.url && (
                       <a
                         href={resource.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1 rounded-md bg-sky-600 px-3 py-1 text-xs text-white hover:bg-sky-700 shadow"
+                        className="flex items-center gap-1 rounded-xl bg-sky-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-500 shadow-sm"
                       >
-                        <ExternalLink className="w-4 h-4" /> View Link
+                        <ExternalLink className="w-3.5 h-3.5" /> View Link
                       </a>
                     )}
-                    {/* View + Download (if file exists) */}
+                    
                     {resource.file?.url && (
                       <>
-                        {/* FINAL FIX: Points to the new /api/admin/.../view route */}
                         <a
                           href={`/api/admin/resources/${resource._id}/view`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1 rounded-md bg-cyan-600 px-3 py-1 text-xs text-white hover:bg-cyan-700 shadow"
+                          className="flex items-center gap-1 rounded-xl bg-cyan-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-cyan-500 shadow-sm"
                         >
-                          <Eye className="w-4 h-4" /> View
+                          <Eye className="w-3.5 h-3.5" /> View
                         </a>
 
-                        {/* FINAL FIX: Points to the new /api/admin/.../download route */}
                         <a
                           href={`/api/admin/resources/${resource._id}/download`}
-                          // The `download` attribute is not strictly needed here since the backend handles it,
-                          // but it's good practice to keep it.
                           download={resource.file.originalName || true}
-                          className="flex items-center gap-1 rounded-md bg-purple-600 px-3 py-1 text-xs text-white hover:bg-purple-700 shadow"
+                          className="flex items-center gap-1 rounded-xl bg-purple-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-purple-500 shadow-sm"
                         >
-                          <FileDown className="w-4 h-4" /> Download
+                          <FileDown className="w-3.5 h-3.5" /> Download
                         </a>
                       </>
                     )}
-                    </div>
-
+                  </div>
                 </>
               )}
             </div>

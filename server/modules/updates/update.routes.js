@@ -15,7 +15,9 @@ const { startScraperCron } = require('./update.service');
 
 
 // ── Start the scraper + cron job when the server boots ───────────────────────
-startScraperCron();
+if (String(process.env.SIH_SCRAPER_ENABLED || 'false') === 'true') {
+  startScraperCron();
+}
 
 
 // GET /api/updates — Public updates for the active hackathon dashboard

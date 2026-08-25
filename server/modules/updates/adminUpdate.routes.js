@@ -20,6 +20,7 @@ router.post('/upload', requireAdmin, upload.single('file'), controller.uploadUpd
 
 // 2. RETAG ROUTE
 router.post('/retag-all', requireAdmin, controller.retagAllUpdates);
+router.delete('/scraped', requireAdmin, controller.deleteScrapedUpdates);
 
 // 3. CRUD ROUTES (Root of this file matches /api/admin/updates)
 router.get('/', requireAdmin, controller.listUpdates);

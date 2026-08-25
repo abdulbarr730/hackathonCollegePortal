@@ -43,6 +43,8 @@ export default function AdminUsersPage() {
   // --- ADDED STATE FOR TEAM FILTER ---
   const [teams, setTeams] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState('');
+  const [colleges, setColleges] = useState([]);
+  const [selectedCollege, setSelectedCollege] = useState('');
 
   // --- ADDED: FETCH TEAMS FOR THE FILTER DROPDOWN ---
   useEffect(() => {
@@ -62,6 +64,20 @@ export default function AdminUsersPage() {
     }
   }, [user]);
 
+  useEffect(() => {
+    const fetchColleges = async () => {
+      try {
+        const res = await fetch('/api/colleges?status=approved', { credentials: 'include' });
+        const data = await res.json();
+        if (res.ok) setColleges(data.items || []);
+      } catch (err) {
+        console.error(err.message);
+      }
+    };
+
+    if (user && user.isAdmin) fetchColleges();
+  }, [user]);
+
   // --- Fetch Users from Backend ---
   const fetchUsers = async () => {
     setLoading(true);
@@ -76,6 +92,7 @@ export default function AdminUsersPage() {
       if (filter === 'admin') params.append('admin', 'true');
       if (filter === 'nonadmin') params.append('admin', 'false');
       if (selectedTeam) params.append('teamId', selectedTeam);
+      if (selectedCollege) params.append('collegeId', selectedCollege);
 
       const res = await fetch(`/api/admin/users?${params.toString()}`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch users');
@@ -98,7 +115,7 @@ export default function AdminUsersPage() {
     } else if (user && user.isAdmin) {
       fetchUsers();
     }
-  }, [user, isAuthenticated, authLoading, search, filter, selectedTeam, currentPage, router]);
+  }, [user, isAuthenticated, authLoading, search, filter, selectedTeam, selectedCollege, currentPage, router]);
 
   // --- Update Single User ---
   const updateUser = async (userId, body, successMsg) => {
@@ -185,7 +202,8 @@ export default function AdminUsersPage() {
     if (filter === 'unverified') params.append('verified', 'false');
     if (filter === 'admin') params.append('admin', 'true');
     if (filter === 'nonadmin') params.append('admin', 'false');
-    if (selectedTeam) params.append('teamId', selectedTeam);
+      if (selectedTeam) params.append('teamId', selectedTeam);
+    if (selectedCollege) params.append('collegeId', selectedCollege);
 
     window.open(`/api/admin/users/export?format=${format}&${params.toString()}`, '_blank');
   };
@@ -202,41 +220,41 @@ export default function AdminUsersPage() {
   };
 
   if (authLoading) {
-    return <div className="flex justify-center items-center h-screen bg-slate-900 text-white">Loading...</div>;
+    return <div className="flex justify-center items-center h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">Loading...</div>;
   }
   if (error) {
-    return <div className="flex justify-center items-center h-screen bg-slate-900 text-red-400">Error: {error}</div>;
+    return <div className="flex justify-center items-center h-screen bg-slate-50 dark:bg-slate-950 text-red-500">Error: {error}</div>;
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Manage Users</h1>
-          <p className="mt-1 text-sm text-slate-400">Total users found: {totalUsers}</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">User Directory</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Total users found: {totalUsers}</p>
         </div>
         <div className="flex gap-2 flex-shrink-0">
-          <button onClick={() => handleExport('csv')} className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-600 transition-colors">Export CSV</button>
-          <button onClick={() => handleExport('xlsx')} className="rounded-lg bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 transition-colors">Export Excel</button>
+          <button onClick={() => handleExport('csv')} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">Export CSV</button>
+          <button onClick={() => handleExport('xlsx')} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs sm:text-sm font-bold text-white hover:bg-emerald-500 transition-colors shadow-sm">Export Excel</button>
         </div>
       </div>
 
       {/* Filters + Search */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
         <input
           type="text"
           placeholder="Search by name, email, or roll..."
           value={search}
           onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-          className="md:col-span-1 rounded-lg border-2 border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+          className="md:col-span-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm"
         />
         <select
           value={filter}
           onChange={(e) => { setFilter(e.target.value); setCurrentPage(1); }}
-          className="rounded-lg border-2 border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm cursor-pointer"
         >
-          <option value="all">All Statuses</option>
+          <option value="all">All Verification Statuses</option>
           <option value="verified">Verified</option>
           <option value="unverified">Unverified</option>
           <option value="admin">Admins</option>
@@ -245,35 +263,45 @@ export default function AdminUsersPage() {
         <select
           value={selectedTeam}
           onChange={(e) => { setSelectedTeam(e.target.value); setCurrentPage(1); }}
-          className="rounded-lg border-2 border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm cursor-pointer"
         >
           <option value="">All Teams</option>
           {teams.map(team => (
             <option key={team._id} value={team._id}>{team.name}</option>
           ))}
         </select>
+        <select
+          value={selectedCollege}
+          onChange={(e) => { setSelectedCollege(e.target.value); setCurrentPage(1); }}
+          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm cursor-pointer"
+        >
+          <option value="">All Colleges</option>
+          {colleges.map(college => (
+            <option key={college._id} value={college._id}>{college.shortName || college.name}</option>
+          ))}
+        </select>
       </div>
       
       {/* Bulk Actions */}
       {selected.length > 0 && (
-        <div className="bg-slate-800 p-4 rounded-lg flex flex-wrap items-center gap-4">
-            <p className="text-sm font-medium text-white">{selected.length} user(s) selected</p>
+        <div className="bg-indigo-50/70 dark:bg-slate-800 border border-indigo-100 dark:border-slate-700 p-4 rounded-2xl flex flex-wrap items-center gap-3 shadow-sm">
+            <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">{selected.length} user(s) selected</p>
             <div className="flex flex-wrap gap-2">
-                <button onClick={() => handleBulkAction('verify')} className="rounded-md bg-green-600 hover:bg-green-700 px-3 py-1.5 text-sm font-semibold text-white transition-colors">Verify</button>
-                <button onClick={() => handleBulkAction('unverify')} className="rounded-md bg-yellow-600 hover:bg-yellow-700 px-3 py-1.5 text-sm font-semibold text-white transition-colors">Un-verify</button>
-                <button onClick={() => handleBulkAction('makeAdmin')} className="rounded-md bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-sm font-semibold text-white transition-colors">Make Admin</button>
-                <button onClick={() => handleBulkAction('removeAdmin')} className="rounded-md bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-sm font-semibold text-white transition-colors">Remove Admin</button>
-                <button onClick={() => handleBulkAction('delete')} className="rounded-md bg-red-600 hover:bg-red-700 px-3 py-1.5 text-sm font-semibold text-white transition-colors">Delete</button>
+                <button onClick={() => handleBulkAction('verify')} className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-xs font-bold text-white transition-colors">Verify</button>
+                <button onClick={() => handleBulkAction('unverify')} className="rounded-xl bg-amber-600 hover:bg-amber-500 px-3 py-1.5 text-xs font-bold text-white transition-colors">Un-verify</button>
+                <button onClick={() => handleBulkAction('makeAdmin')} className="rounded-xl bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-xs font-bold text-white transition-colors">Make Admin</button>
+                <button onClick={() => handleBulkAction('removeAdmin')} className="rounded-xl bg-purple-600 hover:bg-purple-500 px-3 py-1.5 text-xs font-bold text-white transition-colors">Remove Admin</button>
+                <button onClick={() => handleBulkAction('delete')} className="rounded-xl bg-red-600 hover:bg-red-500 px-3 py-1.5 text-xs font-bold text-white transition-colors">Delete</button>
             </div>
         </div>
       )}
 
       {/* Table */}
-      <div className="overflow-hidden rounded-lg border border-slate-800">
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
         {/* Table Header */}
-        <div className="grid grid-cols-15 gap-4 bg-slate-800 p-4 text-xs font-semibold uppercase text-slate-400 tracking-wider">
+        <div className="min-w-[920px] grid grid-cols-15 gap-4 bg-slate-50 dark:bg-slate-800/80 p-4 text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider border-b border-slate-200 dark:border-slate-800">
           <div className="col-span-1 flex items-center">
-            <input type="checkbox" onChange={toggleSelectAll} checked={users.length > 0 && users.every(u => selected.includes(u._id))} className="rounded border-slate-600 bg-slate-700 focus:ring-indigo-500" />
+            <input type="checkbox" onChange={toggleSelectAll} checked={users.length > 0 && users.every(u => selected.includes(u._id))} className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
           </div>
           <div className="col-span-3">User</div>
           <div className="col-span-2">Roll Number</div>
@@ -284,33 +312,33 @@ export default function AdminUsersPage() {
         </div>
 
         {/* User Rows */}
-        <div className="divide-y divide-slate-800 bg-slate-900">
+        <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
           {loading ? (
             <div className="text-center p-8 text-slate-400">Loading users...</div>
           ) : users.length === 0 ? (
             <div className="text-center p-8 text-slate-400">No users found matching your criteria.</div>
           ) : (
             users.map((u) => (
-              <div key={u._id} className="grid grid-cols-15 gap-4 p-4 items-center hover:bg-slate-800/50 transition-colors">
+              <div key={u._id} className="min-w-[920px] grid grid-cols-15 gap-4 p-4 items-center hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                 <div className="col-span-1">
-                  <input type="checkbox" checked={selected.includes(u._id)} onChange={(e) => setSelected(e.target.checked ? [...selected, u._id] : selected.filter(id => id !== u._id))} className="rounded border-slate-600 bg-slate-700 focus:ring-indigo-500" />
+                  <input type="checkbox" checked={selected.includes(u._id)} onChange={(e) => setSelected(e.target.checked ? [...selected, u._id] : selected.filter(id => id !== u._id))} className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
                 </div>
                 <div className="col-span-3">
-                  <p className="font-semibold text-white truncate">{u.nameWithYear || u.name}</p>
-                  <p className="text-sm text-slate-400 truncate">{u.email}</p>
+                  <p className="font-bold text-slate-900 dark:text-white truncate">{u.nameWithYear || u.name}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{u.email}</p>
                 </div>
-                <div className="col-span-2 text-sm text-slate-300">{u.rollNumber || 'N/A'}</div>
+                <div className="col-span-2 text-xs font-mono font-semibold text-indigo-600 dark:text-indigo-400">{u.rollNumber || 'N/A'}</div>
                 <div className="col-span-2">
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${u.isVerified ? 'bg-green-500/20 text-green-300' : 'bg-amber-500/20 text-amber-300'}`}>{u.isVerified ? 'Verified' : 'Unverified'}</span>
+                  <span className={`px-2.5 py-0.5 text-[11px] font-bold rounded-full border ${u.isVerified ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' : 'bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'}`}>{u.isVerified ? 'Verified' : 'Unverified'}</span>
                 </div>
-                <div className="col-span-2 text-sm text-slate-300 capitalize">{u.role || (u.isAdmin ? 'Admin' : 'Student')}</div>
-                <div className="col-span-3 text-sm text-slate-300 truncate">{u.teamName || 'No Team'}</div>
-                <div className="col-span-2 flex items-center gap-2 justify-end">
-                  <button onClick={() => updateUser(u._id, { isVerified: !u.isVerified }, `User ${u.isVerified ? 'un-verified' : 'verified'}`)} title={u.isVerified ? 'Un-verify User' : 'Verify User'} className={`p-1 rounded-full text-slate-300 hover:text-white transition-colors ${u.isVerified ? 'hover:bg-yellow-500/20' : 'hover:bg-green-500/20'}`}><Icon path={u.isVerified ? ICONS.unverify : ICONS.verify} /></button>
-                  <button onClick={() => updateUser(u._id, { isAdmin: !u.isAdmin }, `User ${u.isAdmin ? 'demoted from admin' : 'promoted to admin'}`)} title={u.isAdmin ? 'Remove Admin Status' : 'Make Admin'} className="p-1 rounded-full text-slate-300 hover:text-white hover:bg-blue-500/20 transition-colors"><Icon path={u.isAdmin ? ICONS.removeAdmin : ICONS.makeAdmin} /></button>
-                  <button onClick={() => { const newRole = prompt('Enter new role (student, spoc, judge, admin):', u.role || 'student'); if (newRole) updateUser(u._id, { role: newRole }, `Role updated to ${newRole}`); }} title="Change User Role" className="p-1 rounded-full text-slate-300 hover:text-white hover:bg-purple-500/20 transition-colors"><Icon path={ICONS.changeRole} /></button>
-                  <button onClick={() => { const newPass = prompt('Enter new password for this user:'); if (newPass) updateUser(u._id, { password: newPass }, 'Password reset successfully'); }} title="Reset User Password" className="p-1 rounded-full text-slate-300 hover:text-white hover:bg-amber-500/20 transition-colors"><Icon path={ICONS.resetPass} /></button>
-                  <button onClick={() => handleDeleteUser(u._id)} title="Delete User" className="p-1 rounded-full text-slate-300 hover:text-white hover:bg-red-500/20 transition-colors"><Icon path={ICONS.delete} /></button>
+                <div className="col-span-2 text-xs font-semibold text-slate-600 dark:text-slate-300 capitalize">{u.role || (u.isAdmin ? 'Admin' : 'Student')}</div>
+                <div className="col-span-3 text-xs text-slate-600 dark:text-slate-300 truncate">{u.team?.teamName || 'No Team'}</div>
+                <div className="col-span-2 flex items-center gap-1.5 justify-end">
+                  <button onClick={() => updateUser(u._id, { isVerified: !u.isVerified }, `User ${u.isVerified ? 'un-verified' : 'verified'}`)} title={u.isVerified ? 'Un-verify User' : 'Verify User'} className={`p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors ${u.isVerified ? 'hover:bg-amber-50 dark:hover:bg-amber-950/40' : 'hover:bg-emerald-50 dark:hover:bg-emerald-950/40'}`}><Icon path={u.isVerified ? ICONS.unverify : ICONS.verify} /></button>
+                  <button onClick={() => updateUser(u._id, { isAdmin: !u.isAdmin }, `User ${u.isAdmin ? 'demoted from admin' : 'promoted to admin'}`)} title={u.isAdmin ? 'Remove Admin Status' : 'Make Admin'} className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"><Icon path={u.isAdmin ? ICONS.removeAdmin : ICONS.makeAdmin} /></button>
+                  <button onClick={() => { const newRole = prompt('Enter new role (student, spoc, judge, college_admin, admin):', u.role || 'student'); if (newRole) updateUser(u._id, { role: newRole }, `Role updated to ${newRole}`); }} title="Change User Role" className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors"><Icon path={ICONS.changeRole} /></button>
+                  <button onClick={() => { const newPass = prompt('Enter new password for this user:'); if (newPass) updateUser(u._id, { password: newPass }, 'Password reset successfully'); }} title="Reset User Password" className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"><Icon path={ICONS.resetPass} /></button>
+                  <button onClick={() => handleDeleteUser(u._id)} title="Delete User" className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"><Icon path={ICONS.delete} /></button>
                 </div>
               </div>
             ))
@@ -320,11 +348,11 @@ export default function AdminUsersPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-between items-center text-sm text-slate-400">
+        <div className="flex justify-between items-center text-xs text-slate-500">
             <span>Page {currentPage} of {totalPages}</span>
             <div className="flex gap-2">
-                <button onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1} className="rounded-lg bg-slate-800 px-3 py-2 font-medium text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Previous</button>
-                <button onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages} className="rounded-lg bg-slate-800 px-3 py-2 font-medium text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Next</button>
+                <button onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Previous</button>
+                <button onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Next</button>
             </div>
         </div>
       )}

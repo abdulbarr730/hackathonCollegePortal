@@ -50,23 +50,23 @@ module.exports = async function (req, res, next) {
     }
 
     // Allow super admins through — they can do everything a SPOC can
-    if (user.isAdmin && user.role === 'admin') {
+    if (user.isAdmin && user.role === 'admin' && !user.college) {
       req.user = user;
       return next();
     }
 
-    // Must be a SPOC with a collegeId
-    if (user.role !== 'spoc') {
-      return res.status(403).json({ msg: 'SPOC access required' });
+    // Must be a SPOC or college_admin with an associated college
+    if (user.role !== 'spoc' && user.role !== 'college_admin' && !user.isAdmin) {
+      return res.status(403).json({ msg: 'SPOC or College Admin access required' });
     }
 
-    if (!user.collegeId) {
-      return res.status(403).json({ msg: 'SPOC is not associated with a college' });
+    const collegeRef = user.college || user.collegeId;
+    if (!collegeRef && user.role !== 'admin') {
+      return res.status(403).json({ msg: 'User is not associated with a college' });
     }
 
     req.user = user;
     next();
-
   } catch (err) {
     console.error('SPOC MIDDLEWARE ERROR:', err.message);
     res.status(401).json({ msg: 'Token is not valid' });

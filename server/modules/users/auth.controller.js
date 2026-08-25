@@ -211,3 +211,35 @@ exports.getSupabaseToken = (req, res) => {
     res.status(500).json({ msg: 'Server Error' });
   }
 };
+
+
+// =============================================================================
+// 9. CHANGE INITIAL PASSWORD (FIRST LOGIN)   POST /api/auth/change-initial-password
+// =============================================================================
+exports.changeInitialPassword = async (req, res) => {
+  try {
+    const { email, currentPassword, newPassword, otp } = req.body;
+    const userId = req.user?.id || req.user?._id;
+
+    const result = await authService.changeInitialPassword({
+      userId,
+      email,
+      currentPassword,
+      newPassword,
+      otp,
+    });
+
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.cookie('token', result.token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: 8 * 60 * 60 * 1000,
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error('Error in POST /api/auth/change-initial-password:', err.message);
+    res.status(400).json({ msg: err.message || 'Password update failed' });
+  }
+};

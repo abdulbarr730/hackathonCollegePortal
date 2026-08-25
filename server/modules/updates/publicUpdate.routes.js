@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
-    const filters = { isPublic: true };
+    const filters = { isPublic: true, source: { $ne: 'scraper' } };
     if (q) filters.title = new RegExp(q, 'i');
     if (String(pinnedOnly) === 'true') filters.pinned = true;
 

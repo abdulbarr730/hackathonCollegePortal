@@ -6,7 +6,13 @@ export function middleware(request) {
 
   const isPublicUserRoute = pathname === '/login' || pathname === '/register' || pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password');
 
-  // If the user has a token and tries to access a public-only route, redirect to the dashboard
+  // If user tries to access /complete-profile without a token, redirect to /login
+  if (pathname === '/complete-profile' && !token) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // If the user has a token and tries to access /login or /register, let client-side router navigate to their specific dashboard
+  // Only auto-redirect to /dashboard if NOT change-password or complete-profile
   if (token && isPublicUserRoute) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }

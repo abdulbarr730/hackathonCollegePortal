@@ -112,6 +112,11 @@ const collegeSchema = new mongoose.Schema({
 
   notes: {
     type: String
+  },
+
+  adminUser: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }
 
 }, {

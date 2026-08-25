@@ -8,6 +8,7 @@ import { useHackathon } from '../../context/HackathonContext';
 
 export default function AdminHackathonsPage() {
   const [hackathons, setHackathons] = useState([]);
+  const [colleges, setColleges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const { refreshEvent } = useHackathon(); 
@@ -17,6 +18,7 @@ export default function AdminHackathonsPage() {
 
   const [formData, setFormData] = useState({
     name: '', shortName: '', tagline: '', 
+    college: '',
     startDate: '', // Controlled manually now
     submissionDeadline: '',
     minTeamSize: 1, maxTeamSize: 6, minFemaleMembers: 1,
@@ -50,13 +52,22 @@ export default function AdminHackathonsPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchHackathons(); }, []);
+  const fetchColleges = async () => {
+    try {
+      const res = await fetch('/api/colleges?status=approved', { credentials: 'include' });
+      const data = await res.json();
+      if (res.ok) setColleges(data.items || []);
+    } catch (err) { console.error("College fetch failed"); }
+  };
+
+  useEffect(() => { fetchHackathons(); fetchColleges(); }, []);
 
   const handleEditClick = (h) => {
     setFormData({
       name: h.name,
       shortName: h.shortName,
       tagline: h.tagline || '',
+      college: h.college?._id || h.college || '',
       startDate: formatForInput(h.startDate), 
       submissionDeadline: formatForInput(h.submissionDeadline),
       minTeamSize: h.minTeamSize || 1,
@@ -91,6 +102,7 @@ export default function AdminHackathonsPage() {
   const resetForm = () => {
     setFormData({ 
       name: '', shortName: '', tagline: '', startDate: '', submissionDeadline: '',
+      college: '',
       minTeamSize: 1, maxTeamSize: 6, minFemaleMembers: 1, isActive: false 
     });
     setIsEditing(false);
@@ -117,9 +129,9 @@ export default function AdminHackathonsPage() {
   if (loading) return <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-indigo-600" size={40} /></div>;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black uppercase text-slate-900 dark:text-white">Hackathon Manager</h1>
           <p className="text-slate-500">Control event timing and squad constraints.</p>
@@ -130,7 +142,7 @@ export default function AdminHackathonsPage() {
       </div>
 
       {showForm && (
-        <div className="p-8 rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+        <div className="p-4 sm:p-6 lg:p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
           <button onClick={resetForm} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"><X size={20}/></button>
           <h3 className="text-xl font-bold mb-8 flex items-center gap-2">
             <Trophy className="text-indigo-500" size={20} />
@@ -142,6 +154,12 @@ export default function AdminHackathonsPage() {
               <input required placeholder="Event Name" className="p-4 rounded-xl border dark:bg-slate-800 outline-none focus:ring-2 ring-indigo-500/20" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
               <input required placeholder="Short Label" className="p-4 rounded-xl border dark:bg-slate-800 outline-none focus:ring-2 ring-indigo-500/20" value={formData.shortName} onChange={e => setFormData({...formData, shortName: e.target.value})} />
             </div>
+            <select className="w-full p-4 rounded-xl border dark:bg-slate-800 outline-none focus:ring-2 ring-indigo-500/20" value={formData.college} onChange={e => setFormData({...formData, college: e.target.value})}>
+              <option value="">Platform / Global Event</option>
+              {colleges.map(college => (
+                <option key={college._id} value={college._id}>{college.shortName || college.name}</option>
+              ))}
+            </select>
 
             <div className="grid md:grid-cols-2 gap-6 bg-indigo-50/50 dark:bg-indigo-900/10 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
               <div className="space-y-2">
@@ -155,13 +173,13 @@ export default function AdminHackathonsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <input type="number" placeholder="Min" className="p-4 rounded-xl border dark:bg-slate-800" value={formData.minTeamSize} onChange={e => setFormData({...formData, minTeamSize: e.target.value})} />
               <input type="number" placeholder="Max" className="p-4 rounded-xl border dark:bg-slate-800" value={formData.maxTeamSize} onChange={e => setFormData({...formData, maxTeamSize: e.target.value})} />
               <input type="number" placeholder="Females" className="p-4 rounded-xl border dark:bg-slate-800" value={formData.minFemaleMembers} onChange={e => setFormData({...formData, minFemaleMembers: e.target.value})} />
             </div>
 
-            <div className="flex gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white font-black rounded-xl uppercase tracking-widest hover:bg-indigo-500 shadow-lg shadow-indigo-600/20">Save Configuration</button>
               <button type="button" onClick={resetForm} className="px-10 py-4 border rounded-xl font-bold">Cancel</button>
             </div>
@@ -172,19 +190,20 @@ export default function AdminHackathonsPage() {
       {/* LIST VIEW */}
       <div className="grid gap-6">
         {hackathons.map((h) => (
-          <div key={h._id} className={`p-8 rounded-[2rem] border transition-all flex flex-col lg:flex-row items-center justify-between gap-6 ${h.isActive ? 'bg-white dark:bg-slate-900 border-indigo-500 shadow-xl' : 'bg-white/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'}`}>
-            <div className="flex items-start gap-6">
+          <div key={h._id} className={`p-4 sm:p-6 lg:p-8 rounded-2xl border transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-6 ${h.isActive ? 'bg-white dark:bg-slate-900 border-indigo-500 shadow-xl' : 'bg-white/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'}`}>
+            <div className="flex items-start gap-4 sm:gap-6 w-full min-w-0">
               <div className={`p-4 rounded-2xl ${h.isActive ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}><Trophy size={28} /></div>
               <div>
                 <h3 className="text-2xl font-black uppercase text-slate-900 dark:text-white tracking-tight">{h.name}</h3>
                 <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-400 mt-2 uppercase">
+                  <span>{h.college?.shortName || h.college?.name || 'Global'}</span>
                   <span className="flex items-center gap-1"><Calendar size={14} className="text-indigo-500"/> Year: {h.startDate ? new Date(h.startDate).getFullYear() : 'N/A'}</span>
                   <span className="flex items-center gap-1"><Clock size={14} className="text-red-500"/> Lock: {h.submissionDeadline ? new Date(h.submissionDeadline).toLocaleDateString() : 'N/A'}</span>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
               <button onClick={() => handleEditClick(h)} className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:text-indigo-600 transition-colors"><Pencil size={20} /></button>
               
               {/* LOCK BUTTON */}

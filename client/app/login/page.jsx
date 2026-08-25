@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Footer from '../components/Footer'; // Ensure this path is correct
 import { gsap } from 'gsap';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, getRoleRedirect } from '../context/AuthContext';
 import { Eye, EyeOff, Mail, Lock, Loader2, LogIn, AlertCircle } from 'lucide-react';
 
 
@@ -33,17 +33,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-    await login(email, password);
-
-    const user = await recheckUser();
-
-    if (user?.mustAddPhone) {
-      window.location.href = '/complete-profile';
-    } else {
-      window.location.href = '/dashboard';
-    }
-
-  }  catch (err) {
+      await login(email, password);
+      const user = await recheckUser();
+      const redirectPath = getRoleRedirect(user);
+      window.location.href = redirectPath;
+    } catch (err) {
       if (err.message?.includes('USER_NOT_FOUND')) {
         setIsUserNotFound(true);
       } else if (err.message?.includes('INVALID_PASSWORD')) {

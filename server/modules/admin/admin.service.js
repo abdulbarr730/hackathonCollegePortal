@@ -2,53 +2,6 @@
 ===============================================================================
 ADMIN SERVICE LAYER (BUSINESS LOGIC CORE)
 ===============================================================================
-
-Purpose:
-Contains all business logic for admin functionality.
-This is the brain of the admin module.
-
-Responsibilities:
-- Database queries
-- Aggregations
-- Validation rules
-- Security decisions
-- Multi-step operations
-- Domain workflows
-- Logging triggers
-- Data transformations
-
-Services should be reusable.
-Controllers call services, but services should NOT depend on controllers.
-
-What should NOT be here:
-✗ Express req/res objects
-✗ HTTP status codes
-✗ Cookies or headers
-✗ Route-specific logic
-
-Architecture flow:
-Controller → Service → Models/DB
-
-If future features need:
-- background jobs
-- analytics
-- scheduled tasks
-- exports
-- notifications
-
-They should call service functions from here.
-
-This file answers:
-“How does the system actually work?”
-
-Controllers answer:
-“How do we expose it over HTTP?”
-
-Rule of thumb:
-If logic touches database or domain rules,
-it belongs here, not in controller.
-
-===============================================================================
 */
 
 const bcrypt = require('bcryptjs');
@@ -62,7 +15,7 @@ const Hackathon = require('../hackathons/hackathon.model');
 
 /* ================= AUTH ================= */
 exports.loginAdmin = async ({ email, password }) => {
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).populate('college', 'name shortName logoUrl');
 
   if (!user || !user.isAdmin) {
     const err = new Error('Invalid credentials or not an admin');
@@ -77,13 +30,39 @@ exports.loginAdmin = async ({ email, password }) => {
     throw err;
   }
 
-  const payload = { user: { id: user.id, isAdmin: user.isAdmin } };
+  const payload = {
+    user: {
+      id: user.id,
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isAdmin: user.isAdmin,
+      college: user.college?._id || user.college,
+      mustAddPhone: user.mustAddPhone,
+      mustChangePassword: user.mustChangePassword
+    }
+  };
 
   const token = jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: '8h'
   });
 
-  return { token };
+  return {
+    token,
+    user: {
+      id: user.id,
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      college: user.college,
+      isAdmin: user.isAdmin,
+      isVerified: user.isVerified,
+      mustAddPhone: user.mustAddPhone,
+      mustChangePassword: user.mustChangePassword
+    }
+  };
 };
 
 
@@ -175,7 +154,7 @@ exports.deleteIdea = async (id, adminId) => {
 
 /* ================= USERS ================= */
 exports.listUsers = async (query) => {
-  const { q = '', verified, admin, role, teamId, page = 1, limit = 15, sort = '-createdAt' } = query;
+  const { q = '', verified, admin, role, teamId, collegeId, page = 1, limit = 15, sort = '-createdAt' } = query;
   const filters = {};
 
   if (q) {
@@ -189,6 +168,7 @@ exports.listUsers = async (query) => {
   if (typeof verified !== 'undefined') filters.isVerified = verified === 'true';
   if (typeof admin !== 'undefined') filters.isAdmin = admin === 'true';
   if (role) filters.role = role;
+  if (collegeId && collegeId !== 'all') filters.college = collegeId;
 
   if (teamId) {
     const team = await Team.findById(teamId).select('members').lean();
@@ -203,6 +183,7 @@ exports.listUsers = async (query) => {
     User.find(filters)
       .select('-password')
       .populate('team', 'teamName')
+      .populate('college', 'name shortName')
       .sort(sort)
       .skip((pageNum - 1) * perPage)
       .limit(perPage)
@@ -219,6 +200,24 @@ exports.listUsers = async (query) => {
       pages: Math.ceil(total / perPage),
     },
   };
+};
+
+exports.buildTeamFilters = async (query = {}) => {
+  const { q = '', hackathonId, collegeId, submitted, winner } = query;
+  const filters = {};
+
+  if (q) filters.teamName = new RegExp(q, 'i');
+  if (hackathonId && hackathonId !== 'all') filters.hackathonId = hackathonId;
+  if (submitted === 'true') filters.isSubmitted = true;
+  if (submitted === 'false') filters.isSubmitted = false;
+  if (winner === 'true') filters.isWinner = true;
+
+  if (collegeId && collegeId !== 'all') {
+    const hackathons = await Hackathon.find({ college: collegeId }).select('_id').lean();
+    filters.hackathonId = { $in: hackathons.map((h) => h._id) };
+  }
+
+  return filters;
 };
 
 exports.updateUser = async (id, body, adminId) => {
