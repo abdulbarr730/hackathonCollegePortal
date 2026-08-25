@@ -273,66 +273,7 @@ export default function HomePage() {
         </section>
 
         {/* --- THE TERMINAL (STRICT DEMO TESTING) --- */}
-        <section className="container mx-auto px-6 pb-40 pt-20">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="max-w-4xl mx-auto rounded-[3rem] overflow-hidden border-2 border-amber-500/20 bg-white dark:bg-slate-900 shadow-3xl relative"
-          >
-            {/* Warning Banner */}
-            <div className="bg-amber-500 text-slate-950 px-8 py-4 flex items-center justify-center gap-3 font-black text-sm uppercase tracking-[0.3em]">
-              <AlertTriangle size={16} strokeWidth={3} />
-              Strictly for Demo Testing Purposes Only
-              <AlertTriangle size={16} strokeWidth={3} />
-            </div>
-
-            <div className="p-12 md:p-16 font-mono text-sm">
-              <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
-                <div className="flex items-center gap-4">
-                   <div className="p-3 rounded-2xl bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-500">
-                     <Lock size={24} />
-                   </div>
-                   <div>
-                     <p className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-1">Access Level</p>
-                     <p className="text-xl font-bold text-slate-900 dark:text-white">Temporary Sandbox Credentials</p>
-                   </div>
-                </div>
-                <button onClick={copyToClipboard} className="px-6 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 font-bold flex items-center gap-3 transition-all shadow-sm">
-                  {copied ? <Check size={18} /> : <Copy size={18} />} {copied ? "COPIED TO CLIPBOARD" : "COPY CREDENTIALS"}
-                </button>
-              </div>
-
-              <div className="space-y-6 mb-12">
-                <div className="p-8 rounded-[2rem] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:justify-between gap-4 md:items-center group hover:border-indigo-500 transition-all duration-300">
-                  <span className="text-slate-400 text-lg">$ user_email:</span>
-                  <span className="text-indigo-600 dark:text-indigo-400 font-bold text-2xl tracking-tight break-all">test123@gmail.com</span>
-                </div>
-                <div className="p-8 rounded-[2rem] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:justify-between gap-4 md:items-center group hover:border-indigo-500 transition-all duration-300">
-                  <span className="text-slate-400 text-lg">$ password:</span>
-                  <span className="text-indigo-600 dark:text-indigo-400 font-bold text-2xl tracking-tight break-all">pass@123</span>
-                </div>
-              </div>
-
-              {/* Legal Warning Footer */}
-              <div className="p-6 rounded-3xl bg-amber-500/10 border border-amber-500/20">
-                <p className="text-amber-700 dark:text-amber-500 text-sm leading-relaxed font-medium flex gap-4">
-                  <AlertTriangle size={24} className="flex-shrink-0" />
-                  <span>
-                    <span className="font-black uppercase tracking-widest block mb-1">Usage Disclaimer</span>
-                    These credentials provide access to a temporary, isolated testing environment. Do not use them for official team registration or store any personal or sensitive data. All data in this environment is periodically purged without notice.
-                  </span>
-                </p>
-              </div>
-
-              <div className="mt-12 text-center">
-                 <Link href="/login" className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-0.5 uppercase text-sm tracking-widest">
-                    Launch Demo Environment <ArrowRight size={18} />
-                 </Link>
-              </div>
-            </div>
-          </motion.div>
-        </section>
+        
 
       </div>
     </main>
