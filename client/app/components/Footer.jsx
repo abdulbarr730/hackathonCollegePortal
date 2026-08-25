@@ -54,8 +54,8 @@ export default function Footer() {
                 <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400">
                   <Mail size={16} />
                 </div>
-                <a href="mailto:abdulbarr730@gmail.com" className="hover:text-indigo-600 dark:hover:text-white transition-colors">
-                  abdulbarr730@gmail.com
+                <a href="mailto:hello@abdulbarr.in" className="hover:text-indigo-600 dark:hover:text-white transition-colors">
+                  hello@abdulbarr.in
                 </a>
               </li>
               <li className="flex items-center gap-3">
