@@ -551,7 +551,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="pt-4">
-                  <button type="submit" disabled={loading} className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4 font-bold text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  <button type="submit" disabled={loading} className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-4 font-bold text-white shadow-md shadow-indigo-600/20 active:scale-[0.98] transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                     {loading ? (<><Loader2 size={20} className="animate-spin" /> Verifying & Creating...</>) : (<>Join Now <ArrowRight size={20} /></>)}
                   </button>
                 </div>

@@ -187,7 +187,7 @@ export default function CreateTeamModal({ isOpen, onClose, onTeamCreated }) {
           <button 
             onClick={handleSubmit}
             disabled={loading} 
-            className="rounded-lg px-6 py-2 text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-lg shadow-indigo-500/20 disabled:opacity-70 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center min-w-[120px]"
+            className="rounded-xl px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-600/20 disabled:opacity-70 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center min-w-[120px]"
           >
             {loading ? (
               <>

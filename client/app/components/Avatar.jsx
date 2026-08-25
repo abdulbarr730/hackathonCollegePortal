@@ -46,7 +46,7 @@ export default function Avatar({ src, name, size = 40, className = "" }) {
   // Render Fallback (Initials)
   return (
     <div
-      className={`flex items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold shadow-sm border-2 border-white dark:border-slate-800 select-none ${className}`}
+      className={`flex items-center justify-center rounded-full bg-indigo-600 text-white font-bold shadow-sm border-2 border-white dark:border-slate-800 select-none ${className}`}
       style={{ 
         ...dimensions, 
         fontSize: size / 2.5 

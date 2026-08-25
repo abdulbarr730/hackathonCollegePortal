@@ -38,14 +38,13 @@ export default function Navbar() {
         
         {/* LOGO (Visible Everywhere) */}
         <Link href="/" className="group flex items-center gap-2.5 z-50" onClick={() => setIsMobileMenuOpen(false)}>
-          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-all duration-300">
-            {/* You could also make the icon dynamic if you added it to context */}
+          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-all duration-300">
             <Code2 size={20} className="relative z-10" strokeWidth={2.5} />
-            <div className="absolute inset-0 rounded-xl bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
           <div className="flex flex-col leading-none">
             {/* DYNAMIC HACKATHON NAME */}
-            <span className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-indigo-800 to-slate-900 dark:from-white dark:via-indigo-200 dark:to-white truncate max-w-[200px]">
+            <span className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight truncate max-w-[200px]">
               {activeEvent?.shortName || "Hackathon Portal"}
             </span>
             <span className="text-[10px] font-bold tracking-widest text-indigo-600 dark:text-indigo-400 uppercase">
@@ -94,7 +93,7 @@ export default function Navbar() {
                 <LogOut size={20} />
               </button>
 
-              <button onClick={() => router.push('/profile')} className="ml-1 relative rounded-full p-0.5 bg-gradient-to-tr from-indigo-500 to-purple-500 hover:scale-105 transition-transform">
+              <button onClick={() => router.push('/profile')} className="ml-1 relative rounded-full p-0.5 bg-slate-200 dark:bg-slate-700 hover:scale-105 transition-transform">
                 <div className="p-0.5 bg-white dark:bg-slate-900 rounded-full">
                   <Avatar name={user?.name} src={user?.photoUrl} size={32} />
                 </div>
@@ -104,7 +103,7 @@ export default function Navbar() {
             <div className="flex items-center gap-4">
               <Link href="/login" className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition-colors">Login</Link>
               <Link href="/register">
-                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 rounded-full shadow-lg transition-all">
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="px-5 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-full shadow-md shadow-indigo-600/20 transition-all">
                   Register Team
                 </motion.button>
               </Link>
@@ -192,7 +191,7 @@ export default function Navbar() {
                   </button>
                   <button 
                     onClick={() => handleNavigation('/register')}
-                    className="w-full py-3.5 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 shadow-lg active:scale-95 transition-transform"
+                    className="w-full py-3.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-500 shadow-md active:scale-95 transition-all"
                   >
                     Register Team
                   </button>

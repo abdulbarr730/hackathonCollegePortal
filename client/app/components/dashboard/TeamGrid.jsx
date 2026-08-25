@@ -39,8 +39,8 @@ export default function TeamGrid({ otherTeams, user, myTeam, handlers, setViewin
             onClick={() => setViewingTeam(team)}
             className="group relative cursor-pointer flex flex-col justify-between rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden"
           >
-            {/* Hover Gradient Line */}
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            {/* Hover Accent Line */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
             <div className="p-5 flex flex-col h-full">
               
@@ -50,7 +50,7 @@ export default function TeamGrid({ otherTeams, user, myTeam, handlers, setViewin
                   {team.logoUrl ? (
                      <img src={team.logoUrl} alt="logo" className="w-12 h-12 rounded-xl object-cover bg-slate-100 dark:bg-slate-800 border border-slate-100 dark:border-slate-700" />
                   ) : (
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center text-xl shadow-inner">
+                    <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xl">
                       🛡️
                     </div>
                   )}

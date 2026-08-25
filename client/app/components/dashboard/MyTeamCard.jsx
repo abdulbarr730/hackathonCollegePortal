@@ -86,9 +86,9 @@ export default function MyTeamCard({
           initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }} 
           transition={{ duration: 0.5 }} 
-          className="relative rounded-2xl p-[2px] bg-gradient-to-r from-cyan-500 via-purple-500 to-indigo-500 shadow-xl"
+          className="relative rounded-2xl border border-indigo-200 dark:border-indigo-800/80 bg-white dark:bg-slate-900 shadow-xl"
         >
-          <div className="rounded-2xl bg-white dark:bg-slate-900 p-5 sm:p-6 h-full flex flex-col">
+          <div className="rounded-2xl p-5 sm:p-6 h-full flex flex-col">
             
             {/* TOP ROW: Logo, Info, Actions */}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
@@ -98,13 +98,13 @@ export default function MyTeamCard({
                 {myTeam.logoUrl ? (
                   <img src={myTeam.logoUrl} alt="logo" className="w-20 h-20 sm:w-16 sm:h-16 rounded-xl object-cover bg-slate-100 dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700" />
                 ) : (
-                  <div className="w-20 h-20 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center text-2xl">
+                  <div className="w-20 h-20 sm:w-16 sm:h-16 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl">
                     🛡️
                   </div>
                 )}
                 
                 <div>
-                  <h3 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400">
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                     {myTeam.teamName}
                   </h3>
                   
@@ -306,10 +306,10 @@ export default function MyTeamCard({
                         onClick={() => handlers.onSubmitTeam(myTeam._id)}
                         disabled={!isTeamReady}
                         className={`
-                          w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all
+                          w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-white shadow-md transition-all
                           flex items-center justify-center gap-2
                           ${isTeamReady 
-                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-indigo-500/25 active:scale-95 cursor-pointer' 
+                            ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20 active:scale-95 cursor-pointer' 
                             : 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'}
                         `}
                       >

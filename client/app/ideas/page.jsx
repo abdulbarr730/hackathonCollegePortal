@@ -137,7 +137,7 @@ export default function IdeasPage() {
                       className="group relative flex flex-col h-full p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-indigo-500/30 dark:hover:border-indigo-500/30 transition-all duration-300"
                     >
                       {/* Hover Top Border */}
-                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-t-2xl" />
+                      <div className="absolute top-0 left-0 w-full h-1 bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-t-2xl" />
 
                       {/* Header: Author & Date */}
                       <div className="flex items-start justify-between mb-4">

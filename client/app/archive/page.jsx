@@ -36,7 +36,7 @@ export default function ArchivePage() {
             <Trophy size={14} /> The Hall of Fame
           </div>
           <h1 className="text-5xl md:text-7xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
-            Hall of <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-600">Fame</span>
+            Hall of <span className="text-indigo-600 dark:text-indigo-400">Fame</span>
           </h1>
         </div>
 
@@ -68,8 +68,8 @@ export default function ArchivePage() {
         ) : (
           <div className="max-w-4xl mx-auto space-y-10">
             {/* Live Hackathon Spotlight */}
-            <div className="rounded-3xl border border-indigo-200 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/80 dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/40 p-8 sm:p-12 text-center space-y-6 shadow-xl">
-              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/30">
+            <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 sm:p-12 text-center space-y-6 shadow-xl">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white mx-auto flex items-center justify-center shadow-md shadow-indigo-600/20">
                 <Trophy size={32} />
               </div>
               <div className="space-y-2">
@@ -147,7 +147,7 @@ function EventTeamGrid({ hackathonId, setViewingTeam }) {
               <div className={`p-3 rounded-2xl ${team.isWinner ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30' : 'bg-slate-100 text-slate-400 dark:bg-slate-800'}`}>
                 {team.isWinner ? <Crown size={22} fill="currentColor" /> : <Shield size={22}/>}
               </div>
-              {team.isWinner && <span className="px-3 py-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-[10px] font-black uppercase rounded-full shadow-md">Winner</span>}
+              {team.isWinner && <span className="px-3 py-1 bg-indigo-600 text-white text-[10px] font-black uppercase rounded-full shadow-sm">Winner</span>}
             </div>
             <div className="mb-6 space-y-4">
               <h3 className="text-xl font-black text-slate-800 dark:text-white leading-tight group-hover:text-indigo-600 transition-colors">{team.teamName}</h3>

@@ -52,7 +52,7 @@ export default function TeamDetailsModal({ isOpen, onClose, team }) {
                   className="w-20 h-20 rounded-[1.5rem] object-cover bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-700 shadow-xl"
                 />
               ) : (
-                <div className="w-20 h-20 rounded-[1.5rem] bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-3xl shadow-lg shadow-indigo-500/20">
+                <div className="w-20 h-20 rounded-[1.5rem] bg-indigo-600 flex items-center justify-center text-3xl shadow-md shadow-indigo-600/20 text-white">
                   🛡️
                 </div>
               )}

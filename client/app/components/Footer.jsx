@@ -45,12 +45,12 @@ export default function Footer() {
       <div className="container relative z-10 mx-auto px-6 py-16">
         
         {/* TOP ROW: NEWSLETTER BANNER */}
-        <div className="mb-14 p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 text-white shadow-xl shadow-indigo-500/10 flex flex-col lg:flex-row items-center justify-between gap-6">
+        <div className="mb-14 p-6 sm:p-8 rounded-3xl bg-slate-900 dark:bg-slate-900 border border-slate-800 text-white shadow-xl flex flex-col lg:flex-row items-center justify-between gap-6">
           <div className="space-y-1.5 text-center lg:text-left max-w-xl">
-            <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center justify-center lg:justify-start gap-2">
-              <Mail className="h-6 w-6" /> Stay Ahead of Hackathon Deadlines
+            <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center justify-center lg:justify-start gap-2.5">
+              <Mail className="h-6 w-6 text-indigo-400" /> Stay Ahead of Hackathon Deadlines
             </h3>
-            <p className="text-xs sm:text-sm text-indigo-100 leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
               Subscribe to official SIH bulletins, problem statement alerts, and campus hackathon schedules. No spam, guaranteed.
             </p>
           </div>
@@ -65,13 +65,13 @@ export default function Footer() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your college email"
-                  className="w-full rounded-2xl bg-white/95 text-slate-900 placeholder:text-slate-400 pl-10 pr-4 py-3 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-white shadow-inner"
+                  className="w-full rounded-2xl bg-slate-800/90 border border-slate-700 text-white placeholder:text-slate-400 pl-10 pr-4 py-3 text-xs sm:text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-60 flex items-center justify-center gap-2 whitespace-nowrap"
+                className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-md active:scale-[0.98] transition-all disabled:opacity-60 flex items-center justify-center gap-2 whitespace-nowrap"
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 Subscribe
@@ -79,7 +79,7 @@ export default function Footer() {
             </div>
 
             {message && (
-              <div className={`mt-2 text-xs flex items-center gap-1.5 font-semibold ${isError ? 'text-rose-200' : 'text-emerald-200'}`}>
+              <div className={`mt-2.5 text-xs flex items-center gap-1.5 font-medium ${isError ? 'text-rose-400' : 'text-emerald-400'}`}>
                 {isError ? <AlertCircle size={14} /> : <CheckCircle2 size={14} />}
                 <span>{message}</span>
               </div>
@@ -92,7 +92,7 @@ export default function Footer() {
           {/* COLUMN 1: BRANDING */}
           <div className="md:col-span-5 space-y-4">
             <Link href="/" className="inline-block">
-              <span className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 dark:from-white dark:via-indigo-200 dark:to-white">
+              <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                 Find Your Dream Team
               </span>
             </Link>

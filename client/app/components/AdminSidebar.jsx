@@ -74,7 +74,7 @@ export default function AdminSidebar() {
       <div className="flex flex-col flex-grow overflow-hidden">
         {/* HEADER: Admin Brand */}
         <div className="flex items-center justify-center lg:justify-start gap-3 px-3 lg:px-6 py-5 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 shrink-0">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/20 shrink-0">
             <ShieldCheck size={22} strokeWidth={2.5} />
           </div>
           <div className="hidden lg:block min-w-0">

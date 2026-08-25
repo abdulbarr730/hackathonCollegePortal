@@ -348,7 +348,7 @@ export default function AdminNewsletterPage() {
               <button
                 type="submit"
                 disabled={broadcasting || selectedEmails.size === 0}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black text-sm sm:text-base shadow-lg shadow-indigo-500/20 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm sm:text-base shadow-md shadow-indigo-600/20 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {broadcasting ? (
                   <>

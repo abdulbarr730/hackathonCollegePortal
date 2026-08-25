@@ -123,7 +123,7 @@ export default function ResourcesPage() {
             </div>
             
             <h1 className="text-5xl md:text-7xl font-black text-slate-900 dark:text-white tracking-tighter mb-4 leading-[1.1]">
-              Resource <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 dark:from-indigo-400 dark:via-purple-400 dark:to-indigo-400 animate-gradient-x">Vault.</span>
+              Resource <span className="text-indigo-600 dark:text-indigo-400">Vault.</span>
             </h1>
             <p className="text-xl text-slate-600 dark:text-slate-400 font-medium max-w-3xl leading-relaxed">
               Unlimited access to community-curated tools, boilerplates, and documentation.
@@ -215,7 +215,7 @@ export default function ResourcesPage() {
                     className="group relative flex flex-col h-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[24px] shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 dark:hover:shadow-black/60 hover:border-indigo-500/30 dark:hover:border-indigo-500/30 transition-all duration-300 ease-out overflow-hidden hover:-translate-y-2"
                   >
                     {/* Hover Top Accent */}
-                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="absolute top-0 left-0 w-full h-1 bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                     <div className="p-7 flex flex-col h-full relative z-10">
                       

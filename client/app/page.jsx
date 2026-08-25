@@ -157,9 +157,9 @@ export default function HomePage() {
               Now Live: {activeEvent?.name || "Hackathon Season"}
             </span>
 
-            <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-slate-900 dark:text-white leading-tight md:leading-[0.95] mb-6 sm:mb-10">
+            <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-slate-900 dark:text-white leading-tight md:leading-[0.95] mb-6 sm:mb-10 tracking-tight">
               One Portal. <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 dark:from-indigo-400 dark:via-purple-400 dark:to-indigo-400">
+              <span className="text-indigo-600 dark:text-indigo-400">
                 Any Hackathon.
               </span>
             </h1>
@@ -172,10 +172,9 @@ export default function HomePage() {
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
-              <Link href="/login" className="group w-full sm:w-auto px-8 sm:px-12 py-3.5 sm:py-5 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-base sm:text-lg shadow-2xl shadow-slate-900/20 hover:shadow-indigo-500/20 hover:-translate-y-1 transition-all flex items-center justify-center gap-3 overflow-hidden relative">
-                <span className="relative z-10">Find Your Squad</span>
-                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform relative z-10" />
-                <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-10 transition-opacity duration-500" />
+              <Link href="/login" className="group w-full sm:w-auto px-8 sm:px-12 py-3.5 sm:py-5 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-base sm:text-lg shadow-xl shadow-slate-900/10 hover:bg-indigo-600 dark:hover:bg-slate-100 hover:text-white dark:hover:text-slate-900 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3 relative">
+                <span>Find Your Squad</span>
+                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link href="/register" className="w-full sm:w-auto px-8 sm:px-12 py-3.5 sm:py-5 rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border-2 border-slate-200 dark:border-slate-800 font-bold text-base sm:text-lg hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-md">
                 Register Profile
@@ -232,8 +231,6 @@ export default function HomePage() {
 
         {/* --- THE SOLUTION --- */}
         <section className="relative w-full py-16 sm:py-28 overflow-hidden bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
-           {/* Background Overlay */}
-           <div className="absolute inset-0 bg-gradient-to-r from-slate-50 via-slate-50/90 to-slate-50/20 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-900/20 z-0" />
            <div className="absolute inset-0 opacity-10 bg-[url('https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2071&auto=format&fit=crop')] bg-cover bg-center z-[-1]" />
 
            <div className="container relative z-10 mx-auto px-4 sm:px-6 md:px-12 grid lg:grid-cols-2 gap-12 lg:gap-24 items-center">
@@ -241,9 +238,9 @@ export default function HomePage() {
                 <div className="inline-flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold tracking-widest text-xs uppercase mb-6 sm:mb-8">
                   <Rocket size={18} /> Problem Solved
                 </div>
-                <h2 className="text-3xl sm:text-5xl md:text-6xl font-black mb-8 sm:mb-10 leading-tight text-slate-900 dark:text-white">
+                <h2 className="text-3xl sm:text-5xl md:text-6xl font-black mb-8 sm:mb-10 leading-tight text-slate-900 dark:text-white tracking-tight">
                   Built for Agility. <br/>
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:via-purple-400 dark:to-indigo-400">Ready for Any Event.</span>
+                  <span className="text-indigo-600 dark:text-indigo-400">Ready for Any Event.</span>
                 </h2>
                 <p className="text-base sm:text-xl md:text-2xl text-slate-600 dark:text-slate-300 mb-10 sm:mb-12 leading-relaxed">
                   I'm <span className="text-indigo-600 dark:text-white font-bold">Abdul Barr</span>. I built this portal to be dynamic. Today it's managing {activeEvent?.name || "our current hackathon"}, but tomorrow it can scale to handle the next big inter-college event instantly.
@@ -275,13 +272,10 @@ export default function HomePage() {
 
         {/* --- DEDICATED COLLEGE ONBOARDING & VERIFICATION EXPLAINER --- */}
         <section id="onboard" className="container mx-auto px-4 sm:px-6 py-20 sm:py-32 scroll-mt-24">
-          <div className="relative rounded-3xl sm:rounded-[3rem] border border-indigo-200 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/80 dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/40 p-8 sm:p-14 lg:p-20 shadow-2xl overflow-hidden">
-            
-            {/* Background Glow */}
-            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-500/20 blur-[120px] rounded-full pointer-events-none" />
+          <div className="relative rounded-3xl sm:rounded-[3rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 sm:p-14 lg:p-20 shadow-2xl overflow-hidden">
             
             <div className="max-w-4xl mx-auto text-center space-y-6">
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-xs font-black uppercase tracking-wider">
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-xs font-black uppercase tracking-wider">
                 <Building2 size={16} /> Institutional Governance
               </span>
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -294,14 +288,14 @@ export default function HomePage() {
               <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <button
                   onClick={() => setIsOnboardModalOpen(true)}
-                  className="w-full sm:w-auto px-8 sm:px-12 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-base sm:text-lg shadow-xl shadow-indigo-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto px-8 sm:px-12 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base sm:text-lg shadow-md shadow-indigo-600/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
                   <Building2 size={20} />
                   Submit College Onboarding Request
                 </button>
                 <Link
                   href="/admin/login"
-                  className="w-full sm:w-auto px-8 sm:px-10 py-4 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-slate-900 dark:text-white font-bold text-base sm:text-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-center shadow-sm"
+                  className="w-full sm:w-auto px-8 sm:px-10 py-4 rounded-2xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold text-base sm:text-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-center shadow-sm"
                 >
                   SPOC / Admin Portal
                 </Link>
@@ -646,7 +640,7 @@ export default function HomePage() {
                   <button
                     type="submit"
                     disabled={onboardSubmitting}
-                    className="flex-1 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 text-xs sm:text-sm font-bold shadow-lg shadow-indigo-500/25 hover:opacity-95 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white py-3 text-xs sm:text-sm font-semibold shadow-md shadow-indigo-600/20 hover:opacity-95 transition disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {onboardSubmitting ? (
                       <>

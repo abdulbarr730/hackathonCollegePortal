@@ -52,7 +52,7 @@ export default function AdminNavbar() {
 
               <button
                 onClick={() => router.push('/profile')}
-                className="rounded-full p-0.5 bg-gradient-to-tr from-indigo-500 to-purple-500 hover:scale-105 transition-transform"
+                className="rounded-full p-0.5 bg-slate-200 dark:bg-slate-700 hover:scale-105 transition-transform"
                 title="View Profile"
               >
                 <div className="p-0.5 bg-white dark:bg-slate-900 rounded-full">

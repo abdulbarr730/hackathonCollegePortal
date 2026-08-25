@@ -210,7 +210,7 @@ export default function DashboardPage() {
           <motion.div variants={itemVariants} className="mb-10 flex flex-col md:flex-row justify-between items-end gap-6 border-b border-slate-200 dark:border-slate-800 pb-8">
             <div className="space-y-2">
               <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
-                Welcome, <span className="bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent">{user.name}</span> 👋
+                Welcome, <span className="text-indigo-600 dark:text-indigo-400">{user.name}</span> 👋
               </h1>
               <p className="text-lg font-medium text-slate-600 dark:text-slate-400">Assemble your dream squad.</p>
             </div>

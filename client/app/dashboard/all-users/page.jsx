@@ -126,7 +126,7 @@ export default function AllUsersPage() {
               <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> Back to Dashboard
             </button>
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              Find <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">Teammates</span>
+              Find <span className="text-indigo-600 dark:text-indigo-400">Teammates</span>
             </h1>
           </div>
           

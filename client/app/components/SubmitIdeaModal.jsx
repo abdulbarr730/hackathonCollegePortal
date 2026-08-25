@@ -187,7 +187,7 @@ export default function SubmitIdeaModal({ isOpen, onClose, onIdeaCreated }) {
                 type="submit"
                 form="ideaForm"
                 disabled={loading}
-                className="rounded-lg px-6 py-2 text-sm font-bold text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-lg shadow-amber-500/20 disabled:opacity-70 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center min-w-[120px]"
+                className="rounded-xl px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-600/20 disabled:opacity-70 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center min-w-[120px]"
               >
                 {loading ? (
                   <>
