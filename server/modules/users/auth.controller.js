@@ -246,4 +246,55 @@ exports.changeInitialPassword = async (req, res) => {
     console.error('Error in POST /api/auth/change-initial-password:', err.message);
     res.status(400).json({ msg: err.message || 'Password update failed' });
   }
+};
+
+
+// =============================================================================
+// 10. REQUEST EMAIL CHANGE (OTP)   POST /api/auth/request-email-change
+// =============================================================================
+exports.requestEmailChange = async (req, res) => {
+  try {
+    const userId = req.user.id || req.user._id;
+    const { newEmail } = req.body;
+
+    const result = await authService.requestEmailChange({
+      userId,
+      newEmail
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error('Error in POST /api/auth/request-email-change:', err.message);
+    res.status(400).json({ msg: err.message || 'Failed to request email change' });
+  }
+};
+
+
+// =============================================================================
+// 11. VERIFY EMAIL CHANGE (OTP)   POST /api/auth/verify-email-change
+// =============================================================================
+exports.verifyEmailChange = async (req, res) => {
+  try {
+    const userId = req.user.id || req.user._id;
+    const { newEmail, otp } = req.body;
+
+    const result = await authService.verifyEmailChange({
+      userId,
+      newEmail,
+      otp
+    });
+
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.cookie('token', result.token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error('Error in POST /api/auth/verify-email-change:', err.message);
+    res.status(400).json({ msg: err.message || 'Failed to verify email change' });
+  }
 };

@@ -10,6 +10,7 @@ Acts as the bridge between routes and business logic.
 */
 
 const adminService = require('./admin.service');
+const { isSuperAdmin } = require('../../core/utils/roleHelper');
 
 const User = require('../users/user.model');
 const Team = require('../teams/team.model');
@@ -43,9 +44,9 @@ exports.adminLogin = async (req, res) => {
 
 
 /* ================= METRICS ================= */
-exports.getAdminMetrics = async (_req, res) => {
+exports.getAdminMetrics = async (req, res) => {
   try {
-    res.json(await adminService.getMetrics());
+    res.json(await adminService.getMetrics(req.user));
   } catch {
     res.status(500).send('Server Error');
   }
@@ -55,7 +56,7 @@ exports.getAdminMetrics = async (_req, res) => {
 /* ================= IDEAS ================= */
 exports.listIdeas = async (req, res) => {
   try {
-    res.json(await adminService.listIdeas(req.query));
+    res.json(await adminService.listIdeas(req.query, req.user));
   } catch {
     res.status(500).send('Server Error');
   }
@@ -74,7 +75,7 @@ exports.deleteIdea = async (req, res) => {
 /* ================= USERS ================= */
 exports.listUsers = async (req, res) => {
   try {
-    res.json(await adminService.listUsers(req.query));
+    res.json(await adminService.listUsers(req.query, req.user));
   } catch {
     res.status(500).send('Server Error');
   }
@@ -119,6 +120,12 @@ exports.exportUsers = async (req, res) => {
     const filters = {};
     const { q = '', verified, admin, role, teamId, collegeId } = req.query;
 
+    if (req.user && !isSuperAdmin(req.user) && req.user.college) {
+      filters.college = req.user.college;
+    } else if (collegeId && collegeId !== 'all') {
+      filters.college = collegeId;
+    }
+
     if (q) {
       filters.$or = [
         { name: new RegExp(q, 'i') },
@@ -130,7 +137,7 @@ exports.exportUsers = async (req, res) => {
     if (typeof verified !== 'undefined') filters.isVerified = verified === 'true';
     if (typeof admin !== 'undefined') filters.isAdmin = admin === 'true';
     if (role) filters.role = role;
-    if (collegeId && collegeId !== 'all') filters.college = collegeId;
+
     if (teamId) {
       const team = await Team.findById(teamId).select('members').lean();
       filters._id = { $in: team?.members || [] };
@@ -194,9 +201,9 @@ exports.bulkAdminUsers = async (req, res) => {
 /* ================= TEAMS ================= */
 exports.listTeams = async (req, res) => {
   try {
-    const filters = await adminService.buildTeamFilters(req.query);
+    const filters = await adminService.buildTeamFilters(req.query, req.user);
     const teams = await Team.find(filters)
-      .populate('leader members hackathonId')
+      .populate('leader members hackathonId college')
       .sort({ createdAt: -1 })
       .lean();
     res.json({ items: teams });
@@ -261,7 +268,7 @@ exports.getTeam = async (req,res)=>{
 
 /* ================= TEAM EXPORT ================= */
 exports.exportTeams = async (req,res)=>{
-  const filters = await adminService.buildTeamFilters(req.query);
+  const filters = await adminService.buildTeamFilters(req.query, req.user);
   const teams = await Team.find(filters).populate('leader members hackathonId').lean();
   const wb = new ExcelJS.Workbook();
   const sheet = wb.addWorksheet('SIH Teams');

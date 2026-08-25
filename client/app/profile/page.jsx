@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { 
   Eye, EyeOff, User, Mail, BookOpen, Calendar, 
   Save, Upload, Trash2, Link as LinkIcon, 
-  Github, Linkedin, Globe, Code, Terminal, Cpu, Database 
+  Github, Linkedin, Globe, Code, Terminal, Cpu, Database,
+  CheckCircle2, Send, X, Loader2, Edit3
 } from 'lucide-react';
 
 const PLATFORMS_META = {
@@ -44,6 +45,77 @@ export default function ProfilePage() {
   const [linksMsg, setLinksMsg] = useState('');
   const [profileMsg, setProfileMsg] = useState('');
   const [passwordMsg, setPasswordMsg] = useState('');
+
+  // Email Change Modal State
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [newEmailInput, setNewEmailInput] = useState('');
+  const [emailOtpInput, setEmailOtpInput] = useState('');
+  const [emailStep, setEmailStep] = useState('request'); // 'request' | 'verify'
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [emailSuccess, setEmailSuccess] = useState('');
+
+  const handleRequestEmailOtp = async (e) => {
+    e.preventDefault();
+    setEmailError('');
+    setEmailSuccess('');
+    setEmailLoading(true);
+    try {
+      const res = await fetch('/api/auth/request-email-change', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token') || ''}`
+        },
+        credentials: 'include',
+        body: JSON.stringify({ newEmail: newEmailInput })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || 'Failed to request email change');
+      setEmailSuccess(`Verification code sent to ${newEmailInput}. Please enter the 6-digit code below.`);
+      setEmailStep('verify');
+    } catch (err) {
+      setEmailError(err.message);
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const handleVerifyEmailOtp = async (e) => {
+    e.preventDefault();
+    setEmailError('');
+    setEmailSuccess('');
+    setEmailLoading(true);
+    try {
+      const res = await fetch('/api/auth/verify-email-change', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token') || ''}`
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          newEmail: newEmailInput,
+          otp: emailOtpInput
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || 'Failed to verify email change');
+      if (data.token) localStorage.setItem('token', data.token);
+      setEmailSuccess('Email updated and verified successfully!');
+      setTimeout(() => {
+        setEmailModalOpen(false);
+        setEmailStep('request');
+        setNewEmailInput('');
+        setEmailOtpInput('');
+        recheckUser();
+      }, 1200);
+    } catch (err) {
+      setEmailError(err.message);
+    } finally {
+      setEmailLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -269,14 +341,30 @@ export default function ProfilePage() {
 
                   {/* Email */}
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Email Address</label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Email Address</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmailModalOpen(true);
+                          setEmailStep('request');
+                          setNewEmailInput('');
+                          setEmailOtpInput('');
+                          setEmailError('');
+                          setEmailSuccess('');
+                        }}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 flex items-center gap-1"
+                      >
+                        <Edit3 size={13} /> Change Email (OTP Protected)
+                      </button>
+                    </div>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                       <input 
                         name="email" 
                         value={profileData.email} 
                         disabled
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed outline-none" 
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed outline-none font-mono text-sm" 
                       />
                     </div>
                   </div>
@@ -490,6 +578,116 @@ export default function ProfilePage() {
 
         </div>
       </div>
+
+      {/* Verifiable Change Email Modal */}
+      {emailModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl relative">
+            <button
+              type="button"
+              onClick={() => setEmailModalOpen(false)}
+              className="absolute top-6 right-6 p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-2.5 text-indigo-600 dark:text-indigo-400 mb-2">
+              <Mail size={22} />
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Change Email Address</h3>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+              To protect your account, email changes require verification via a 6-digit OTP sent to your new email.
+            </p>
+
+            {emailSuccess && (
+              <div className="mb-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300">
+                {emailSuccess}
+              </div>
+            )}
+
+            {emailError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-300">
+                {emailError}
+              </div>
+            )}
+
+            {emailStep === 'request' ? (
+              <form onSubmit={handleRequestEmailOtp} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    New Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={newEmailInput}
+                    onChange={(e) => setNewEmailInput(e.target.value)}
+                    placeholder="Enter your new email address"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEmailModalOpen(false)}
+                    className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={emailLoading}
+                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 disabled:opacity-60"
+                  >
+                    {emailLoading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                    Send OTP Verification
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyEmailOtp} className="space-y-4">
+                <div className="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-900 dark:text-indigo-200">
+                  Enter the 6-digit verification code sent to <strong className="font-mono">{newEmailInput}</strong>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    6-Digit OTP Code *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={emailOtpInput}
+                    onChange={(e) => setEmailOtpInput(e.target.value)}
+                    placeholder="123456"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-center text-xl font-bold font-mono tracking-widest text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEmailStep('request')}
+                    className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={emailLoading}
+                    className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 disabled:opacity-60"
+                  >
+                    {emailLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                    Verify &amp; Update Email
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

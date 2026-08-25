@@ -53,5 +53,10 @@ router.post('/change-initial-password', (req, res, next) => {
   next();
 }, controller.changeInitialPassword);
 
+// POST /api/auth/request-email-change  — Request email change OTP
+router.post('/request-email-change', auth, controller.requestEmailChange);
+
+// POST /api/auth/verify-email-change   — Verify OTP and update email
+router.post('/verify-email-change', auth, controller.verifyEmailChange);
 
 module.exports = router;

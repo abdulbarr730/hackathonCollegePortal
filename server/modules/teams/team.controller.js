@@ -47,7 +47,7 @@ const createTeam = async (req, res) => {
 // =============================================================================
 const getAllTeams = async (req, res) => {
   try {
-    const teams = await teamService.getAllTeams();
+    const teams = await teamService.getAllTeams(req.user);
     res.json(teams);
 
   } catch (err) {

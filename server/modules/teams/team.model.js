@@ -17,11 +17,15 @@ const teamSchema = new Schema({
     ref: 'User',
   }],
   
-  // --- CRITICAL FOR MULTI-YEAR EVENTS ---
+  // --- CRITICAL FOR MULTI-YEAR EVENTS & COLLEGE MULTI-TENANCY ---
   hackathonId: { 
     type: Schema.Types.ObjectId, 
     ref: 'Hackathon',
     required: true // We enforce this now
+  },
+  college: {
+    type: Schema.Types.ObjectId,
+    ref: 'College'
   },
 
   problemStatementTitle: {

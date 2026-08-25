@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const User = require('./user.model');
 const Invitation = require('../teams/invitation.model');
 const { validateSocial } = require('../../shared/utils/validators');
+const { isSuperAdmin } = require('../../core/utils/roleHelper');
 
 /* ============================================================================
    USER SERVICE
@@ -46,8 +47,15 @@ const getMe = (user) => user;
 const getAllUsers = async (query, requesterId) => {
   const { year, search, course } = query;
 
+  // Annotate each user with whether the requester's team has already invited them
+  const currentUser = await User.findById(requesterId).populate('team');
+
   // Only return student accounts
   const filter = { role: 'student' };
+
+  if (currentUser && !isSuperAdmin(currentUser) && currentUser.college) {
+    filter.college = currentUser.college;
+  }
 
   if (year)   filter.year   = Number(year);
   if (course) filter.course = course;
@@ -59,10 +67,7 @@ const getAllUsers = async (query, requesterId) => {
   }
 
   const users = await User.find(filter)
-    .select('name email year course photoUrl team socialProfiles isVerified role');
-
-  // Annotate each user with whether the requester's team has already invited them
-  const currentUser = await User.findById(requesterId).populate('team');
+    .select('name email year course photoUrl team socialProfiles isVerified role college');
 
   if (currentUser.team) {
     const pendingInvites = await Invitation.find({

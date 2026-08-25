@@ -63,6 +63,8 @@ const getField = (row, fieldVariants) => {
   return '';
 };
 
+const { isSuperAdmin } = require('../../core/utils/roleHelper');
+
 exports.listApprovedStudents = async (query = {}, requester = {}) => {
   const { q = '', collegeId, page = 1, limit = 20 } = query;
   const filter = {};
@@ -77,7 +79,7 @@ exports.listApprovedStudents = async (query = {}, requester = {}) => {
   }
 
   // Scoping: If user is scoped to a college (College Admin / SPOC), enforce that college
-  if (requester.college && requester.role !== 'admin') {
+  if (requester && !isSuperAdmin(requester) && requester.college) {
     filter.college = requester.college;
   } else if (collegeId && collegeId !== 'all') {
     filter.college = collegeId;

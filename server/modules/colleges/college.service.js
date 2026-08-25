@@ -1,8 +1,11 @@
 const bcrypt = require('bcryptjs');
 const College = require('./college.model');
 const User = require('../users/user.model');
+const Otp = require('../auth/otp.model');
 const withTransaction = require('../../shared/utils/withTransaction');
 const ApiError = require('../../core/utils/ApiError');
+const { isSuperAdmin } = require('../../core/utils/roleHelper');
+const { sendMail } = require('../../shared/services/resend.service');
 
 const createCollegeAdmin = async (college, password, session, role = 'spoc') => {
   if (!password || password.length < 6) {
@@ -51,6 +54,9 @@ exports.registerCollege = async (data) => {
       shortName,
       website,
       domain,
+      hasCustomDomain,
+      allowGenericEmails,
+      allowedDomains,
       city,
       state,
       country,
@@ -89,7 +95,10 @@ exports.registerCollege = async (data) => {
       name,
       shortName,
       website,
-      domain,
+      domain: domain ? domain.trim() : '',
+      hasCustomDomain: !!hasCustomDomain,
+      allowGenericEmails: typeof allowGenericEmails !== 'undefined' ? !!allowGenericEmails : !hasCustomDomain,
+      allowedDomains: Array.isArray(allowedDomains) ? allowedDomains : (domain ? [domain.trim().toLowerCase()] : []),
       city,
       state,
       country: country || 'India',
@@ -110,7 +119,15 @@ exports.registerCollege = async (data) => {
       collegeAgreementAcceptedAt: new Date(),
       institutionalAgreementSignedBy: institutionalAgreementSignedBy || spocName,
       acceptedIp: acceptedIp || '',
-      status: 'pending'
+      status: 'pending',
+      staff: [{
+        name: spocName,
+        email: String(spocEmail).toLowerCase().trim(),
+        role: 'spoc',
+        phone: spocPhone || '',
+        isVerified: true,
+        verifiedAt: new Date()
+      }]
     });
 
     await college.save({ session });
@@ -118,19 +135,26 @@ exports.registerCollege = async (data) => {
     if (adminPassword) {
       const adminUser = await createCollegeAdmin(college, adminPassword, session);
       college.adminUser = adminUser._id;
+      if (college.staff && college.staff[0]) {
+        college.staff[0].user = adminUser._id;
+      }
       await college.save({ session });
     }
 
     return {
-      msg: 'College registration submitted',
+      msg: 'College registration submitted successfully',
       college
     };
   });
 };
 
-exports.listColleges = async (query = {}) => {
+exports.listColleges = async (query = {}, requester = null) => {
   const { q = '', status = 'all' } = query;
   const filter = {};
+
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    filter._id = requester.college;
+  }
 
   if (q) {
     filter.$or = [
@@ -138,7 +162,8 @@ exports.listColleges = async (query = {}) => {
       { shortName: new RegExp(q, 'i') },
       { spocEmail: new RegExp(q, 'i') },
       { city: new RegExp(q, 'i') },
-      { state: new RegExp(q, 'i') }
+      { state: new RegExp(q, 'i') },
+      { domain: new RegExp(q, 'i') }
     ];
   }
 
@@ -148,12 +173,13 @@ exports.listColleges = async (query = {}) => {
 
   return College.find(filter)
     .populate('adminUser', 'name email role isAdmin mustChangePassword')
+    .populate('staff.user', 'name email role isVerified phone')
     .sort({ createdAt: -1 });
 };
 
 exports.listPublicColleges = async () => {
   return College.find({ status: 'approved', isActive: true })
-    .select('_id name shortName website domain city state logoUrl')
+    .select('_id name shortName website domain hasCustomDomain allowGenericEmails city state logoUrl')
     .sort({ name: 1 })
     .lean();
 };
@@ -170,6 +196,10 @@ exports.approveCollege = async (collegeId, adminId, options = {}) => {
     if (options.adminPassword) {
       const adminUser = await createCollegeAdmin(college, options.adminPassword, session);
       college.adminUser = adminUser._id;
+      if (college.staff && college.staff.length > 0) {
+        college.staff[0].user = adminUser._id;
+        college.staff[0].isVerified = true;
+      }
     }
 
     college.status = 'approved';
@@ -205,61 +235,315 @@ exports.rejectCollege = async (collegeId, reason) => {
   };
 };
 
-exports.addCollegeStaff = async ({ collegeId, name, email, role, phone, password, requester }) => {
-  if (!email || !name || !password) {
-    throw new ApiError(400, 'Name, email, and password are required');
+/* ================= WORLDWIDE USER SEARCH ================= */
+exports.searchGlobalUsers = async (query = '') => {
+  if (!query || query.trim().length < 2) return [];
+  const q = query.trim();
+
+  const users = await User.find({
+    $or: [
+      { name: new RegExp(q, 'i') },
+      { email: new RegExp(q, 'i') },
+      { rollNumber: new RegExp(q, 'i') }
+    ]
+  })
+    .select('name email role phone rollNumber college isVerified')
+    .populate('college', 'name shortName')
+    .limit(20)
+    .lean();
+
+  return users;
+};
+
+/* ================= STAFF OTP INVITATION & APPOINTMENT ================= */
+exports.inviteCollegeStaffOtp = async ({ collegeId, name, email, role, phone, requester }) => {
+  if (!email || !name) {
+    throw new ApiError(400, 'Name and email are required');
   }
 
   const college = await College.findById(collegeId);
   if (!college) throw new ApiError(404, 'College not found');
 
-  // Permission check: if requester has a college assigned, it must match this college
-  if (requester.college && String(requester.college) !== String(collegeId) && requester.role !== 'admin') {
-    throw new ApiError(403, 'Unauthorized to add staff for another college');
+  if (requester && !isSuperAdmin(requester) && String(requester.college) !== String(collegeId)) {
+    throw new ApiError(403, 'Unauthorized to manage staff for another college');
   }
 
-  const staffRole = ['spoc', 'college_admin', 'admin'].includes(role) ? role : 'spoc';
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const normalizedEmail = String(email).toLowerCase().trim();
+  const staffRole = ['spoc', 'college_admin', 'admin', 'judge'].includes(role) ? role : 'spoc';
 
-  let user = await User.findOne({ email: String(email).toLowerCase().trim() });
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  await Otp.findOneAndUpdate(
+    { email: normalizedEmail },
+    { otp, createdAt: Date.now() },
+    { upsert: true, new: true }
+  );
+
+  // Check if staff entry already exists in college
+  const existingStaffIndex = college.staff.findIndex(s => s.email === normalizedEmail);
+  if (existingStaffIndex >= 0) {
+    college.staff[existingStaffIndex].name = name;
+    college.staff[existingStaffIndex].role = staffRole;
+    if (phone) college.staff[existingStaffIndex].phone = phone;
+  } else {
+    college.staff.push({
+      name,
+      email: normalizedEmail,
+      role: staffRole,
+      phone: phone || '',
+      isVerified: false,
+      invitedAt: new Date()
+    });
+  }
+  await college.save();
+
+  // Dispatch Email via Resend
+  await sendMail({
+    to: normalizedEmail,
+    subject: `Official Staff Appointment Verification Code - ${college.shortName || college.name}`,
+    html: `<!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+      <body style="margin:0;padding:0;background:#f8f8fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8fb;padding:40px 16px;">
+          <tr><td align="center">
+            <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;border:1px solid #e4e4ed;overflow:hidden;">
+              <tr>
+                <td style="background:#4f46e5;padding:32px 40px;text-align:center;">
+                  <div style="color:#fff;font-size:22px;font-weight:700;margin:0;">Institutional Staff Verification</div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:36px 40px;text-align:center;">
+                  <p style="color:#4a4a6a;font-size:15px;margin:0 0 20px;">
+                    Hi <strong>${name}</strong>, you have been appointed as <strong>${staffRole.toUpperCase()}</strong> for <strong>${college.name}</strong> on CampXCode Portal.
+                  </p>
+                  <div style="background:#f4f4ff;border:2px dashed #4f46e5;border-radius:12px;padding:20px;display:inline-block;margin-bottom:20px;">
+                    <div style="color:#4f46e5;font-size:36px;font-weight:800;letter-spacing:10px;font-family:'Courier New',monospace;">${otp}</div>
+                  </div>
+                  <p style="color:#71717a;font-size:13px;margin:0;">
+                    Please provide this 6-digit verification code to confirm your institutional staff appointment. Valid for 10 minutes.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td></tr>
+        </table>
+      </body>
+      </html>`
+  });
+
+  return {
+    msg: 'Verification OTP sent to staff email',
+    email: normalizedEmail,
+    role: staffRole
+  };
+};
+
+/* ================= VERIFY STAFF OTP & ACTIVATE ================= */
+exports.verifyCollegeStaffOtp = async ({ collegeId, email, otp, password, requester }) => {
+  if (!email || !otp) {
+    throw new ApiError(400, 'Email and OTP code are required');
+  }
+
+  const college = await College.findById(collegeId);
+  if (!college) throw new ApiError(404, 'College not found');
+
+  if (requester && !isSuperAdmin(requester) && String(requester.college) !== String(collegeId)) {
+    throw new ApiError(403, 'Unauthorized to verify staff for another college');
+  }
+
+  const normalizedEmail = String(email).toLowerCase().trim();
+
+  const validOtp = await Otp.findOne({ email: normalizedEmail, otp });
+  if (!validOtp) {
+    throw new ApiError(400, 'Invalid or expired OTP verification code');
+  }
+
+  await Otp.deleteOne({ _id: validOtp._id });
+
+  // Locate staff entry
+  const staffEntry = college.staff.find(s => s.email === normalizedEmail) || {
+    name: normalizedEmail.split('@')[0],
+    role: 'spoc',
+    phone: ''
+  };
+
+  const staffRole = staffEntry.role || 'spoc';
+
+  let user = await User.findOne({ email: normalizedEmail });
   if (user) {
-    user.name = name;
     user.role = staffRole;
     user.isAdmin = true;
     user.isVerified = true;
-    user.mustChangePassword = true;
-    user.password = hashedPassword;
     user.college = collegeId;
-    if (phone) user.phone = phone;
+    if (password && password.length >= 6) {
+      user.password = await bcrypt.hash(password, 10);
+      user.mustChangePassword = false;
+    }
     await user.save();
   } else {
+    const hashedPassword = await bcrypt.hash(password || 'Staff@1234', 10);
     user = await User.create({
-      name,
-      email: String(email).toLowerCase().trim(),
+      name: staffEntry.name,
+      email: normalizedEmail,
       password: hashedPassword,
       role: staffRole,
       isAdmin: true,
       isVerified: true,
-      mustChangePassword: true,
+      mustChangePassword: !password,
       college: collegeId,
-      phone: phone || '',
+      phone: staffEntry.phone || '',
       gender: 'Other',
-      course: 'B.Tech',
+      course: 'Faculty / Staff',
       year: 1,
       verificationMethod: 'rollNumber'
     });
   }
 
+  // Update staff in college model
+  const staffIndex = college.staff.findIndex(s => s.email === normalizedEmail);
+  if (staffIndex >= 0) {
+    college.staff[staffIndex].user = user._id;
+    college.staff[staffIndex].isVerified = true;
+    college.staff[staffIndex].verifiedAt = new Date();
+  } else {
+    college.staff.push({
+      user: user._id,
+      name: user.name,
+      email: normalizedEmail,
+      role: staffRole,
+      phone: user.phone || '',
+      isVerified: true,
+      verifiedAt: new Date()
+    });
+  }
+
+  if (!college.adminUser) {
+    college.adminUser = user._id;
+  }
+
+  await college.save();
+
   return {
-    msg: `College ${staffRole.toUpperCase()} provisioned successfully`,
+    msg: `${staffRole.toUpperCase()} verified and activated successfully`,
     user: {
       id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      college: user.college,
-      mustChangePassword: user.mustChangePassword
-    }
+      college: user.college
+    },
+    college
+  };
+};
+
+/* ================= UPDATE COLLEGE STAFF ================= */
+exports.updateCollegeStaff = async ({ collegeId, userId, data, requester }) => {
+  const college = await College.findById(collegeId);
+  if (!college) throw new ApiError(404, 'College not found');
+
+  if (requester && !isSuperAdmin(requester) && String(requester.college) !== String(collegeId)) {
+    throw new ApiError(403, 'Unauthorized to update staff for another college');
+  }
+
+  const { name, role, phone } = data;
+  const staffRole = ['spoc', 'college_admin', 'admin', 'judge'].includes(role) ? role : undefined;
+
+  const user = await User.findById(userId);
+  if (user) {
+    if (name) user.name = name;
+    if (staffRole) user.role = staffRole;
+    if (phone) user.phone = phone;
+    await user.save();
+  }
+
+  const staffIndex = college.staff.findIndex(s => String(s.user) === String(userId) || (user && s.email === user.email));
+  if (staffIndex >= 0) {
+    if (name) college.staff[staffIndex].name = name;
+    if (staffRole) college.staff[staffIndex].role = staffRole;
+    if (phone) college.staff[staffIndex].phone = phone;
+    await college.save();
+  }
+
+  return {
+    msg: 'Staff member updated successfully',
+    user
+  };
+};
+
+/* ================= DELETE / DEMOTE COLLEGE STAFF ================= */
+exports.deleteCollegeStaff = async ({ collegeId, userId, requester }) => {
+  const college = await College.findById(collegeId);
+  if (!college) throw new ApiError(404, 'College not found');
+
+  if (requester && !isSuperAdmin(requester) && String(requester.college) !== String(collegeId)) {
+    throw new ApiError(403, 'Unauthorized to remove staff for another college');
+  }
+
+  const user = await User.findById(userId);
+  if (user) {
+    // Demote to student
+    user.role = 'student';
+    user.isAdmin = false;
+    await user.save();
+  }
+
+  college.staff = college.staff.filter(s => String(s.user) !== String(userId) && (!user || s.email !== user.email));
+  if (college.adminUser && String(college.adminUser) === String(userId)) {
+    college.adminUser = college.staff.find(s => s.user)?.user || undefined;
+  }
+  await college.save();
+
+  return {
+    msg: 'Staff member removed from college administration',
+    college
+  };
+};
+
+/* ================= UPDATE COLLEGE SETTINGS ================= */
+exports.updateCollegeSettings = async ({ collegeId, data, requester }) => {
+  const college = await College.findById(collegeId);
+  if (!college) throw new ApiError(404, 'College not found');
+
+  if (requester && !isSuperAdmin(requester) && String(requester.college) !== String(collegeId)) {
+    throw new ApiError(403, 'Unauthorized to update settings for another college');
+  }
+
+  const {
+    name,
+    shortName,
+    website,
+    domain,
+    hasCustomDomain,
+    allowGenericEmails,
+    city,
+    state,
+    aisheCode,
+    institutionType,
+    spocName,
+    spocPhone
+  } = data;
+
+  if (name) college.name = name;
+  if (shortName) college.shortName = shortName;
+  if (typeof website !== 'undefined') college.website = website;
+  if (typeof domain !== 'undefined') college.domain = domain ? domain.trim() : '';
+  if (typeof hasCustomDomain !== 'undefined') college.hasCustomDomain = !!hasCustomDomain;
+  if (typeof allowGenericEmails !== 'undefined') college.allowGenericEmails = !!allowGenericEmails;
+  if (city) college.city = city;
+  if (state) college.state = state;
+  if (aisheCode) college.aisheCode = aisheCode;
+  if (institutionType) college.institutionType = institutionType;
+  if (spocName) college.spocName = spocName;
+  if (spocPhone) college.spocPhone = spocPhone;
+
+  await college.save();
+
+  return {
+    msg: 'College settings updated successfully',
+    college
   };
 };
 
@@ -295,4 +579,3 @@ exports.requestCollegeOnboarding = async (data) => {
     college
   };
 };
-

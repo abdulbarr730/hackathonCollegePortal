@@ -1,16 +1,21 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   Building2, CheckCircle, KeyRound, Loader2, Search, 
-  ShieldCheck, XCircle, UserPlus, X, Mail, Phone, Lock, User
+  ShieldCheck, XCircle, UserPlus, X, Mail, Phone, Lock, 
+  User, Globe, Edit3, Trash2, Shield, Send, CheckCircle2,
+  AlertCircle, RefreshCw, Key
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const emptyForm = {
   name: '',
   shortName: '',
   website: '',
   domain: '',
+  hasCustomDomain: true,
+  allowGenericEmails: false,
   city: '',
   state: '',
   spocName: '',
@@ -22,6 +27,11 @@ const emptyForm = {
 };
 
 export default function AdminCollegesPage() {
+  const { user: currentUser } = useAuth();
+  const isSuperAdminUser = currentUser?.role === 'super_admin' || 
+    ['abdulbarr730@gmail.com', 'rkapoor2913@gmail.com'].includes(currentUser?.email?.toLowerCase()) ||
+    (currentUser?.isAdmin && currentUser?.role === 'admin' && !currentUser?.college);
+
   const [colleges, setColleges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,14 +41,33 @@ export default function AdminCollegesPage() {
 
   // Staff Modal State
   const [staffModalCollege, setStaffModalCollege] = useState(null);
+  const [activeStaffTab, setActiveStaffTab] = useState('search'); // 'search' | 'invite'
+  const [worldwideQuery, setWorldwideQuery] = useState('');
+  const [worldwideResults, setWorldwideResults] = useState([]);
+  const [worldwideSearching, setWorldwideSearching] = useState(false);
+
   const [staffName, setStaffName] = useState('');
   const [staffEmail, setStaffEmail] = useState('');
   const [staffRole, setStaffRole] = useState('spoc');
   const [staffPhone, setStaffPhone] = useState('');
   const [staffPassword, setStaffPassword] = useState('');
+  const [staffStep, setStaffStep] = useState('form'); // 'form' | 'otp'
+  const [staffOtp, setStaffOtp] = useState('');
   const [staffSaving, setStaffSaving] = useState(false);
   const [staffError, setStaffError] = useState('');
   const [staffSuccess, setStaffSuccess] = useState('');
+
+  // Edit Staff Modal State
+  const [editingStaff, setEditingStaff] = useState(null); // { collegeId, staff }
+  const [editStaffName, setEditStaffName] = useState('');
+  const [editStaffRole, setEditStaffRole] = useState('spoc');
+  const [editStaffPhone, setEditStaffPhone] = useState('');
+  const [editStaffSaving, setEditStaffSaving] = useState(false);
+
+  // Edit College Settings Modal
+  const [settingsModalCollege, setSettingsModalCollege] = useState(null);
+  const [settingsForm, setSettingsForm] = useState({});
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   const fetchColleges = async () => {
     setLoading(true);
@@ -61,6 +90,29 @@ export default function AdminCollegesPage() {
   useEffect(() => {
     fetchColleges();
   }, [query, status]);
+
+  // Worldwide Search for Users
+  useEffect(() => {
+    if (worldwideQuery.trim().length < 2) {
+      setWorldwideResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setWorldwideSearching(true);
+      try {
+        const res = await fetch(`/api/colleges/users/search?q=${encodeURIComponent(worldwideQuery.trim())}`, {
+          credentials: 'include'
+        });
+        const data = await res.json();
+        setWorldwideResults(data.items || []);
+      } catch {
+        setWorldwideResults([]);
+      } finally {
+        setWorldwideSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [worldwideQuery]);
 
   const updateForm = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
@@ -87,7 +139,7 @@ export default function AdminCollegesPage() {
   };
 
   const approveCollege = async (college) => {
-    const adminPassword = prompt(`Create temporary password for ${college.spocEmail} (they will be forced to change on first login):`);
+    const adminPassword = prompt(`Create temporary initial password for ${college.spocEmail}:`);
     if (!adminPassword) return;
 
     const res = await fetch(`/api/colleges/approve/${college._id}`, {
@@ -116,42 +168,141 @@ export default function AdminCollegesPage() {
     fetchColleges();
   };
 
-  const handleStaffSubmit = async (e) => {
+  // Step 1: Send Staff Invite OTP
+  const handleSendStaffOtp = async (e) => {
     e.preventDefault();
     setStaffError('');
     setStaffSuccess('');
     setStaffSaving(true);
 
     try {
-      const res = await fetch(`/api/colleges/${staffModalCollege._id}/staff`, {
+      const res = await fetch(`/api/colleges/${staffModalCollege._id}/staff/invite`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token') || ''}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           name: staffName,
           email: staffEmail,
           role: staffRole,
-          phone: staffPhone,
+          phone: staffPhone
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || data.message || 'Failed to dispatch staff OTP verification');
+
+      setStaffSuccess(`Verification code dispatched to ${staffEmail}. Please enter the 6-digit code below.`);
+      setStaffStep('otp');
+    } catch (err) {
+      setStaffError(err.message);
+    } finally {
+      setStaffSaving(false);
+    }
+  };
+
+  // Step 2: Verify Staff OTP & Finalize
+  const handleVerifyStaffOtp = async (e) => {
+    e.preventDefault();
+    setStaffError('');
+    setStaffSuccess('');
+    setStaffSaving(true);
+
+    try {
+      const res = await fetch(`/api/colleges/${staffModalCollege._id}/staff/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: staffEmail,
+          otp: staffOtp,
           password: staffPassword
         })
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.msg || 'Failed to provision staff');
+      if (!res.ok) throw new Error(data.msg || data.message || 'Failed to verify staff OTP');
 
-      setStaffSuccess(`Successfully provisioned ${staffRole.toUpperCase()} account for ${staffEmail}. They will be prompted to reset their password on first login.`);
-      setStaffName('');
-      setStaffEmail('');
-      setStaffPhone('');
-      setStaffPassword('');
-      fetchColleges();
+      setStaffSuccess(`${staffRole.toUpperCase()} verified and appointed successfully!`);
+      setTimeout(() => {
+        setStaffModalCollege(null);
+        setStaffStep('form');
+        setStaffName('');
+        setStaffEmail('');
+        setStaffOtp('');
+        setStaffPassword('');
+        fetchColleges();
+      }, 1500);
     } catch (err) {
       setStaffError(err.message);
     } finally {
       setStaffSaving(false);
+    }
+  };
+
+  // Edit Staff Member
+  const handleUpdateStaff = async (e) => {
+    e.preventDefault();
+    if (!editingStaff) return;
+    setEditStaffSaving(true);
+    try {
+      const userId = editingStaff.staff.user?._id || editingStaff.staff.user;
+      const res = await fetch(`/api/colleges/${editingStaff.collegeId}/staff/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: editStaffName,
+          role: editStaffRole,
+          phone: editStaffPhone
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || 'Failed to update staff');
+      setEditingStaff(null);
+      fetchColleges();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setEditStaffSaving(false);
+    }
+  };
+
+  // Delete / Demote Staff Member
+  const handleDeleteStaff = async (collegeId, userId, name) => {
+    if (!confirm(`Are you sure you want to remove ${name} from college staff permissions? Their account will be demoted to a student.`)) return;
+    try {
+      const res = await fetch(`/api/colleges/${collegeId}/staff/${userId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || 'Failed to remove staff');
+      fetchColleges();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // Update College Settings
+  const handleSaveCollegeSettings = async (e) => {
+    e.preventDefault();
+    if (!settingsModalCollege) return;
+    setSettingsSaving(true);
+    try {
+      const res = await fetch(`/api/colleges/${settingsModalCollege._id}/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(settingsForm)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || 'Failed to update college settings');
+      setSettingsModalCollege(null);
+      fetchColleges();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSettingsSaving(false);
     }
   };
 
@@ -162,101 +313,142 @@ export default function AdminCollegesPage() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-            College Governance & Onboarding
+            College Governance & Staff Management
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Verify affiliated colleges, manage permissions, and provision College Admin & SPOC accounts.
+            Configure institutional domains, worldwide user search, and OTP-verified SPOC & Admin appointments.
           </p>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full lg:max-w-xl">
-          <label className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search college or SPOC..."
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-2.5 pl-10 pr-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </label>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="all">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
-        </div>
+        {isSuperAdminUser && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full lg:max-w-xl">
+            <label className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search college, domain or SPOC..."
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-2.5 pl-10 pr-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending Approval</option>
+              <option value="approved">Approved &amp; Active</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+        )}
       </div>
 
-      {/* Onboard College Form */}
-      <form onSubmit={submitCollege} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm">
-        <div className="mb-5 flex items-center gap-2 text-slate-900 dark:text-white">
-          <Building2 size={20} className="text-indigo-600 dark:text-indigo-400" />
-          <h2 className="font-bold">Register / Onboard New College</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {[
-            ['name', 'College Name *'],
-            ['shortName', 'Short Name (e.g. BBDIT)'],
-            ['website', 'Website URL'],
-            ['domain', 'Official Email Domain'],
-            ['city', 'City'],
-            ['state', 'State'],
-            ['spocName', 'SPOC Name *'],
-            ['spocEmail', 'SPOC Email *'],
-            ['spocPhone', 'SPOC Phone'],
-            ['designation', 'Designation'],
-            ['department', 'Department'],
-            ['adminPassword', 'Initial Temp Admin Password']
-          ].map(([key, label]) => (
+      {/* Super Admin Quick Onboarding Form */}
+      {isSuperAdminUser && (
+        <form onSubmit={submitCollege} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm">
+          <div className="mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
+            <Building2 size={20} className="text-indigo-600 dark:text-indigo-400" />
+            <h2 className="font-bold">Register / Onboard New College</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
             <input
-              key={key}
-              required={label.includes('*')}
-              type={key === 'adminPassword' ? 'password' : 'text'}
-              value={form[key]}
-              onChange={(e) => updateForm(key, e.target.value)}
-              placeholder={label}
+              required
+              type="text"
+              value={form.name}
+              onChange={(e) => updateForm('name', e.target.value)}
+              placeholder="College Name *"
               className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
             />
-          ))}
-        </div>
-        <button
-          type="submit"
-          disabled={saving}
-          className="mt-4 inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-500/20 disabled:opacity-60 transition-all"
-        >
-          {saving ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
-          Onboard College & Provision Staff
-        </button>
-      </form>
+            <input
+              type="text"
+              value={form.shortName}
+              onChange={(e) => updateForm('shortName', e.target.value)}
+              placeholder="Short Name (e.g. BBDIT)"
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              type="text"
+              value={form.domain}
+              onChange={(e) => updateForm('domain', e.target.value)}
+              placeholder="Official Domain (e.g. bbdit.edu.in)"
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              type="text"
+              value={form.city}
+              onChange={(e) => updateForm('city', e.target.value)}
+              placeholder="City (e.g. Ghaziabad)"
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              required
+              type="text"
+              value={form.spocName}
+              onChange={(e) => updateForm('spocName', e.target.value)}
+              placeholder="SPOC Full Name *"
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              required
+              type="email"
+              value={form.spocEmail}
+              onChange={(e) => updateForm('spocEmail', e.target.value)}
+              placeholder="SPOC Email Address *"
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              type="text"
+              value={form.spocPhone}
+              onChange={(e) => updateForm('spocPhone', e.target.value)}
+              placeholder="SPOC Phone Number"
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              type="password"
+              value={form.adminPassword}
+              onChange={(e) => updateForm('adminPassword', e.target.value)}
+              placeholder="Initial Temp Admin Password"
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={saving}
+            className="mt-4 inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-500/20 disabled:opacity-60 transition-all"
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
+            Onboard College
+          </button>
+        </form>
+      )}
 
       {/* College Cards List */}
-      <div className="grid gap-4">
+      <div className="grid gap-6">
         {loading ? (
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 text-center text-slate-400">
-            <Loader2 size={24} className="animate-spin mx-auto mb-2 text-indigo-500" />
-            Loading colleges...
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 text-center text-slate-400">
+            <Loader2 size={28} className="animate-spin mx-auto mb-2 text-indigo-500" />
+            Loading institutions and staff rosters...
           </div>
         ) : colleges.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 text-center text-slate-400">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 text-center text-slate-400">
             No colleges found matching the selected criteria.
           </div>
         ) : colleges.map((college) => (
-          <div key={college._id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm hover:shadow-md transition-all">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">{college.name}</h3>
+          <div key={college._id} className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-6">
+            
+            {/* Header & Meta */}
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between border-b border-slate-100 dark:border-slate-800/80 pb-5">
+              <div className="min-w-0 space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">{college.name}</h3>
                   {college.shortName && (
-                    <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">
+                    <span className="text-xs px-2.5 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800/50">
                       {college.shortName}
                     </span>
                   )}
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ${
+                  <span className={`rounded-full px-3 py-0.5 text-xs font-bold capitalize ${
                     college.status === 'approved' ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800' :
                     college.status === 'rejected' ? 'bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800' :
                     'bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
@@ -264,68 +456,165 @@ export default function AdminCollegesPage() {
                     {college.status}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {college.city || 'City not set'}{college.state ? `, ${college.state}` : ''} {college.website ? `• ${college.website}` : ''} {college.aisheCode ? `• AISHE: ${college.aisheCode}` : ''}
+
+                <p className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span>{college.city || 'City N/A'}{college.state ? `, ${college.state}` : ''}</span>
+                  {college.website && <span>• <a href={college.website} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">{college.website}</a></span>}
+                  {college.aisheCode && <span>• AISHE: <strong className="text-slate-700 dark:text-slate-300 font-mono">{college.aisheCode}</strong></span>}
                 </p>
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
-                  <span><strong>SPOC:</strong> {college.spocName} ({college.spocEmail})</span>
-                  <span><strong>Admin Account:</strong> {college.adminUser?.email || 'Not provisioned'}</span>
-                  {college.affiliatedUniversity && (
-                    <span><strong>Affiliation:</strong> {college.affiliatedUniversity}</span>
-                  )}
-                  {college.termsAcceptedAt && (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-mono">
-                      ✓ DPA Signed: {new Date(college.termsAcceptedAt).toLocaleDateString()}
+
+                {/* Domain Pill */}
+                <div className="pt-1 flex flex-wrap items-center gap-2 text-xs">
+                  {college.hasCustomDomain && college.domain ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800 font-mono font-medium">
+                      <Globe size={13} /> Domain: @{college.domain}
                     </span>
-                  )}
-                  {college.adminUser?.mustChangePassword && (
-                    <span className="text-amber-600 dark:text-amber-400 font-semibold">• First Login Password Change Pending</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 font-medium">
+                      <CheckCircle2 size={13} /> Generic Emails Allowed (OTP Enforced)
+                    </span>
                   )}
                 </div>
               </div>
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-2">
-                {college.status === 'approved' && (
-                  <button
-                    onClick={() => {
-                      setStaffModalCollege(college);
-                      setStaffError('');
-                      setStaffSuccess('');
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 px-3.5 py-2 text-xs font-bold transition-all"
-                  >
-                    <UserPlus size={15} /> Add Staff / Admin
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    setSettingsModalCollege(college);
+                    setSettingsForm({
+                      name: college.name,
+                      shortName: college.shortName || '',
+                      domain: college.domain || '',
+                      hasCustomDomain: !!college.hasCustomDomain,
+                      allowGenericEmails: !!college.allowGenericEmails,
+                      website: college.website || '',
+                      city: college.city || '',
+                      state: college.state || '',
+                      aisheCode: college.aisheCode || ''
+                    });
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all"
+                >
+                  <Edit3 size={14} /> Domain &amp; Settings
+                </button>
 
-                {college.status !== 'approved' && (
+                <button
+                  onClick={() => {
+                    setStaffModalCollege(college);
+                    setStaffStep('form');
+                    setActiveStaffTab('search');
+                    setWorldwideQuery('');
+                    setWorldwideResults([]);
+                    setStaffName('');
+                    setStaffEmail('');
+                    setStaffRole('spoc');
+                    setStaffPhone('');
+                    setStaffPassword('');
+                    setStaffError('');
+                    setStaffSuccess('');
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 text-xs font-bold shadow-md shadow-indigo-500/20 transition-all"
+                >
+                  <UserPlus size={15} /> Add SPOC / Admin
+                </button>
+
+                {isSuperAdminUser && college.status !== 'approved' && (
                   <button onClick={() => approveCollege(college)} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all">
                     <CheckCircle size={15} /> Approve
                   </button>
                 )}
 
-                {college.status !== 'rejected' && (
+                {isSuperAdminUser && college.status !== 'rejected' && (
                   <button onClick={() => rejectCollege(college)} className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 hover:bg-red-500 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all">
                     <XCircle size={15} /> Reject
                   </button>
                 )}
+              </div>
+            </div>
 
-                {college.adminUser && (
-                  <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-                    <ShieldCheck size={15} className="text-emerald-500" /> Active SPOC
-                  </span>
+            {/* Staff & SPOC Management Roster */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <Shield size={14} className="text-indigo-600 dark:text-indigo-400" />
+                  Appointed SPOCs &amp; Administrative Staff ({college.staff?.length || 0})
+                </h4>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {(!college.staff || college.staff.length === 0) ? (
+                  <div className="col-span-full p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-dashed border-slate-200 dark:border-slate-800 text-center text-xs text-slate-400">
+                    No dedicated SPOC or admin assigned yet. Click "Add SPOC / Admin" to appoint one.
+                  </div>
+                ) : (
+                  college.staff.map((s, idx) => {
+                    const userId = s.user?._id || s.user;
+                    return (
+                      <div key={idx} className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 flex flex-col justify-between space-y-3">
+                        <div className="space-y-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-bold text-sm text-slate-900 dark:text-white leading-tight">
+                              {s.name || s.email}
+                            </span>
+                            <span className="text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                              {s.role}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 font-mono truncate">{s.email}</p>
+                          {s.phone && <p className="text-xs text-slate-500 dark:text-slate-400">{s.phone}</p>}
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-800/80 text-xs">
+                          {s.isVerified !== false ? (
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 text-[11px]">
+                              <CheckCircle2 size={13} /> Verified
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1 text-[11px]">
+                              <AlertCircle size={13} /> Pending OTP
+                            </span>
+                          )}
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                setEditingStaff({ collegeId: college._id, staff: s });
+                                setEditStaffName(s.name || '');
+                                setEditStaffRole(s.role || 'spoc');
+                                setEditStaffPhone(s.phone || '');
+                              }}
+                              className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                              title="Edit Staff Member"
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                            {userId && (
+                              <button
+                                onClick={() => handleDeleteStaff(college._id, userId, s.name || s.email)}
+                                className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400"
+                                title="Remove Staff Member"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
+
           </div>
         ))}
       </div>
 
-      {/* Add Staff / Admin / SPOC Modal */}
+      {/* Add Staff / SPOC Modal (Worldwide Search & OTP Flow) */}
       {staffModalCollege && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setStaffModalCollege(null)}
               className="absolute top-6 right-6 p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -333,107 +622,413 @@ export default function AdminCollegesPage() {
               <X size={18} />
             </button>
 
-            <div className="flex items-center gap-2.5 text-indigo-600 dark:text-indigo-400 mb-2">
+            <div className="flex items-center gap-2.5 text-indigo-600 dark:text-indigo-400 mb-1">
               <UserPlus size={22} />
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Add College Staff</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Appoint SPOC or College Admin</h3>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-              Provisioning for: <span className="font-bold text-slate-800 dark:text-slate-200">{staffModalCollege.name}</span>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
+              Institution: <strong className="text-slate-800 dark:text-slate-200">{staffModalCollege.name}</strong>
             </p>
 
             {staffSuccess && (
-              <div className="mb-4 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300 space-y-2">
-                <p className="font-bold flex items-center gap-1.5"><CheckCircle size={14} /> Account Created</p>
+              <div className="mb-4 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300 space-y-1">
+                <p className="font-bold flex items-center gap-1.5"><CheckCircle2 size={14} /> Success</p>
                 <p>{staffSuccess}</p>
               </div>
             )}
 
             {staffError && (
-              <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-300">
+              <div className="mb-4 p-3.5 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-300">
                 {staffError}
               </div>
             )}
 
-            <form onSubmit={handleStaffSubmit} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Staff Role *</label>
-                <select
-                  value={staffRole}
-                  onChange={(e) => setStaffRole(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white font-medium"
-                >
-                  <option value="spoc">SPOC (Can export & manage teams, cannot delete users)</option>
-                  <option value="college_admin">College Admin (Can manage hackathons, teams & college users)</option>
-                  <option value="admin">Super Admin (Platform Level)</option>
-                </select>
-              </div>
+            {staffStep === 'form' ? (
+              <div className="space-y-4">
+                {/* Tabs */}
+                <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setActiveStaffTab('search')}
+                    className={`py-2 rounded-xl text-xs font-bold transition-all ${
+                      activeStaffTab === 'search'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Worldwide User Search
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveStaffTab('invite')}
+                    className={`py-2 rounded-xl text-xs font-bold transition-all ${
+                      activeStaffTab === 'invite'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Invite New Email
+                  </button>
+                </div>
 
+                {activeStaffTab === 'search' && (
+                  <div className="space-y-3">
+                    <label className="relative block">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input
+                        type="text"
+                        value={worldwideQuery}
+                        onChange={(e) => setWorldwideQuery(e.target.value)}
+                        placeholder="Type registered name, email, or roll number..."
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </label>
+
+                    {worldwideSearching && (
+                      <div className="text-center py-4 text-xs text-slate-400 flex items-center justify-center gap-2">
+                        <Loader2 size={16} className="animate-spin text-indigo-500" /> Searching users across platform...
+                      </div>
+                    )}
+
+                    {!worldwideSearching && worldwideResults.length > 0 && (
+                      <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-800">
+                        {worldwideResults.map((u) => (
+                          <div key={u._id} className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between gap-3 text-xs">
+                            <div>
+                              <p className="font-bold text-slate-900 dark:text-white">{u.name}</p>
+                              <p className="text-slate-500 font-mono">{u.email}</p>
+                              {u.college && <p className="text-[11px] text-indigo-600">{u.college.shortName || u.college.name}</p>}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStaffName(u.name);
+                                setStaffEmail(u.email);
+                                setStaffPhone(u.phone || '');
+                                setWorldwideQuery('');
+                                setWorldwideResults([]);
+                              }}
+                              className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-100"
+                            >
+                              Select
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <form onSubmit={handleSendStaffOtp} className="space-y-3 pt-2">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Target Role *</label>
+                    <select
+                      value={staffRole}
+                      onChange={(e) => setStaffRole(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white font-medium"
+                    >
+                      <option value="spoc">SPOC (Manages and exports teams for this college)</option>
+                      <option value="college_admin">College Admin (Institutional Governance)</option>
+                      <option value="admin">Platform Admin</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Full Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={staffName}
+                      onChange={(e) => setStaffName(e.target.value)}
+                      placeholder="e.g. Dr. Rajesh Sharma"
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Email Address *</label>
+                    <input
+                      type="email"
+                      required
+                      value={staffEmail}
+                      onChange={(e) => setStaffEmail(e.target.value)}
+                      placeholder="spoc@bbdit.edu.in or user@gmail.com"
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Phone Number</label>
+                    <input
+                      type="text"
+                      value={staffPhone}
+                      onChange={(e) => setStaffPhone(e.target.value)}
+                      placeholder="Optional phone number"
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="pt-3 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setStaffModalCollege(null)}
+                      className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={staffSaving}
+                      className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 disabled:opacity-60"
+                    >
+                      {staffSaving ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                      Send Verification OTP Email
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              <form onSubmit={handleVerifyStaffOtp} className="space-y-4 pt-1">
+                <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-950 dark:text-indigo-200 space-y-1">
+                  <p className="font-bold">An appointment verification code was dispatched to:</p>
+                  <p className="font-mono text-sm font-bold text-indigo-600 dark:text-indigo-300">{staffEmail}</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">6-Digit OTP Code *</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={staffOtp}
+                    onChange={(e) => setStaffOtp(e.target.value)}
+                    placeholder="123456"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-center text-xl font-bold tracking-widest font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Optional Initial Password</label>
+                  <input
+                    type="text"
+                    value={staffPassword}
+                    onChange={(e) => setStaffPassword(e.target.value)}
+                    placeholder="Leave blank for default password (Staff@1234)"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
+
+                <div className="pt-3 flex justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setStaffStep('form')}
+                    className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={staffSaving}
+                    className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 disabled:opacity-60"
+                  >
+                    {staffSaving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                    Verify OTP &amp; Confirm Staff
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Staff Modal */}
+      {editingStaff && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl relative">
+            <button
+              onClick={() => setEditingStaff(null)}
+              className="absolute top-6 right-6 p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <X size={18} />
+            </button>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Edit Staff Details</h3>
+
+            <form onSubmit={handleUpdateStaff} className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Full Name *</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Full Name</label>
                 <input
                   type="text"
                   required
-                  value={staffName}
-                  onChange={(e) => setStaffName(e.target.value)}
-                  placeholder="e.g. Dr. Rajesh Sharma"
+                  value={editStaffName}
+                  onChange={(e) => setEditStaffName(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Email Address *</label>
-                <input
-                  type="email"
-                  required
-                  value={staffEmail}
-                  onChange={(e) => setStaffEmail(e.target.value)}
-                  placeholder="rajesh@college.edu"
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white"
-                />
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Staff Role</label>
+                <select
+                  value={editStaffRole}
+                  onChange={(e) => setEditStaffRole(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white"
+                >
+                  <option value="spoc">SPOC</option>
+                  <option value="college_admin">College Admin</option>
+                  <option value="admin">Platform Admin</option>
+                </select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Phone Number</label>
                 <input
                   type="text"
-                  value={staffPhone}
-                  onChange={(e) => setStaffPhone(e.target.value)}
-                  placeholder="Optional phone"
+                  value={editStaffPhone}
+                  onChange={(e) => setEditStaffPhone(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white"
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Temporary Initial Password *</label>
-                <input
-                  type="text"
-                  required
-                  value={staffPassword}
-                  onChange={(e) => setStaffPassword(e.target.value)}
-                  placeholder="e.g. TempPass@2026"
-                  minLength={6}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white font-mono"
-                />
-                <p className="text-[11px] text-indigo-600 dark:text-indigo-400 mt-1">
-                  🔒 The user will be automatically forced to change this password when they first log in.
-                </p>
               </div>
 
               <div className="pt-3 flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setStaffModalCollege(null)}
+                  onClick={() => setEditingStaff(null)}
                   className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300"
                 >
-                  Close
+                  Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={staffSaving}
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 disabled:opacity-60"
+                  disabled={editStaffSaving}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md disabled:opacity-60"
                 >
-                  {staffSaving ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
-                  Create & Handoff
+                  {editStaffSaving ? <Loader2 size={14} className="animate-spin" /> : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit College Domain & Settings Modal */}
+      {settingsModalCollege && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setSettingsModalCollege(null)}
+              className="absolute top-6 right-6 p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <X size={18} />
+            </button>
+
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Institutional Domain &amp; Settings</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">{settingsModalCollege.name}</p>
+
+            <form onSubmit={handleSaveCollegeSettings} className="space-y-4">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Domain Matching Strategy
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={settingsForm.hasCustomDomain}
+                    onChange={(e) => setSettingsForm(prev => ({ ...prev, hasCustomDomain: e.target.checked }))}
+                    className="rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>Enforce Official Custom Domain for this institution</span>
+                </label>
+
+                {settingsForm.hasCustomDomain && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Official Domain</label>
+                    <input
+                      type="text"
+                      value={settingsForm.domain}
+                      onChange={(e) => setSettingsForm(prev => ({ ...prev, domain: e.target.value }))}
+                      placeholder="e.g. bbdit.edu.in"
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white font-mono"
+                    />
+                  </div>
+                )}
+
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={settingsForm.allowGenericEmails}
+                    onChange={(e) => setSettingsForm(prev => ({ ...prev, allowGenericEmails: e.target.checked }))}
+                    className="rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>Allow standard generic emails (Gmail, Yahoo, etc.) with OTP</span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">Short Name</label>
+                  <input
+                    type="text"
+                    value={settingsForm.shortName}
+                    onChange={(e) => setSettingsForm(prev => ({ ...prev, shortName: e.target.value }))}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">AISHE Code</label>
+                  <input
+                    type="text"
+                    value={settingsForm.aisheCode}
+                    onChange={(e) => setSettingsForm(prev => ({ ...prev, aisheCode: e.target.value }))}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Website URL</label>
+                <input
+                  type="url"
+                  value={settingsForm.website}
+                  onChange={(e) => setSettingsForm(prev => ({ ...prev, website: e.target.value }))}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">City</label>
+                  <input
+                    type="text"
+                    value={settingsForm.city}
+                    onChange={(e) => setSettingsForm(prev => ({ ...prev, city: e.target.value }))}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">State</label>
+                  <input
+                    type="text"
+                    value={settingsForm.state}
+                    onChange={(e) => setSettingsForm(prev => ({ ...prev, state: e.target.value }))}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSettingsModalCollege(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={settingsSaving}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md disabled:opacity-60"
+                >
+                  {settingsSaving ? <Loader2 size={14} className="animate-spin" /> : 'Save Settings'}
                 </button>
               </div>
             </form>

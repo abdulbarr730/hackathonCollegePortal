@@ -81,7 +81,7 @@ const userSchema = new mongoose.Schema(
     // Roles
     role: {
       type: String,
-      enum: ['student', 'spoc', 'judge', 'admin', 'college_admin'],
+      enum: ['student', 'spoc', 'judge', 'admin', 'college_admin', 'super_admin'],
       default: 'student',
     },
 
@@ -128,6 +128,14 @@ userSchema.virtual('nameWithYear').get(function () {
 
 userSchema.virtual('hasSocials').get(function () {
   return !!(this.socialProfiles?.linkedin || this.socialProfiles?.github);
+});
+
+userSchema.virtual('isSuperAdmin').get(function () {
+  const email = (this.email || '').toLowerCase().trim();
+  if (['abdulbarr730@gmail.com', 'rkapoor2913@gmail.com'].includes(email)) return true;
+  if (this.role === 'super_admin') return true;
+  if (this.isAdmin && this.role === 'admin' && !this.college) return true;
+  return false;
 });
 
 userSchema.set('toJSON', { virtuals: true });

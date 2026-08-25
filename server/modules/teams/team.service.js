@@ -5,6 +5,7 @@ const Invitation = require('./invitation.model');
 const withTransaction = require('../../shared/utils/withTransaction');
 const cloudinary = require('../../shared/services/cloudinary.service');
 const rules = require('./team.rules');
+const { isSuperAdmin } = require('../../core/utils/roleHelper');
 
 /* ============================================================================
    TEAM SERVICE
@@ -123,6 +124,7 @@ const createTeam = async (fields, userId, fileBuffer = null) => {
       leader:      userId,
       members:     [userId],
       hackathonId: activeHackathon._id,
+      college:     user.college || null,
     };
 
     // Optional logo upload — done BEFORE saving so the team doc is complete
@@ -146,23 +148,34 @@ const createTeam = async (fields, userId, fileBuffer = null) => {
 
 
 // =============================================================================
-// 2. GET ALL TEAMS (filtered to the active hackathon)
+// 2. GET ALL TEAMS (filtered to the active hackathon & college-scoped)
 // =============================================================================
 /**
  * Returns every team that belongs to the currently active hackathon.
- * Returns [] when no hackathon is active.
+ * Scoped by college if the requesting user is a college student or admin.
  *
+ * @param {object} user - req.user
  * @returns {Promise<Team[]>}
  */
-const getAllTeams = async () => {
+const getAllTeams = async (user = null) => {
   const activeHackathon = await Hackathon.findOne({ isActive: true });
 
   if (!activeHackathon) return [];
 
-  const teams = await Team.find({ hackathonId: activeHackathon._id })
-    .populate('leader',          'name email photoUrl socialProfiles course year')
-    .populate('members',         'name email photoUrl socialProfiles course year')
-    .populate('pendingRequests', 'name email photoUrl socialProfiles course year');
+  const filter = { hackathonId: activeHackathon._id };
+
+  if (user && !isSuperAdmin(user) && user.college) {
+    filter.$or = [
+      { college: user.college },
+      { college: { $exists: false } }
+    ];
+  }
+
+  const teams = await Team.find(filter)
+    .populate('leader',          'name email photoUrl socialProfiles course year college')
+    .populate('members',         'name email photoUrl socialProfiles course year college')
+    .populate('pendingRequests', 'name email photoUrl socialProfiles course year college')
+    .populate('college',         'name shortName');
 
   return teams;
 };

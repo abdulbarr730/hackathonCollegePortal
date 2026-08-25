@@ -26,6 +26,22 @@ const collegeSchema = new mongoose.Schema({
     trim: true
   },
 
+  hasCustomDomain: {
+    type: Boolean,
+    default: false
+  },
+
+  allowGenericEmails: {
+    type: Boolean,
+    default: true
+  },
+
+  allowedDomains: [{
+    type: String,
+    trim: true,
+    lowercase: true
+  }],
+
   logoUrl: {
     type: String
   },
@@ -185,7 +201,18 @@ const collegeSchema = new mongoose.Schema({
   adminUser: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }
+  },
+
+  staff: [{
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    name: { type: String, trim: true },
+    email: { type: String, lowercase: true, trim: true },
+    role: { type: String, enum: ['spoc', 'college_admin', 'admin', 'judge'], default: 'spoc' },
+    phone: { type: String, trim: true },
+    isVerified: { type: Boolean, default: false },
+    invitedAt: { type: Date, default: Date.now },
+    verifiedAt: { type: Date }
+  }]
 
 }, {
   timestamps: true

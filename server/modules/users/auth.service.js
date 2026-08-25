@@ -511,3 +511,126 @@ exports.resetPassword = async (rawToken, password) => {
 
   return { msg: 'Password has been reset successfully.' };
 };
+
+// =============================================================================
+// 7. REQUEST EMAIL CHANGE (with OTP)
+// =============================================================================
+exports.requestEmailChange = async ({ userId, newEmail }) => {
+  if (!newEmail || !newEmail.includes('@')) {
+    throw new Error('Valid email address is required.');
+  }
+
+  const normalizedEmail = newEmail.toLowerCase().trim();
+
+  // Check if email is already used by another account
+  const existing = await User.findOne({ email: normalizedEmail });
+  if (existing) {
+    if (String(existing._id) === String(userId)) {
+      throw new Error('This is already your current registered email address.');
+    }
+    throw new Error('This email address is already registered to another account.');
+  }
+
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  await Otp.findOneAndUpdate(
+    { email: normalizedEmail },
+    { otp, createdAt: Date.now() },
+    { upsert: true, new: true }
+  );
+
+  const user = await User.findById(userId);
+
+  await sendMail({
+    to: normalizedEmail,
+    subject: 'Confirm your email change verification code',
+    html: `<!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+      <body style="margin:0;padding:0;background:#f8f8fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8fb;padding:40px 16px;">
+          <tr><td align="center">
+            <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;border:1px solid #e4e4ed;overflow:hidden;">
+              <tr>
+                <td style="background:#4f46e5;padding:32px 40px;text-align:center;">
+                  <div style="color:#fff;font-size:22px;font-weight:700;margin:0;">Email Change Verification</div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:36px 40px;text-align:center;">
+                  <p style="color:#4a4a6a;font-size:15px;margin:0 0 20px;">
+                    Hi <strong>\${user ? user.name : 'there'}</strong>, you requested to update your account email to <strong>\${normalizedEmail}</strong>.
+                  </p>
+                  <div style="background:#f4f4ff;border:2px dashed #4f46e5;border-radius:12px;padding:20px;display:inline-block;margin-bottom:20px;">
+                    <div style="color:#4f46e5;font-size:36px;font-weight:800;letter-spacing:10px;font-family:'Courier New',monospace;">\${otp}</div>
+                  </div>
+                  <p style="color:#71717a;font-size:13px;margin:0;">
+                    This code is valid for 10 minutes. If you did not make this request, please ignore this email.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td></tr>
+        </table>
+      </body>
+      </html>`
+  });
+
+  return {
+    msg: 'Verification OTP sent to your new email address.',
+    email: normalizedEmail
+  };
+};
+
+// =============================================================================
+// 8. VERIFY EMAIL CHANGE (with OTP)
+// =============================================================================
+exports.verifyEmailChange = async ({ userId, newEmail, otp }) => {
+  if (!newEmail || !otp) {
+    throw new Error('New email address and OTP code are required.');
+  }
+
+  const normalizedEmail = newEmail.toLowerCase().trim();
+
+  const validOtp = await Otp.findOne({ email: normalizedEmail, otp });
+  if (!validOtp) {
+    throw new Error('Invalid or expired verification OTP code.');
+  }
+
+  // Check again for collision
+  const existing = await User.findOne({ email: normalizedEmail });
+  if (existing && String(existing._id) !== String(userId)) {
+    throw new Error('This email address was claimed by another account.');
+  }
+
+  await Otp.deleteOne({ _id: validOtp._id });
+
+  const user = await User.findById(userId);
+  if (!user) throw new Error('User not found.');
+
+  user.email = normalizedEmail;
+  await user.save();
+
+  // Create fresh JWT token
+  const token = jwt.sign(
+    { user: { id: user.id, _id: user._id, email: user.email, name: user.name, role: user.role, isAdmin: user.isAdmin, college: user.college } },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+  return {
+    msg: 'Email address updated and verified successfully.',
+    user: {
+      id: user.id,
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      college: user.college,
+      isAdmin: user.isAdmin,
+      isVerified: user.isVerified
+    },
+    token
+  };
+};

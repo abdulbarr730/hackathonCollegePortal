@@ -309,18 +309,74 @@ export default function CollegeOnboardingPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-                    Official Domain (for Student Email Matching)
-                  </label>
-                  <input
-                    type="text"
-                    name="domain"
-                    value={formData.domain}
-                    onChange={handleChange}
-                    placeholder="e.g. bbditm.ac.in or bbdit.edu.in"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                  />
+                {/* Domain Selector */}
+                <div className="sm:col-span-2 p-5 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-1">
+                      Does your institution have an official email domain for students and faculty?
+                    </label>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      If your college provides email addresses like <code>@bbdit.edu.in</code>, select Yes. If students use personal emails like <code>@gmail.com</code>, select No.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <label className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                      formData.hasCustomDomain !== false
+                        ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-950 dark:text-indigo-200'
+                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="hasDomainToggle"
+                        checked={formData.hasCustomDomain !== false}
+                        onChange={() => setFormData(prev => ({ ...prev, hasCustomDomain: true, allowGenericEmails: false }))}
+                        className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="text-xs">
+                        <span className="font-bold block">Yes, we have an official domain</span>
+                        <span className="text-[11px] opacity-80">Students &amp; SPOC will register using official domain emails.</span>
+                      </div>
+                    </label>
+
+                    <label className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                      formData.hasCustomDomain === false
+                        ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-950 dark:text-indigo-200'
+                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="hasDomainToggle"
+                        checked={formData.hasCustomDomain === false}
+                        onChange={() => setFormData(prev => ({ ...prev, hasCustomDomain: false, allowGenericEmails: true, domain: '' }))}
+                        className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="text-xs">
+                        <span className="font-bold block">No, allow standard emails</span>
+                        <span className="text-[11px] opacity-80">Allows Gmail/Yahoo with mandatory OTP email validation.</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  {formData.hasCustomDomain !== false ? (
+                    <div className="pt-2">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">
+                        Official Domain Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="domain"
+                        value={formData.domain}
+                        onChange={handleChange}
+                        placeholder="e.g. bbditm.ac.in or bbdit.edu.in"
+                        className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs">
+                      ✓ Generic email registration enabled. All students and staff will be authenticated via real-time OTP codes and institution enrollment verification.
+                    </div>
+                  )}
                 </div>
 
                 <div className="sm:col-span-2">

@@ -1,22 +1,29 @@
 /*
 ===============================================================================
-ADMIN SERVICE LAYER (BUSINESS LOGIC CORE)
+ADMIN SERVICE LAYER
 ===============================================================================
 */
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { isSuperAdmin } = require('../../core/utils/roleHelper');
 
 const User = require('../users/user.model');
 const Team = require('../teams/team.model');
 const Idea = require('../ideas/idea.model');
-const AdminLog = require('./adminLog.model');
 const Hackathon = require('../hackathons/hackathon.model');
+const AdminLog = require('./adminLog.model');
+
 
 /* ================= AUTH ================= */
 exports.loginAdmin = async ({ email, password }) => {
-  const user = await User.findOne({ email }).populate('college', 'name shortName logoUrl');
+  if (!email || !password) {
+    const err = new Error('Please enter all fields');
+    err.status = 400;
+    throw err;
+  }
 
+  const user = await User.findOne({ email: String(email).toLowerCase() }).select('+password');
   if (!user || !user.isAdmin) {
     const err = new Error('Invalid credentials or not an admin');
     err.status = 400;
@@ -67,7 +74,17 @@ exports.loginAdmin = async ({ email, password }) => {
 
 
 /* ================= METRICS ================= */
-exports.getMetrics = async () => {
+exports.getMetrics = async (requester = null) => {
+  const userFilter = {};
+  const teamFilter = {};
+  const ideaFilter = {};
+
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    userFilter.college = requester.college;
+    teamFilter.$or = [{ college: requester.college }, { college: { $exists: false } }];
+    ideaFilter.$or = [{ college: requester.college }, { college: { $exists: false } }];
+  }
+
   const [
     totalUsers,
     verifiedUsers,
@@ -76,15 +93,17 @@ exports.getMetrics = async () => {
     approvedIdeas,
     rejectedIdeas,
   ] = await Promise.all([
-    User.countDocuments(),
-    User.countDocuments({ isVerified: true }),
-    Team.countDocuments(),
-    Idea.countDocuments({ status: 'pending' }),
-    Idea.countDocuments({ status: 'approved' }),
-    Idea.countDocuments({ status: 'rejected' }),
+    User.countDocuments(userFilter),
+    User.countDocuments({ ...userFilter, isVerified: true }),
+    Team.countDocuments(teamFilter),
+    Idea.countDocuments({ ...ideaFilter, status: 'pending' }),
+    Idea.countDocuments({ ...ideaFilter, status: 'approved' }),
+    Idea.countDocuments({ ...ideaFilter, status: 'rejected' }),
   ]);
 
+  const matchStage = teamFilter.$or ? { $match: teamFilter } : { $match: {} };
   const pendingJoinAgg = await Team.aggregate([
+    matchStage,
     { $project: { count: { $size: { $ifNull: ['$pendingRequests', []] } } } },
     { $group: { _id: null, total: { $sum: '$count' } } },
   ]);
@@ -104,9 +123,13 @@ exports.getMetrics = async () => {
 
 
 /* ================= IDEAS ================= */
-exports.listIdeas = async (query) => {
+exports.listIdeas = async (query, requester = null) => {
   const { page = 1, limit = 20, sort = '-createdAt', status } = query;
   const filters = {};
+
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    filters.$or = [{ college: requester.college }, { college: { $exists: false } }];
+  }
 
   if (status && ['pending', 'approved', 'rejected'].includes(status)) {
     filters.status = status;
@@ -153,9 +176,15 @@ exports.deleteIdea = async (id, adminId) => {
 
 
 /* ================= USERS ================= */
-exports.listUsers = async (query) => {
+exports.listUsers = async (query, requester = null) => {
   const { q = '', verified, admin, role, teamId, collegeId, page = 1, limit = 15, sort = '-createdAt' } = query;
   const filters = {};
+
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    filters.college = requester.college;
+  } else if (collegeId && collegeId !== 'all') {
+    filters.college = collegeId;
+  }
 
   if (q) {
     filters.$or = [
@@ -168,7 +197,6 @@ exports.listUsers = async (query) => {
   if (typeof verified !== 'undefined') filters.isVerified = verified === 'true';
   if (typeof admin !== 'undefined') filters.isAdmin = admin === 'true';
   if (role) filters.role = role;
-  if (collegeId && collegeId !== 'all') filters.college = collegeId;
 
   if (teamId) {
     const team = await Team.findById(teamId).select('members').lean();
@@ -202,20 +230,25 @@ exports.listUsers = async (query) => {
   };
 };
 
-exports.buildTeamFilters = async (query = {}) => {
+exports.buildTeamFilters = async (query = {}, requester = null) => {
   const { q = '', hackathonId, collegeId, submitted, winner } = query;
   const filters = {};
+
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    filters.$or = [
+      { college: requester.college },
+      { college: { $exists: false } }
+    ];
+  } else if (collegeId && collegeId !== 'all') {
+    const hackathons = await Hackathon.find({ college: collegeId }).select('_id').lean();
+    filters.hackathonId = { $in: hackathons.map((h) => h._id) };
+  }
 
   if (q) filters.teamName = new RegExp(q, 'i');
   if (hackathonId && hackathonId !== 'all') filters.hackathonId = hackathonId;
   if (submitted === 'true') filters.isSubmitted = true;
   if (submitted === 'false') filters.isSubmitted = false;
   if (winner === 'true') filters.isWinner = true;
-
-  if (collegeId && collegeId !== 'all') {
-    const hackathons = await Hackathon.find({ college: collegeId }).select('_id').lean();
-    filters.hackathonId = { $in: hackathons.map((h) => h._id) };
-  }
 
   return filters;
 };
@@ -224,7 +257,7 @@ exports.updateUser = async (id, body, adminId) => {
   const user = await User.findById(id);
   if (!user) throw new Error('User not found');
 
-  const { isVerified, isAdmin, role, password } = body;
+  const { isVerified, isAdmin, role, password, college } = body;
 
   if (password) {
     const salt = await bcrypt.genSalt(10);
@@ -234,6 +267,7 @@ exports.updateUser = async (id, body, adminId) => {
   if (typeof isVerified !== 'undefined') user.isVerified = isVerified;
   if (typeof isAdmin !== 'undefined') user.isAdmin = isAdmin;
   if (role) user.role = role;
+  if (college) user.college = college;
 
   await user.save();
 
