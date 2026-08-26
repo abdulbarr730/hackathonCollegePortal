@@ -1,17 +1,40 @@
 const emailService = require('./email.service');
 const User = require('../../modules/users/user.model');
+const Team = require('../../modules/teams/team.model');
 
 async function notifyUsersNewUpdates(inserted = []) {
   if (!Array.isArray(inserted) || inserted.length === 0) return;
 
   try {
-    // 1. Fetch all registered users (students, team members, team leaders, spocs)
+    // 1. Fetch all registered users
     const users = await User.find({
-      isVerified: true,
       email: { $exists: true, $ne: '' }
-    }).select('email name').lean();
+    }).select('email name isVerified').lean();
 
-    const emails = [...new Set(users.map(u => u.email.toLowerCase().trim()).filter(Boolean))];
+    // 2. Fetch all team leaders and members
+    const teams = await Team.find()
+      .populate('leader', 'email name')
+      .populate('members', 'email name')
+      .lean();
+
+    const recipientSet = new Set();
+
+    // Add all registered users
+    users.forEach(u => {
+      if (u.email) recipientSet.add(u.email.toLowerCase().trim());
+    });
+
+    // Explicitly add all team leaders and squad members
+    teams.forEach(t => {
+      if (t.leader?.email) recipientSet.add(t.leader.email.toLowerCase().trim());
+      if (Array.isArray(t.members)) {
+        t.members.forEach(m => {
+          if (m?.email) recipientSet.add(m.email.toLowerCase().trim());
+        });
+      }
+    });
+
+    const emails = Array.from(recipientSet).filter(Boolean);
     if (emails.length === 0) return;
 
     const latest = inserted[0];
