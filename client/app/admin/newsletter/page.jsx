@@ -5,6 +5,10 @@ import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
   Mail, 
+  Eye, 
+  Edit3, 
+  Globe, 
+  Phone, 
   Send, 
   Users, 
   Trash2, 
@@ -74,6 +78,7 @@ export default function AdminNewsletterPage() {
   const [broadcasting, setBroadcasting] = useState(false);
   const [broadcastResult, setBroadcastResult] = useState(null);
   const [broadcastError, setBroadcastError] = useState('');
+  const [composerView, setComposerView] = useState('compose'); // 'compose' | 'preview'
 
   // Fetch initial data
   const fetchData = useCallback(async () => {
@@ -343,11 +348,34 @@ export default function AdminNewsletterPage() {
         <div className="lg:col-span-7 space-y-6">
           <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-xl space-y-6">
             
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <Send className="text-indigo-600 dark:text-indigo-400 h-5 w-5" />
-                Compose Official Broadcast
-              </h2>
+            <div className="flex items-center justify-between flex-wrap gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800 flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setComposerView('compose')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      composerView === 'compose'
+                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Edit3 size={13} /> Compose Editor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setComposerView('preview')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      composerView === 'preview'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Eye size={13} /> 👁️ Live Email Preview
+                  </button>
+                </div>
+              </div>
+
               <span className="text-xs px-3.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 font-black">
                 {selectedEmails.size} Recipients Targeted
               </span>
@@ -373,7 +401,116 @@ export default function AdminNewsletterPage() {
               </div>
             )}
 
-            <form onSubmit={handleBroadcast} className="space-y-5">
+            {composerView === 'preview' ? (
+              <div className="space-y-6">
+                <div className="p-1 sm:p-4 rounded-3xl bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800">
+                  {/* Outer Email Frame */}
+                  <div className="max-w-[560px] mx-auto bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xl text-slate-800 dark:text-slate-100 font-sans">
+                    
+                    {/* Brand Logo Header */}
+                    <div className="mb-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-4">
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src="/campxcode-logo.png" 
+                          alt="CampXCode Logo" 
+                          className="h-12 w-auto object-contain rounded-lg shadow-sm"
+                          onError={(e) => {
+                            // Fallback if local path not yet hydrated
+                            e.target.src = 'https://www.campxcode.in/campxcode-logo.png';
+                          }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900">
+                        Official Broadcast
+                      </span>
+                    </div>
+
+                    {/* Email Subject */}
+                    <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white mb-4 leading-snug">
+                      {subject.trim() || 'Subject: [Important] Hackathon Notification & Guidelines'}
+                    </h1>
+
+                    {/* Email Body Content */}
+                    <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed space-y-3 whitespace-pre-line bg-slate-50/50 dark:bg-slate-800/30 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 mb-6">
+                      {content.trim() || 'Your broadcast body message, announcements, timelines, or submission details will appear here with rich formatting...'}
+                    </div>
+
+                    {/* CTA Button */}
+                    <div className="mb-8">
+                      <a 
+                        href="https://campxcode.in" 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="inline-block px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/20 text-center"
+                      >
+                        Open Hackathon Portal &rarr;
+                      </a>
+                    </div>
+
+                    {/* Founder Executive Signature */}
+                    <div className="pt-5 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex items-start gap-4">
+                        <img 
+                          src="/campxcode-logo.png" 
+                          alt="CampXCode" 
+                          className="h-10 w-10 object-contain rounded-xl bg-slate-50 dark:bg-slate-800 p-1 border border-slate-200 dark:border-slate-700 shrink-0"
+                        />
+                        <div className="min-w-0 space-y-1">
+                          <p className="text-sm font-black text-slate-900 dark:text-white leading-none">Abdul Barr</p>
+                          <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">Founder &amp; Lead Architect • CampXCode</p>
+                          
+                          <div className="pt-1 text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <a href="https://campxcode.in" target="_blank" rel="noreferrer" className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center gap-1">
+                              🌐 campxcode.in
+                            </a>
+                            <span>•</span>
+                            <a href="https://abdulbarr.in" target="_blank" rel="noreferrer" className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center gap-1">
+                              💼 abdulbarr.in
+                            </a>
+                          </div>
+
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <a href="mailto:hello@abdulbarr.in" className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">
+                              ✉️ hello@abdulbarr.in
+                            </a>
+                            <span>•</span>
+                            <a href="tel:+917479934706" className="text-slate-700 dark:text-slate-300 font-bold hover:underline">
+                              📞 +91 7479934706
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer disclaimer */}
+                    <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/60 text-[10px] text-slate-400 dark:text-slate-500 text-center leading-relaxed">
+                      You are receiving this official communication as a verified participant, team leader, or subscriber on CampXCode.<br/>
+                      &copy; {new Date().getFullYear()} CampXCode Hackathon Portal. All rights reserved.
+                    </div>
+
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setComposerView('compose')}
+                    className="flex-1 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 font-bold text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition text-center"
+                  >
+                    &larr; Back to Editor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBroadcast}
+                    disabled={broadcasting || selectedEmails.size === 0 || !subject.trim() || !content.trim()}
+                    className="flex-1 flex items-center justify-center gap-2 p-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/20 transition disabled:opacity-50"
+                  >
+                    <Send size={14} /> Send Broadcast to {selectedEmails.size} Recipients
+                  </button>
+                </div>
+              </div>
+            ) : (
+<form onSubmit={handleBroadcast} className="space-y-5">
               
               {/* 1. Delivery Engine Provider Selector */}
               <div>
@@ -523,6 +660,7 @@ export default function AdminNewsletterPage() {
               </button>
 
             </form>
+            )}
 
           </div>
 

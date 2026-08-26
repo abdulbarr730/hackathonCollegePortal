@@ -200,7 +200,8 @@ async function sendNewsletterVerification({ email, token, clientUrl, from = getC
 async function sendBroadcastEmail({ to, subject, content, clientUrl, from = getContextualSender('newsletter'), provider = 'auto' }) {
   const formattedContent = String(content).replace(/\n/g, '<br/>');
   const baseUrl = getFrontendUrl(null, clientUrl);
-  const portalLink = baseUrl;
+  const portalLink = baseUrl || 'https://www.campxcode.in';
+  const logoUrl = 'https://www.campxcode.in/campxcode-logo.png';
 
   const html = `
     <!DOCTYPE html>
@@ -210,25 +211,51 @@ async function sendBroadcastEmail({ to, subject, content, clientUrl, from = getC
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 40px 16px; }
-        .container { max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0; padding: 36px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-        .badge { display: inline-block; background-color: #eef2ff; color: #4f46e5; font-size: 11px; font-weight: 800; padding: 5px 14px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 20px; border: 1px solid #e0e7ff; }
-        h1 { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 18px 0; line-height: 1.3; }
-        .content { font-size: 14px; line-height: 1.7; color: #334155; margin-bottom: 28px; }
-        .btn { display: inline-block; background-color: #0f172a; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 28px; border-radius: 12px; }
-        .footer { font-size: 11px; color: #94a3b8; margin-top: 32px; border-top: 1px solid #f1f5f9; padding-top: 18px; line-height: 1.5; }
+        .container { max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; border: 1px solid #e2e8f0; padding: 36px; box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05); }
+        .badge { display: inline-block; background-color: #eef2ff; color: #4f46e5; font-size: 11px; font-weight: 800; padding: 5px 14px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 18px; border: 1px solid #e0e7ff; }
+        h1 { font-size: 21px; font-weight: 800; color: #0f172a; margin: 0 0 18px 0; line-height: 1.35; }
+        .content { font-size: 14px; line-height: 1.75; color: #334155; margin-bottom: 26px; }
+        .btn { display: inline-block; background-color: #4f46e5; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 13px 30px; border-radius: 12px; }
+        .signature-box { margin-top: 32px; padding-top: 22px; border-top: 1px solid #f1f5f9; }
+        .footer { font-size: 11px; color: #94a3b8; margin-top: 24px; border-top: 1px solid #f8fafc; padding-top: 14px; line-height: 1.5; }
       </style>
     </head>
     <body>
       <div class="container">
-        <div class="badge">Official Hackathon Bulletin</div>
+        <!-- Brand Logo -->
+        <div style="margin-bottom: 20px;">
+          <img src="${logoUrl}" alt="CampXCode" style="height: 48px; width: auto; display: block; border-radius: 8px;" />
+        </div>
+
+        <div class="badge">Official Hackathon Broadcast</div>
         <h1>${subject}</h1>
         <div class="content">${formattedContent}</div>
+        
         <div style="text-align: left; margin: 24px 0;">
           <a href="${portalLink}" class="btn" target="_blank">Open Hackathon Portal &rarr;</a>
         </div>
+
+        <!-- Founder & Brand Signature -->
+        <div class="signature-box">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="vertical-align: top;">
+                <p style="margin: 0; font-size: 15px; font-weight: 800; color: #0f172a;">Abdul Barr</p>
+                <p style="margin: 2px 0 8px 0; font-size: 12px; font-weight: 700; color: #4f46e5;">Founder &amp; Lead Architect • CampXCode</p>
+                <div style="font-size: 12px; color: #64748b; line-height: 1.6;">
+                  <span>🌐 <a href="https://campxcode.in" target="_blank" style="color: #4f46e5; text-decoration: none; font-weight: 600;">campxcode.in</a></span> &bull; 
+                  <span>💼 <a href="https://abdulbarr.in" target="_blank" style="color: #4f46e5; text-decoration: none; font-weight: 600;">abdulbarr.in</a></span><br/>
+                  <span>✉️ <a href="mailto:hello@abdulbarr.in" style="color: #4f46e5; text-decoration: none; font-weight: 600;">hello@abdulbarr.in</a></span> &bull; 
+                  <span>📞 <a href="tel:+917479934706" style="color: #0f172a; text-decoration: none; font-weight: 600;">+91 7479934706</a></span>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </div>
+
         <div class="footer">
-          You are receiving this official communication as a registered participant or subscriber of the Campus Hackathon Portal.<br/>
-          &copy; ${new Date().getFullYear()} Campus Hackathon Portal. All rights reserved.
+          You are receiving this official communication as a verified participant, team leader, or subscriber on CampXCode.<br/>
+          &copy; ${new Date().getFullYear()} CampXCode Hackathon Portal. All rights reserved.
         </div>
       </div>
     </body>
