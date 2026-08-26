@@ -1,6 +1,7 @@
 const discordService = require('../../shared/services/discord.service');
 const { Subscriber, Campaign, EmailLog } = require('./newsletter.model');
 const User = require('../users/user.model');
+require('../colleges/college.model');
 const ApiError = require('../../core/utils/ApiError');
 const crypto = require('crypto');
 const emailService = require('../../shared/services/email.service');
@@ -139,7 +140,7 @@ exports.getSubscribers = async (query = {}) => {
   const totalSubscribers = await Subscriber.countDocuments();
 
   // All Registered Portal Users for granular recipient selection
-  const registeredUsers = await User.find({}, 'name email role isVerified collegeName rollNumber team')
+  const registeredUsers = await User.find({}, 'name email role isVerified collegeName rollNumber team college')
     .populate('college', 'name shortName')
     .sort({ name: 1 });
 
