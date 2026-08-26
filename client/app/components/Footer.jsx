@@ -28,7 +28,7 @@ export default function Footer() {
       const res = await fetch('/api/newsletter/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, clientUrl: typeof window !== 'undefined' ? window.location.origin : 'https://www.campxcode.in' })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.msg || 'Subscription failed');

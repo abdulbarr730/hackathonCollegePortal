@@ -1,19 +1,22 @@
+const { getFrontendUrl } = require('../../core/utils/urlHelper');
 const newsletterService = require('./newsletter.service');
 const asyncHandler = require('../../core/utils/asyncHandler');
 
 exports.subscribe = asyncHandler(async (req, res) => {
-  const clientUrl = req.protocol + '://' + req.get('host');
+  const clientUrl = getFrontendUrl(req, req.body.clientUrl);
   const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
   const result = await newsletterService.subscribe(
     req.body.email, 
-    req.body.clientUrl || clientUrl,
+    clientUrl,
     { acceptedIp: String(clientIp).split(',')[0].trim() }
   );
   res.status(201).json(result);
 });
 
 exports.verifySubscription = asyncHandler(async (req, res) => {
-  const result = await newsletterService.verifySubscription(req.query.token || req.body.token);
+  const token = req.query.token || req.body.token;
+  const email = req.query.email || req.body.email;
+  const result = await newsletterService.verifySubscription(token, email);
   res.json(result);
 });
 
@@ -23,7 +26,7 @@ exports.getSubscribers = asyncHandler(async (req, res) => {
 });
 
 exports.sendNewsletter = asyncHandler(async (req, res) => {
-  const clientUrl = req.protocol + '://' + req.get('host');
+  const clientUrl = getFrontendUrl(req, req.body.clientUrl);
   const result = await newsletterService.sendNewsletter({
     subject: req.body.subject,
     content: req.body.content,
@@ -31,7 +34,7 @@ exports.sendNewsletter = asyncHandler(async (req, res) => {
     mode: req.body.mode,
     targetAudience: req.body.targetAudience,
     user: req.user,
-    clientUrl: req.body.clientUrl || clientUrl
+    clientUrl
   });
   res.status(201).json(result);
 });

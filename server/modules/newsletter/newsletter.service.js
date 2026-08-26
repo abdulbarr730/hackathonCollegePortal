@@ -80,16 +80,32 @@ exports.subscribe = async (email, clientUrl, metadata = {}) => {
 // ---------------------------------------------------------------------------
 // 2. VERIFY SUBSCRIPTION
 // ---------------------------------------------------------------------------
-exports.verifySubscription = async (token) => {
-  if (!token) throw new ApiError(400, 'Verification token is required');
+exports.verifySubscription = async (token, email = null) => {
+  if (!token && !email) throw new ApiError(400, 'Verification token is required');
 
-  const sub = await Subscriber.findOne({
-    verificationToken: token,
-    verificationTokenExpires: { $gt: new Date() }
-  });
+  let sub = null;
+  if (token) {
+    sub = await Subscriber.findOne({
+      verificationToken: token,
+      verificationTokenExpires: { $gt: new Date() }
+    });
+  }
+
+  // Gracefully handle already-subscribed case (e.g. link re-click or prefetching)
+  if (!sub && email) {
+    const cleanEmail = String(email).toLowerCase().trim();
+    const existing = await Subscriber.findOne({ email: cleanEmail });
+    if (existing && existing.status === 'subscribed') {
+      return {
+        msg: '🎉 Your newsletter subscription is already confirmed and active!',
+        email: cleanEmail,
+        alreadyVerified: true
+      };
+    }
+  }
 
   if (!sub) {
-    throw new ApiError(400, 'Invalid or expired verification token');
+    throw new ApiError(400, 'Invalid or expired verification token. If you already verified, your subscription is active.');
   }
 
   sub.status = 'subscribed';

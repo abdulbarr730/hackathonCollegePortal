@@ -1,3 +1,4 @@
+const { getFrontendUrl } = require('../../core/utils/urlHelper');
 const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY || 'dummy_key');
@@ -51,7 +52,8 @@ async function sendMail({ to, subject, html, text, from = DEFAULT_FROM }) {
 // NEWSLETTER VERIFICATION EMAIL TEMPLATE (LIGHT THEME)
 // ---------------------------------------------------------------------------
 async function sendNewsletterVerification({ email, token, clientUrl }) {
-  const verifyLink = `${clientUrl || 'http://localhost:3000'}/verify-newsletter?token=${token}&email=${encodeURIComponent(email)}`;
+  const baseUrl = getFrontendUrl(null, clientUrl);
+  const verifyLink = `${baseUrl}/verify-newsletter?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
   
   const html = `
     <!DOCTYPE html>
@@ -106,7 +108,7 @@ async function sendNewsletterVerification({ email, token, clientUrl }) {
 // ---------------------------------------------------------------------------
 async function sendBroadcastEmail({ to, subject, content, clientUrl }) {
   const formattedContent = String(content).replace(/\n/g, '<br/>');
-  const portalLink = clientUrl || 'http://localhost:3000';
+  const portalLink = getFrontendUrl(null, clientUrl);
 
   const html = `
     <!DOCTYPE html>
