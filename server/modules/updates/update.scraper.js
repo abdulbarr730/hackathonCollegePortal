@@ -4,26 +4,73 @@ const Update = require('./update.model');
 const Hackathon = require('../hackathons/hackathon.model');
 const { notifyUsersNewUpdates } = require('../../shared/services/updateNotifications.service');
 
+const IGNORE_PATTERNS = [
+  /abhay jere/i,
+  /rajive kumar/i,
+  /narendra modi/i,
+  /dharmendra pradhan/i,
+  /pralhad joshi/i,
+  /sourabh nirmale/i,
+  /sarim moin/i,
+  /ankush sharma/i,
+  /pradeep dhage/i,
+  /contact us/i,
+  /mailto:/i,
+  /member secretary/i,
+  /cio,mic/i,
+  /minister of/i,
+  /prime minister/i,
+  /innovative solutions/i,
+  /recognition and visibility/i,
+  /out-of-the-box solutions/i,
+  /innovation movement/i,
+  /about sih/i,
+  /past hackathons/i,
+  /vision & mission/i,
+  /hon'ble/i
+];
+
+const VALID_ANNOUNCEMENT_KEYWORDS = [
+  'guideline',
+  'guidelines',
+  'circular',
+  'notification',
+  'problem statement',
+  'deadline',
+  'submission',
+  'nomination',
+  'announcement',
+  'result',
+  'registration',
+  'schedule',
+  'timeline',
+  'spoc',
+  'process flow',
+  'internal hackathon',
+  'extension',
+  'shortlist',
+  'evaluation',
+  'grand finale',
+  'hackathon 202'
+];
+
 /* ============================================================================
-   HIGH-RELIABILITY SIH SCRAPER (Native HTTP + Cheerio)
-   100% cloud-compatible, zero memory overhead, runs on Render without Puppeteer
+   HIGH-PRECISION SIH OFFICIAL SCRAPER
+   Extracts ONLY actual hackathon circulars, PDFs, guidelines, and announcements
 ============================================================================ */
 async function scrapeSIH() {
-  console.log('🔄 Starting high-reliability SIH updates scraper...');
+  console.log('🔄 Running precision SIH official announcements scraper...');
   const newInsertedUpdates = [];
 
   try {
-    // 1. Fetch active hackathon for association
     const activeHackathon = await Hackathon.findOne({ 
       $or: [{ isActive: true }, { name: /Smart India/i }, { shortName: /SIH/i }] 
     }).sort({ startDate: -1 });
 
-    // 2. Fetch official SIH homepage
     const res = await fetch('https://www.sih.gov.in/', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
         'Cache-Control': 'no-cache'
       },
       signal: AbortSignal.timeout(20000)
@@ -35,45 +82,42 @@ async function scrapeSIH() {
 
     const html = await res.text();
     const $ = cheerio.load(html);
-    const scrapedItems = [];
+    const candidateItems = [];
 
-    // Extract marquee and notification links (PDFs, guidelines, deadlines)
-    $('marquee a, .marquee a, .notification a, .latest-update a, a[href*="pdf"], a[href*="letters"], a[href*="notification"]').each((i, el) => {
+    // Extract marquee, announcements, PDF circulars, and notice boards
+    $('marquee a, .marquee a, .notification a, .latest-update a, a[href*="pdf"], a[href*="letters"], a[href*="notification"], .col-md-6 a, .col-md-4 a, .card a').each((i, el) => {
       const text = $(el).text().trim().replace(/\s+/g, ' ');
       const href = $(el).attr('href');
 
-      if (text && text.length >= 8 && href && !href.startsWith('#') && !href.startsWith('javascript')) {
-        const fullUrl = href.startsWith('http') ? href : `https://www.sih.gov.in/${href.replace(/^\//, '')}`;
-        scrapedItems.push({
-          title: text,
-          url: fullUrl,
-          summary: `Official Smart India Hackathon announcement: ${text}`,
-          pinned: text.toLowerCase().includes('guideline') || text.toLowerCase().includes('important')
-        });
-      }
+      if (!text || text.length < 8 || text.length > 220) return;
+      if (!href || href.startsWith('#') || href.startsWith('javascript')) return;
+
+      // 1. Ignore people names, dignitaries, contact emails, and generic slogans
+      const isIgnored = IGNORE_PATTERNS.some(p => p.test(text) || p.test(href));
+      if (isIgnored) return;
+
+      // 2. Require genuine hackathon announcement keywords
+      const combined = `${text} ${href}`.toLowerCase();
+      const isValid = VALID_ANNOUNCEMENT_KEYWORDS.some(kw => combined.includes(kw));
+      if (!isValid) return;
+
+      const fullUrl = href.startsWith('http') ? href : `https://www.sih.gov.in/${href.replace(/^\//, '')}`;
+      const isPdf = fullUrl.toLowerCase().endsWith('.pdf');
+
+      candidateItems.push({
+        title: text,
+        url: fullUrl,
+        summary: isPdf 
+          ? `Official Smart India Hackathon document / circular: ${text}`
+          : `Official Smart India Hackathon portal announcement: ${text}`,
+        pinned: isPdf || text.toLowerCase().includes('guideline')
+      });
     });
 
-    // Extract card-based updates & banners
-    $('.col-md-6, .col-md-4, .card, .item, .news-item, .carousel-item').each((i, el) => {
-      const heading = $(el).find('h2, h3, h4, h5, strong').first().text().trim().replace(/\s+/g, ' ');
-      const desc = $(el).find('p, span').first().text().trim().replace(/\s+/g, ' ');
-      const link = $(el).find('a').attr('href');
-
-      if (heading && heading.length >= 10 && heading.length <= 250 && !heading.toLowerCase().includes('slide')) {
-        const fullUrl = link ? (link.startsWith('http') ? link : `https://www.sih.gov.in/${link.replace(/^\//, '')}`) : 'https://www.sih.gov.in';
-        scrapedItems.push({
-          title: heading,
-          summary: desc || `Official notification published on Smart India Hackathon portal.`,
-          url: fullUrl,
-          pinned: false
-        });
-      }
-    });
-
-    // Deduplicate extracted batch
+    // Deduplicate
     const uniqueBatch = [];
     const seen = new Set();
-    for (const item of scrapedItems) {
+    for (const item of candidateItems) {
       const key = item.title.toLowerCase().replace(/[^a-z0-9]/g, '');
       if (key && !seen.has(key)) {
         seen.add(key);
@@ -81,9 +125,9 @@ async function scrapeSIH() {
       }
     }
 
-    console.log(`🔍 Scraped ${uniqueBatch.length} candidate items from SIH portal`);
+    console.log(`🔍 Found ${uniqueBatch.length} genuine SIH hackathon announcements`);
 
-    // Insert new updates into MongoDB
+    // Insert only new records
     for (const item of uniqueBatch) {
       const hash = crypto
         .createHash('sha256')
@@ -108,27 +152,33 @@ async function scrapeSIH() {
         });
 
         newInsertedUpdates.push(newDoc);
-        console.log(`✅ New SIH Update Created: "${item.title}"`);
+        console.log(`✅ Saved Genuine SIH Update: "${item.title}"`);
       }
     }
 
-    // 3. If new updates were inserted, notify all registered students & team leaders
+    // Notify registered students & team leaders only if brand-new genuine updates arrived
     if (newInsertedUpdates.length > 0) {
-      console.log(`📧 Dispatching update email notification for ${newInsertedUpdates.length} new SIH updates...`);
+      console.log(`📧 Dispatching update email notification for ${newInsertedUpdates.length} new verified SIH updates...`);
       notifyUsersNewUpdates(newInsertedUpdates).catch(e => 
         console.error('Failed to notify users of new updates:', e.message)
       );
     }
 
+    const remainingTotal = await Update.countDocuments();
+
+    await mongoose.disconnect();
+
     return {
       success: true,
       scrapedCount: uniqueBatch.length,
       newUpdatesCount: newInsertedUpdates.length,
+      totalInDb: remainingTotal,
       newUpdates: newInsertedUpdates
     };
 
   } catch (err) {
     console.error('❌ SIH Scraper Error:', err.message);
+    if (mongoose.connection.readyState === 1) await mongoose.disconnect();
     return {
       success: false,
       error: err.message,
