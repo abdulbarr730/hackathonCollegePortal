@@ -18,6 +18,11 @@ const ideaSchema = new Schema({
     ref: 'User',
     required: true,
   },
+  college: {
+    type: Schema.Types.ObjectId,
+    ref: 'College',
+    index: true,
+  },
   // We can add upvotes or other features later
 }, {
   timestamps: true,

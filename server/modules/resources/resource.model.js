@@ -29,6 +29,7 @@ const resourceSchema = new mongoose.Schema(
     addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     rejectionReason: { type: String, default: '' },
+    college: { type: mongoose.Schema.Types.ObjectId, ref: 'College', index: true },
   },
   { timestamps: true }
 );
