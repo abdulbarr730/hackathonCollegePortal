@@ -140,7 +140,7 @@ exports.getSubscribers = async (query = {}) => {
   const totalSubscribers = await Subscriber.countDocuments();
 
   // All Registered Portal Users for granular recipient selection
-  const registeredUsers = await User.find({}, 'name email role isVerified collegeName rollNumber team college')
+  const registeredUsers = await User.find({}, 'name email role isVerified collegeName rollNumber team college year course phone')
     .populate('college', 'name shortName')
     .sort({ name: 1 });
 
@@ -183,9 +183,18 @@ exports.getSubscribers = async (query = {}) => {
 };
 
 // ---------------------------------------------------------------------------
-// 4. SEND BROADCAST / BULK EMAIL (Super Admin Only)
+// 4. SEND BROADCAST / BULK EMAIL WITH CHUNKED BATCHING & PROVIDER SELECTION
 // ---------------------------------------------------------------------------
-exports.sendNewsletter = async ({ subject, content, recipientEmails, mode = 'immediate', targetAudience = 'Custom Selection', user, clientUrl }) => {
+exports.sendNewsletter = async ({ 
+  subject, 
+  content, 
+  recipientEmails, 
+  mode = 'immediate', 
+  provider = 'auto',
+  targetAudience = 'Custom Selection', 
+  user, 
+  clientUrl 
+}) => {
   if (!subject?.trim() || !content?.trim()) {
     throw new ApiError(400, 'Subject and content are required for broadcast');
   }
@@ -206,34 +215,51 @@ exports.sendNewsletter = async ({ subject, content, recipientEmails, mode = 'imm
 
   let deliveredCount = 0;
   let failedCount = 0;
+  const BATCH_SIZE = 25; // Safe batch size per iteration
 
-  // Dispatch emails
-  for (const email of finalRecipients) {
-    try {
-      await emailService.sendBroadcastEmail({
-        to: email,
-        subject: subject.trim(),
-        content: content.trim(),
-        clientUrl: clientUrl || process.env.CLIENT_URL || 'http://localhost:3000'
-      });
+  // Process in chunks/batches to prevent timeouts and rate-limit drops
+  for (let i = 0; i < finalRecipients.length; i += BATCH_SIZE) {
+    const batch = finalRecipients.slice(i, i + BATCH_SIZE);
+    
+    const results = await Promise.allSettled(
+      batch.map(async (email) => {
+        try {
+          const res = await emailService.sendBroadcastEmail({
+            to: email,
+            subject: subject.trim(),
+            content: content.trim(),
+            clientUrl: clientUrl || process.env.CLIENT_URL || 'http://localhost:3000',
+            provider: provider || 'auto'
+          });
 
-      deliveredCount++;
-      await EmailLog.create({
-        recipient: email,
-        subject: subject.trim(),
-        type: 'broadcast',
-        status: 'delivered'
-      });
-    } catch (err) {
-      failedCount++;
-      console.error(`Broadcast failed for ${email}:`, err.message);
-      await EmailLog.create({
-        recipient: email,
-        subject: subject.trim(),
-        type: 'broadcast',
-        status: 'failed',
-        error: err.message
-      });
+          await EmailLog.create({
+            recipient: email,
+            subject: subject.trim(),
+            type: 'broadcast',
+            status: 'delivered'
+          });
+          return res;
+        } catch (err) {
+          await EmailLog.create({
+            recipient: email,
+            subject: subject.trim(),
+            type: 'broadcast',
+            status: 'failed',
+            error: err.message
+          });
+          throw err;
+        }
+      })
+    );
+
+    results.forEach((r) => {
+      if (r.status === 'fulfilled') deliveredCount++;
+      else failedCount++;
+    });
+
+    // Small delay between batches if there are more
+    if (i + BATCH_SIZE < finalRecipients.length) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
   }
 
@@ -252,9 +278,10 @@ exports.sendNewsletter = async ({ subject, content, recipientEmails, mode = 'imm
   });
 
   return {
-    msg: `Broadcast completed: ${deliveredCount} sent, ${failedCount} failed of ${finalRecipients.length} total recipients`,
+    msg: `Broadcast completed via ${provider.toUpperCase()}: ${deliveredCount} delivered, ${failedCount} failed of ${finalRecipients.length} total recipients`,
     deliveredCount,
     failedCount,
+    provider,
     campaign
   };
 };

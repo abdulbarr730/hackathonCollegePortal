@@ -26,67 +26,27 @@ const DEFAULT_FROM = getContextualSender('general');
 const FALLBACK_FROM = 'Hackathon Portal <onboarding@resend.dev>';
 
 /**
- * Dispatch via Zoho ZeptoMail REST API
+ * Main sendMail dispatcher supporting explicit provider selection:
+ * - 'zeptomail': Zoho ZeptoMail API
+ * - 'resend': Resend API
+ * - 'auto': ZeptoMail with Resend fallback
  */
-async function sendViaZeptoMail({ to, subject, html, text, from = DEFAULT_FROM }) {
-  const token = process.env.ZEPTOMAIL_TOKEN || process.env.ZEPTOMAIL_API_KEY;
-  if (!token) return false;
-
-  const url = process.env.ZEPTOMAIL_URL || 'https://api.zeptomail.in/v1.1/email';
-  
-  const fromAddress = from.includes('<') ? from.match(/<([^>]+)>/)[1] : from;
-  const fromName = from.includes('<') ? from.split('<')[0].trim() : 'CampXCode';
-
-  const body = {
-    from: { address: fromAddress, name: fromName },
-    to: [{ email_address: { address: to } }],
-    subject: subject,
-    htmlbody: html,
-    textbody: text || subject
-  };
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'Authorization': `Zoho-enczapikey ${token}`
-    },
-    body: JSON.stringify(body)
-  });
-
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.message || `ZeptoMail error HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-  return { success: true, id: data.data?.[0]?.message_id || 'zepto-' + Date.now() };
-}
-
-/**
- * Main sendMail dispatcher with automatic provider fallback (ZeptoMail -> Resend)
- */
-async function sendMail({ to, subject, html, text, from = DEFAULT_FROM }) {
+async function sendMail({ to, subject, html, text, from = DEFAULT_FROM, provider = 'auto' }) {
   if (!to) throw new Error('Missing recipient');
 
-  // Try ZeptoMail first if configured
-  if (process.env.ZEPTOMAIL_TOKEN || process.env.ZEPTOMAIL_API_KEY) {
-    try {
-      const result = await sendViaZeptoMail({ to, subject, html, text, from });
-      if (result) return result;
-    } catch (zeptoErr) {
-      console.warn('ZeptoMail dispatch attempt failed, falling back to Resend:', zeptoErr.message);
+  // 1. Explicit ZeptoMail Dispatch
+  if (provider === 'zeptomail') {
+    if (!process.env.ZEPTOMAIL_TOKEN && !process.env.ZEPTOMAIL_API_KEY) {
+      throw new Error('Zoho ZeptoMail API Token is not configured in environment variables.');
     }
+    return await sendViaZeptoMail({ to, subject, html, text, from });
   }
 
-  // Fallback to Resend
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('No email provider API key configured. Email logged to console:', { to, subject });
-    return { success: true, id: 'mock-id-' + Date.now() };
-  }
-
-  try {
+  // 2. Explicit Resend Dispatch
+  if (provider === 'resend') {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error('Resend API Key is not configured in environment variables.');
+    }
     const { data, error } = await resend.emails.send({
       from,
       to,
@@ -94,28 +54,51 @@ async function sendMail({ to, subject, html, text, from = DEFAULT_FROM }) {
       html,
       text,
     });
-
     if (error) {
       if (from !== FALLBACK_FROM && (error.message?.includes('domain') || error.message?.includes('from'))) {
-        console.warn(`Resend domain error with "${from}", attempting with fallback: "${FALLBACK_FROM}"`);
-        const fallbackRes = await resend.emails.send({
-          from: FALLBACK_FROM,
-          to,
-          subject,
-          html,
-          text
-        });
+        const fallbackRes = await resend.emails.send({ from: FALLBACK_FROM, to, subject, html, text });
         if (fallbackRes.error) throw new Error(fallbackRes.error.message);
-        return { success: true, id: fallbackRes.data?.id };
+        return { success: true, id: fallbackRes.data?.id, provider: 'resend' };
       }
       throw new Error(error.message);
     }
-
-    return { success: true, id: data?.id };
-  } catch (err) {
-    console.error('Failed to dispatch email via Resend:', err.message);
-    throw err;
+    return { success: true, id: data?.id, provider: 'resend' };
   }
+
+  // 3. Auto Failover (ZeptoMail -> Resend)
+  if (process.env.ZEPTOMAIL_TOKEN || process.env.ZEPTOMAIL_API_KEY) {
+    try {
+      const result = await sendViaZeptoMail({ to, subject, html, text, from });
+      if (result) return { ...result, provider: 'zeptomail' };
+    } catch (zeptoErr) {
+      console.warn('ZeptoMail dispatch attempt failed, falling back to Resend:', zeptoErr.message);
+    }
+  }
+
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('No email provider API key configured. Email logged to console:', { to, subject });
+    return { success: true, id: 'mock-id-' + Date.now(), provider: 'mock' };
+  }
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to,
+    subject,
+    html,
+    text,
+  });
+
+  if (error) {
+    if (from !== FALLBACK_FROM && (error.message?.includes('domain') || error.message?.includes('from'))) {
+      const fallbackRes = await resend.emails.send({ from: FALLBACK_FROM, to, subject, html, text });
+      if (fallbackRes.error) throw new Error(fallbackRes.error.message);
+      return { success: true, id: fallbackRes.data?.id, provider: 'resend' };
+    }
+    throw new Error(error.message);
+  }
+
+  return { success: true, id: data?.id, provider: 'resend' };
+}
 }
 
 // ---------------------------------------------------------------------------
@@ -176,7 +159,7 @@ async function sendNewsletterVerification({ email, token, clientUrl, from = getC
 // ---------------------------------------------------------------------------
 // 2. BROADCAST BULLETIN EMAIL TEMPLATE
 // ---------------------------------------------------------------------------
-async function sendBroadcastEmail({ to, subject, content, clientUrl, from = getContextualSender('newsletter') }) {
+async function sendBroadcastEmail({ to, subject, content, clientUrl, from = getContextualSender('newsletter'), provider = 'auto' }) {
   const formattedContent = String(content).replace(/\n/g, '<br/>');
   const baseUrl = getFrontendUrl(null, clientUrl);
   const portalLink = baseUrl;
@@ -218,7 +201,9 @@ async function sendBroadcastEmail({ to, subject, content, clientUrl, from = getC
     to,
     subject,
     html,
-    text: content
+    text: content,
+    from,
+    provider
   });
 }
 
