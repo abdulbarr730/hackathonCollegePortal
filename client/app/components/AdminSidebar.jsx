@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import { 
   Building2, FileText, LayoutGrid, Megaphone, Trophy, 
-  Users, Lightbulb, ShieldCheck, ArrowLeft, FileSpreadsheet, LogOut, Mail
+  Users, Lightbulb, Shield, ShieldCheck, ArrowLeft, FileSpreadsheet, LogOut, Mail
 } from 'lucide-react';
 
 export default function AdminSidebar() {
@@ -21,6 +21,7 @@ export default function AdminSidebar() {
   const getNavItems = () => {
     if (isSpoc) {
       return [
+        { href: '/admin/staff', label: 'SPOCs & Admins', icon: Shield },
         { href: '/admin/teams', label: 'College Teams', icon: Users },
         { href: '/admin/approved-students', label: 'Approved Students', icon: FileSpreadsheet },
         { href: '/admin/resources', label: 'Resources', icon: FileText },
@@ -31,6 +32,7 @@ export default function AdminSidebar() {
     if (isCollegeAdmin) {
       return [
         { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutGrid },
+        { href: '/admin/staff', label: 'SPOCs & Admins', icon: Shield },
         { href: '/admin/hackathons', label: 'Internal Hackathons', icon: Trophy },
         { href: '/admin/approved-students', label: 'Approved Students', icon: FileSpreadsheet },
         { href: '/admin/users', label: 'College Users', icon: Users },
@@ -45,6 +47,7 @@ export default function AdminSidebar() {
     return [
       { href: '/admin/dashboard', label: 'Super Dashboard', icon: LayoutGrid },
       { href: '/admin/colleges', label: 'Colleges Onboarding', icon: Building2 },
+      { href: '/admin/staff', label: 'SPOCs & Admins', icon: Shield },
       { href: '/admin/hackathons', label: 'All Hackathons', icon: Trophy },
       { href: '/admin/approved-students', label: 'Approved Students', icon: FileSpreadsheet },
       { href: '/admin/users', label: 'User Directory', icon: Users },

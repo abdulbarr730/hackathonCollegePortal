@@ -125,3 +125,18 @@ exports.requestCollegeOnboarding = asyncHandler(async (req, res) => {
   const result = await collegeService.requestCollegeOnboarding(req.body);
   res.status(201).json(result);
 });
+
+exports.addCollegeStaff = asyncHandler(async (req, res) => {
+  const result = await collegeService.addCollegeStaff({
+    collegeId: req.params.id,
+    name: req.body.name,
+    email: req.body.email,
+    role: req.body.role,
+    phone: req.body.phone,
+    password: req.body.password,
+    sendEmail: req.body.sendEmail !== false,
+    clientUrl: req.body.clientUrl,
+    requester: req.user
+  });
+  res.status(201).json(result);
+});

@@ -665,3 +665,143 @@ exports.requestCollegeOnboarding = async (data) => {
     college
   };
 };
+
+/* ================= DIRECT ADD STAFF WITH MAX 5 COMBINED LIMIT ================= */
+exports.addCollegeStaff = async ({ collegeId, name, email, role = 'spoc', phone = '', password = '', sendEmail = true, clientUrl, requester }) => {
+  if (!name || !email) throw new ApiError(400, 'Name and email are required');
+
+  const college = await College.findById(collegeId);
+  if (!college) throw new ApiError(404, 'College not found');
+
+  if (requester && !isSuperAdmin(requester) && String(requester.college) !== String(collegeId)) {
+    throw new ApiError(403, 'Unauthorized to manage staff for another college');
+  }
+
+  const normalizedEmail = String(email).toLowerCase().trim();
+
+  // Check if updating existing staff vs adding new
+  const existingIdx = (college.staff || []).findIndex(s => s.email === normalizedEmail);
+
+  // ENFORCE MAX 5 SPOC/ADMIN COMBINED LIMIT PER COLLEGE FOR NEW ADDITIONS
+  if (existingIdx === -1 && (college.staff || []).length >= 5) {
+    throw new ApiError(400, 'Maximum limit reached: A college can have up to 5 SPOCs and Administrators combined.');
+  }
+
+  const staffRole = ['spoc', 'college_admin', 'admin', 'judge'].includes(role) ? role : 'spoc';
+  const initialPassword = password || `${(college.shortName || 'CampX').replace(/[^a-zA-Z0-9]/g, '')}@${Math.floor(1000 + Math.random() * 9000)}`;
+
+  let user = await User.findOne({ email: normalizedEmail });
+  const hashedPassword = await bcrypt.hash(initialPassword, 10);
+
+  if (user) {
+    user.role = staffRole;
+    user.isAdmin = true;
+    user.isVerified = true;
+    user.college = college._id;
+    if (phone) user.phone = phone;
+    if (password) user.password = hashedPassword;
+    await user.save();
+  } else {
+    user = await User.create({
+      name,
+      email: normalizedEmail,
+      password: hashedPassword,
+      phone: phone || '',
+      gender: 'Other',
+      course: 'Faculty',
+      year: 1,
+      role: staffRole,
+      isAdmin: true,
+      isVerified: true,
+      college: college._id,
+      adminNotes: 'College SPOC / Admin appointed via staff management console.'
+    });
+  }
+
+  // Update or insert staff entry
+  if (existingIdx >= 0) {
+    college.staff[existingIdx].name = name;
+    college.staff[existingIdx].user = user._id;
+    college.staff[existingIdx].role = staffRole;
+    college.staff[existingIdx].phone = phone || college.staff[existingIdx].phone || '';
+    college.staff[existingIdx].isVerified = true;
+    college.staff[existingIdx].verifiedAt = new Date();
+  } else {
+    college.staff.push({
+      user: user._id,
+      name,
+      email: normalizedEmail,
+      role: staffRole,
+      phone: phone || '',
+      isVerified: true,
+      verifiedAt: new Date()
+    });
+  }
+
+  await college.save();
+
+  // Send credentials email if enabled
+  if (sendEmail !== false) {
+    const { getFrontendUrl } = require('../../core/utils/urlHelper');
+    const baseUrl = getFrontendUrl(null, clientUrl);
+    const loginUrl = `${baseUrl}/admin/login`;
+
+    sendMail({
+      to: normalizedEmail,
+      subject: `Official ${staffRole.toUpperCase()} Access Provisioned - ${college.shortName || college.name}`,
+      html: `<!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 40px 16px; }
+          .container { max-width: 560px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0; padding: 36px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+          .badge { display: inline-block; background-color: #eef2ff; color: #4f46e5; font-size: 11px; font-weight: 800; padding: 5px 14px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 20px; border: 1px solid #e0e7ff; }
+          h1 { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 16px 0; }
+          p { font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 20px 0; }
+          .cred-box { background-color: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 20px; margin: 24px 0; }
+          .cred-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; }
+          .cred-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+          .cred-label { color: #64748b; font-weight: 600; }
+          .cred-val { color: #0f172a; font-weight: 700; font-family: monospace; }
+          .btn-wrap { text-align: center; margin: 28px 0; }
+          .btn { display: inline-block; background-color: #0f172a; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 13px 32px; border-radius: 12px; }
+          .footer { font-size: 11px; color: #94a3b8; margin-top: 32px; border-top: 1px solid #f1f5f9; padding-top: 18px; line-height: 1.5; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="badge">⚡ Staff Access Provisioned</div>
+          <h1>Welcome to ${college.shortName || college.name} Staff Portal</h1>
+          <p>Dear <strong>${name}</strong>,</p>
+          <p>You have been appointed as an official <strong>${staffRole.toUpperCase()}</strong> for <strong>${college.name}</strong> on CampXCode Portal.</p>
+          
+          <div class="cred-box">
+            <div style="font-weight: 800; font-size: 12px; text-transform: uppercase; color: #4f46e5; margin-bottom: 14px;">Your Staff Credentials</div>
+            <div class="cred-row"><span class="cred-label">Portal URL:</span> <span class="cred-val">${baseUrl}</span></div>
+            <div class="cred-row"><span class="cred-label">Login Email:</span> <span class="cred-val">${normalizedEmail}</span></div>
+            <div class="cred-row"><span class="cred-label">Initial Password:</span> <span class="cred-val">${initialPassword}</span></div>
+            <div class="cred-row"><span class="cred-label">Assigned Role:</span> <span class="cred-val">${staffRole.toUpperCase()}</span></div>
+          </div>
+
+          <div class="btn-wrap">
+            <a href="${loginUrl}" class="btn" target="_blank">Log In to Staff Portal &rarr;</a>
+          </div>
+
+          <div class="footer">
+            Official institutional notice from CampXCode Portal.<br/>
+            &copy; ${new Date().getFullYear()} Campus Hackathon Portal. All rights reserved.
+          </div>
+        </div>
+      </body>
+      </html>`
+    }).catch(e => console.error('Staff email failed:', e.message));
+  }
+
+  return {
+    msg: `Successfully appointed ${name} as ${staffRole.toUpperCase()} for ${college.shortName || college.name}`,
+    user,
+    college
+  };
+};

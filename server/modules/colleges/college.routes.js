@@ -34,6 +34,7 @@ router.put('/:id/settings', adminAuth, controller.updateCollegeSettings);
 // ============================================================================
 // STAFF PROVISIONING & OTP VERIFICATION (ADD/EDIT/DELETE SPOC & ADMINS)
 // ============================================================================
+router.post('/:id/staff', adminAuth, controller.addCollegeStaff);
 router.post('/:id/staff/invite', adminAuth, controller.inviteStaffOtp);
 router.post('/:id/staff/verify', adminAuth, controller.verifyStaffOtp);
 router.put('/:id/staff/:userId', adminAuth, controller.updateCollegeStaff);
