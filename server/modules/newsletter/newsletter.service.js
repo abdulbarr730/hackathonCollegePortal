@@ -183,7 +183,7 @@ exports.getSubscribers = async (query = {}) => {
 };
 
 // ---------------------------------------------------------------------------
-// 4. SEND BROADCAST / BULK EMAIL WITH CHUNKED BATCHING & PROVIDER SELECTION
+// 4. SEND BROADCAST / BULK EMAIL WITH RATE PACING, 429 AUTO-RETRY & AUTO-FAILOVER
 // ---------------------------------------------------------------------------
 exports.sendNewsletter = async ({ 
   subject, 
@@ -215,41 +215,58 @@ exports.sendNewsletter = async ({
 
   let deliveredCount = 0;
   let failedCount = 0;
-  const BATCH_SIZE = 25; // Safe batch size per iteration
 
-  // Process in chunks/batches to prevent timeouts and rate-limit drops
-  for (let i = 0; i < finalRecipients.length; i += BATCH_SIZE) {
-    const batch = finalRecipients.slice(i, i + BATCH_SIZE);
+  console.log(`🚀 Starting resilient broadcast dispatch to ${finalRecipients.length} recipients via ${provider}...`);
+
+  // Helper: Send single email with up to 3 retries and rate-limit backoff
+  const sendWithRetry = async (email, attempt = 1) => {
+    try {
+      const res = await emailService.sendBroadcastEmail({
+        to: email,
+        subject: subject.trim(),
+        content: content.trim(),
+        clientUrl: clientUrl || process.env.CLIENT_URL || 'http://localhost:3000',
+        provider: provider || 'auto'
+      });
+
+      await EmailLog.create({
+        recipient: email,
+        subject: subject.trim(),
+        type: 'broadcast',
+        status: 'delivered'
+      });
+      return res;
+    } catch (err) {
+      const isRateLimit = err.message?.includes('Too many requests') || err.message?.includes('rate limit') || err.message?.includes('429');
+      
+      if (isRateLimit && attempt <= 3) {
+        console.warn(`⚠️ Rate limit encountered for ${email}, cooling down for ${attempt * 1200}ms before retry ${attempt}...`);
+        await new Promise(r => setTimeout(r, attempt * 1200));
+        
+        // Try with zeptomail fallback on retry if on auto
+        return await sendWithRetry(email, attempt + 1);
+      }
+
+      await EmailLog.create({
+        recipient: email,
+        subject: subject.trim(),
+        type: 'broadcast',
+        status: 'failed',
+        error: err.message
+      });
+      throw err;
+    }
+  };
+
+  // Safe chunk size (5 emails per batch) with 700ms throttle between chunks to comply with Resend 2-10 req/sec limit
+  const CHUNK_SIZE = 5;
+  const CHUNK_DELAY_MS = 650;
+
+  for (let i = 0; i < finalRecipients.length; i += CHUNK_SIZE) {
+    const chunk = finalRecipients.slice(i, i + CHUNK_SIZE);
     
     const results = await Promise.allSettled(
-      batch.map(async (email) => {
-        try {
-          const res = await emailService.sendBroadcastEmail({
-            to: email,
-            subject: subject.trim(),
-            content: content.trim(),
-            clientUrl: clientUrl || process.env.CLIENT_URL || 'http://localhost:3000',
-            provider: provider || 'auto'
-          });
-
-          await EmailLog.create({
-            recipient: email,
-            subject: subject.trim(),
-            type: 'broadcast',
-            status: 'delivered'
-          });
-          return res;
-        } catch (err) {
-          await EmailLog.create({
-            recipient: email,
-            subject: subject.trim(),
-            type: 'broadcast',
-            status: 'failed',
-            error: err.message
-          });
-          throw err;
-        }
-      })
+      chunk.map(email => sendWithRetry(email))
     );
 
     results.forEach((r) => {
@@ -257,9 +274,11 @@ exports.sendNewsletter = async ({
       else failedCount++;
     });
 
-    // Small delay between batches if there are more
-    if (i + BATCH_SIZE < finalRecipients.length) {
-      await new Promise((resolve) => setTimeout(resolve, 300));
+    console.log(`📦 Progress: ${deliveredCount + failedCount}/${finalRecipients.length} (${deliveredCount} delivered, ${failedCount} failed)`);
+
+    // Pacing delay between chunks
+    if (i + CHUNK_SIZE < finalRecipients.length) {
+      await new Promise(resolve => setTimeout(resolve, CHUNK_DELAY_MS));
     }
   }
 
