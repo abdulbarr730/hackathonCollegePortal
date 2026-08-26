@@ -11,6 +11,10 @@ import { useAuth } from '../../context/AuthContext';
 
 export default function AdminTeamsPage() {
   const { user } = useAuth();
+  const isSuperAdminUser = user?.role === 'super_admin' || 
+    user?.email?.toLowerCase() === 'abdulbarr730@gmail.com' ||
+    (user?.isAdmin && user?.role === 'admin' && !user?.college);
+
   const [teams, setTeams] = useState([]);
   const [hackathons, setHackathons] = useState([]);
   const [colleges, setColleges] = useState([]);
@@ -229,16 +233,23 @@ export default function AdminTeamsPage() {
         {/* Hackathon, College, and Status Selector */}
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           
-          <select 
-            value={selectedCollege} 
-            onChange={(e) => setSelectedCollege(e.target.value)}
-            className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
-          >
-            <option value="all">All Colleges</option>
-            {colleges.map(c => (
-              <option key={c._id} value={c._id}>{c.name} {c.shortName ? `(${c.shortName})` : ''}</option>
-            ))}
-          </select>
+          {isSuperAdminUser ? (
+            <select 
+              value={selectedCollege} 
+              onChange={(e) => setSelectedCollege(e.target.value)}
+              className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
+            >
+              <option value="all">All Colleges</option>
+              {colleges.map(c => (
+                <option key={c._id} value={c._id}>{c.name} {c.shortName ? `(${c.shortName})` : ''}</option>
+              ))}
+            </select>
+          ) : (
+            <div className="px-3.5 py-2 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+              <Building2 size={14} />
+              <span>{user?.collegeName || 'Your College'}</span>
+            </div>
+          )}
 
           <select 
             value={selectedHackathon} 

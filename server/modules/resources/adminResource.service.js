@@ -1,3 +1,4 @@
+const { isSuperAdmin } = require('../../core/utils/roleHelper');
 const Resource = require('./resource.model');
 const supabase = require('../../shared/services/supabase.service');
 const BUCKET = 'resources';
@@ -5,7 +6,7 @@ const BUCKET = 'resources';
 /* ============================================================================
    LIST RESOURCES (filters + pagination)
 ============================================================================ */
-exports.listResources = async (query) => {
+exports.listResources = async (query, requester = null) => {
 
   const {
     status = '',
@@ -22,6 +23,11 @@ exports.listResources = async (query) => {
   const filters = {};
 
   if (status) filters.status = status;
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    filters.college = requester.college;
+  } else if (query.collegeId && query.collegeId !== 'all') {
+    filters.college = query.collegeId;
+  }
   if (category) filters.category = category;
 
   if (q) {
@@ -38,7 +44,8 @@ exports.listResources = async (query) => {
       .skip((pageNum - 1) * perPage)
       .limit(perPage)
       .populate('addedBy', 'name email')
-      .populate('approvedBy', 'name email'),
+      .populate('approvedBy', 'name email')
+      .populate('college', 'name shortName'),
     Resource.countDocuments(filters),
   ]);
 
@@ -56,7 +63,16 @@ exports.listResources = async (query) => {
 /* ============================================================================
    APPROVE RESOURCE
 ============================================================================ */
-exports.approveResource = async (id, userId) => {
+exports.approveResource = async (id, userId, requester = null) => {
+  const existing = await Resource.findById(id);
+  if (!existing) throw new Error('Resource not found');
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    if (existing.college && String(existing.college) !== String(requester.college)) {
+      const err = new Error('You do not have permission to approve resources from another college.');
+      err.status = 403;
+      throw err;
+    }
+  }
 
   const doc = await Resource.findByIdAndUpdate(
     id,
@@ -81,7 +97,16 @@ exports.approveResource = async (id, userId) => {
 /* ============================================================================
    REJECT RESOURCE
 ============================================================================ */
-exports.rejectResource = async (id, reason = '') => {
+exports.rejectResource = async (id, reason = '', requester = null) => {
+  const existing = await Resource.findById(id);
+  if (!existing) throw new Error('Resource not found');
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    if (existing.college && String(existing.college) !== String(requester.college)) {
+      const err = new Error('You do not have permission to reject resources from another college.');
+      err.status = 403;
+      throw err;
+    }
+  }
 
   const doc = await Resource.findByIdAndUpdate(
     id,
@@ -127,7 +152,16 @@ exports.updateResource = async (id, body) => {
 /* ============================================================================
    DELETE RESOURCE (DB + storage)
 ============================================================================ */
-exports.deleteResource = async (id) => {
+exports.deleteResource = async (id, requester = null) => {
+  const existing = await Resource.findById(id);
+  if (!existing) throw new Error('Resource not found');
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    if (existing.college && String(existing.college) !== String(requester.college)) {
+      const err = new Error('You cannot delete resources belonging to another college.');
+      err.status = 403;
+      throw err;
+    }
+  }
 
   const doc = await Resource.findByIdAndDelete(id);
 

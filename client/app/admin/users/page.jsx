@@ -23,6 +23,10 @@ const ICONS = {
 
 export default function AdminUsersPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const isSuperAdminUser = user?.role === 'super_admin' || 
+    user?.email?.toLowerCase() === 'abdulbarr730@gmail.com' ||
+    (user?.isAdmin && user?.role === 'admin' && !user?.college);
+
   const router = useRouter();
 
   const [users, setUsers] = useState([]);
@@ -300,16 +304,18 @@ export default function AdminUsersPage() {
             <option key={team._id} value={team._id}>{team.name}</option>
           ))}
         </select>
-        <select
-          value={selectedCollege}
-          onChange={(e) => { setSelectedCollege(e.target.value); setCurrentPage(1); }}
-          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm cursor-pointer"
-        >
-          <option value="">All Colleges</option>
-          {colleges.map(college => (
-            <option key={college._id} value={college._id}>{college.shortName || college.name}</option>
-          ))}
-        </select>
+        {isSuperAdminUser && (
+          <select
+            value={selectedCollege}
+            onChange={(e) => { setSelectedCollege(e.target.value); setCurrentPage(1); }}
+            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm cursor-pointer"
+          >
+            <option value="">All Colleges</option>
+            {colleges.map(college => (
+              <option key={college._id} value={college._id}>{college.shortName || college.name}</option>
+            ))}
+          </select>
+        )}
       </div>
       
       {/* Bulk Actions */}

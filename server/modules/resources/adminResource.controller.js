@@ -5,7 +5,7 @@ const service = require('./adminResource.service');
 ============================================================================ */
 exports.listResources = async (req, res) => {
   try {
-    const data = await service.listResources(req.query);
+    const data = await service.listResources(req.query, req.user);
     return res.json(data);
   } catch (err) {
     console.error('Admin list error:', err);
@@ -71,7 +71,7 @@ exports.updateResource = async (req, res) => {
 ============================================================================ */
 exports.deleteResource = async (req, res) => {
   try {
-    await service.deleteResource(req.params.id);
+    await service.deleteResource(req.params.id, req.user);
     return res.json({ msg: 'Deleted' });
   } catch (err) {
     console.error('Delete error:', err);

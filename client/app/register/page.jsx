@@ -306,8 +306,8 @@ export default function RegisterPage() {
                   <p className="text-slate-600 dark:text-slate-300 mb-8 max-w-md">
                     Your account has been created and is currently <span className="font-bold text-amber-500">Pending Verification</span> by your college SPOC or platform administrators.
                   </p>
-                  <Link href="/login" className="inline-block mt-4 text-indigo-600 dark:text-indigo-400 font-bold hover:underline">
-                    Return to Login
+                  <Link href="/" className="w-full max-w-xs rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-3.5 px-6 font-bold shadow-md hover:bg-slate-800 dark:hover:bg-slate-100 transition-all text-center block">
+                    Return to Homepage
                   </Link>
                 </>
               )}

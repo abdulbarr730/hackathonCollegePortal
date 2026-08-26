@@ -3,7 +3,26 @@ const { getFrontendUrl } = require('../../core/utils/urlHelper');
 
 const resend = new Resend(process.env.RESEND_API_KEY || 'dummy_key');
 
-const DEFAULT_FROM = process.env.RESEND_FROM || process.env.EMAIL_FROM || process.env.ZEPTOMAIL_FROM || 'CampXCode <noreply@campxcode.in>';
+function getContextualSender(category = 'general') {
+  const domain = process.env.EMAIL_DOMAIN || 'campxcode.in';
+  switch (category) {
+    case 'security':
+    case 'auth':
+    case 'otp':
+      return process.env.ZEPTOMAIL_FROM_SECURITY || `CampXCode Security <security@${domain}>`;
+    case 'newsletter':
+    case 'bulletin':
+      return process.env.ZEPTOMAIL_FROM_NEWSLETTER || `CampXCode Bulletin <newsletter@${domain}>`;
+    case 'onboarding':
+    case 'institutional':
+    case 'admin':
+      return process.env.ZEPTOMAIL_FROM_ONBOARDING || `CampXCode Institutional Desk <onboarding@${domain}>`;
+    default:
+      return process.env.ZEPTOMAIL_FROM || process.env.RESEND_FROM || `CampXCode <noreply@${domain}>`;
+  }
+}
+
+const DEFAULT_FROM = getContextualSender('general');
 const FALLBACK_FROM = 'Hackathon Portal <onboarding@resend.dev>';
 
 /**
@@ -102,7 +121,7 @@ async function sendMail({ to, subject, html, text, from = DEFAULT_FROM }) {
 // ---------------------------------------------------------------------------
 // 1. NEWSLETTER VERIFICATION EMAIL TEMPLATE
 // ---------------------------------------------------------------------------
-async function sendNewsletterVerification({ email, token, clientUrl }) {
+async function sendNewsletterVerification({ email, token, clientUrl, from = getContextualSender('newsletter') }) {
   const baseUrl = getFrontendUrl(null, clientUrl);
   const verifyLink = `${baseUrl}/verify-newsletter?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
   
@@ -157,7 +176,7 @@ async function sendNewsletterVerification({ email, token, clientUrl }) {
 // ---------------------------------------------------------------------------
 // 2. BROADCAST BULLETIN EMAIL TEMPLATE
 // ---------------------------------------------------------------------------
-async function sendBroadcastEmail({ to, subject, content, clientUrl }) {
+async function sendBroadcastEmail({ to, subject, content, clientUrl, from = getContextualSender('newsletter') }) {
   const formattedContent = String(content).replace(/\n/g, '<br/>');
   const baseUrl = getFrontendUrl(null, clientUrl);
   const portalLink = baseUrl;
@@ -206,7 +225,7 @@ async function sendBroadcastEmail({ to, subject, content, clientUrl }) {
 // ---------------------------------------------------------------------------
 // 3. WELCOME EMAIL ON USER SIGNUP
 // ---------------------------------------------------------------------------
-async function sendWelcomeEmail({ to, name, collegeName, clientUrl }) {
+async function sendWelcomeEmail({ to, name, collegeName, clientUrl, from = getContextualSender('general') }) {
   const baseUrl = getFrontendUrl(null, clientUrl);
   const portalLink = `${baseUrl}/login`;
 
@@ -265,7 +284,7 @@ async function sendWelcomeEmail({ to, name, collegeName, clientUrl }) {
 // ---------------------------------------------------------------------------
 // 4. ACCOUNT VERIFIED BY ADMIN EMAIL
 // ---------------------------------------------------------------------------
-async function sendAccountVerifiedEmail({ to, name, collegeName, role = 'student', adminNotes = '', clientUrl }) {
+async function sendAccountVerifiedEmail({ to, name, collegeName, role = 'student', adminNotes = '', clientUrl, from = getContextualSender('onboarding') }) {
   const baseUrl = getFrontendUrl(null, clientUrl);
   const portalLink = `${baseUrl}/dashboard`;
 

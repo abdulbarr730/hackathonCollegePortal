@@ -1,3 +1,4 @@
+const User = require('../users/user.model');
 const Resource = require('./resource.model');
 const getSupabase = require('../../shared/services/supabase.service');
 const axios = require('axios');
@@ -21,6 +22,7 @@ exports.createUrlResource = async (body, userId) => {
     throw err;
   }
 
+  const user = await User.findById(userId).select('college');
   const doc = await Resource.create({
     title,
     description: description || '',
@@ -28,6 +30,7 @@ exports.createUrlResource = async (body, userId) => {
     url,
     status:  'pending',
     addedBy: userId,
+    college: user?.college || null,
   });
 
   return doc;
@@ -79,12 +82,14 @@ exports.createFileResource = async (body, file, userId) => {
       .from('resources')
       .getPublicUrl(filePath);
 
+    const user = await User.findById(userId).select('college');
     const resource = await Resource.create({
       title,
       category,
       description: description || '',
       status:  'pending',
       addedBy: userId,
+      college: user?.college || null,
       file: {
         key:          filePath,
         url:          publicData.publicUrl,
@@ -132,7 +137,7 @@ exports.listApprovedResources = async (query) => {
 
   const [items, total] = await Promise.all([
     Resource.find(filters)
-      .populate('addedBy', 'name')
+      .populate('addedBy', 'name email').populate('college', 'name shortName')
       .sort(sort)
       .skip((pageNum - 1) * perPage)
       .limit(perPage),
