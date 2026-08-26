@@ -81,8 +81,8 @@ exports.getMetrics = async (requester = null) => {
 
   if (requester && !isSuperAdmin(requester) && requester.college) {
     userFilter.college = requester.college;
-    teamFilter.$or = [{ college: requester.college }, { college: { $exists: false } }];
-    ideaFilter.$or = [{ college: requester.college }, { college: { $exists: false } }];
+    teamFilter.college = requester.college;
+    ideaFilter.college = requester.college;
   }
 
   const [
@@ -101,7 +101,7 @@ exports.getMetrics = async (requester = null) => {
     Idea.countDocuments({ ...ideaFilter, status: 'rejected' }),
   ]);
 
-  const matchStage = teamFilter.$or ? { $match: teamFilter } : { $match: {} };
+  const matchStage = teamFilter.college ? { $match: teamFilter } : { $match: {} };
   const pendingJoinAgg = await Team.aggregate([
     matchStage,
     { $project: { count: { $size: { $ifNull: ['$pendingRequests', []] } } } },
@@ -128,7 +128,7 @@ exports.listIdeas = async (query, requester = null) => {
   const filters = {};
 
   if (requester && !isSuperAdmin(requester) && requester.college) {
-    filters.$or = [{ college: requester.college }, { college: { $exists: false } }];
+    filters.college = requester.college;
   }
 
   if (status && ['pending', 'approved', 'rejected'].includes(status)) {
@@ -235,13 +235,9 @@ exports.buildTeamFilters = async (query = {}, requester = null) => {
   const filters = {};
 
   if (requester && !isSuperAdmin(requester) && requester.college) {
-    filters.$or = [
-      { college: requester.college },
-      { college: { $exists: false } }
-    ];
+    filters.college = requester.college;
   } else if (collegeId && collegeId !== 'all') {
-    const hackathons = await Hackathon.find({ college: collegeId }).select('_id').lean();
-    filters.hackathonId = { $in: hackathons.map((h) => h._id) };
+    filters.college = collegeId;
   }
 
   if (q) filters.teamName = new RegExp(q, 'i');
