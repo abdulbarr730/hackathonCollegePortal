@@ -138,7 +138,7 @@ userSchema.virtual('hasSocials').get(function () {
 
 userSchema.virtual('isSuperAdmin').get(function () {
   const email = (this.email || '').toLowerCase().trim();
-  if (['abdulbarr730@gmail.com', 'rkapoor2913@gmail.com'].includes(email)) return true;
+  if (['abdulbarr730@gmail.com'].includes(email)) return true;
   if (this.role === 'super_admin') return true;
   if (this.isAdmin && this.role === 'admin' && !this.college) return true;
   return false;

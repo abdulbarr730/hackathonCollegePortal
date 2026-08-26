@@ -6,8 +6,7 @@
  *  - isAdmin === true && role === 'admin' && !college
  */
 const SUPER_ADMIN_EMAILS = [
-  'abdulbarr730@gmail.com',
-  'rkapoor2913@gmail.com'
+  'abdulbarr730@gmail.com'
 ];
 
 const isSuperAdmin = (user) => {

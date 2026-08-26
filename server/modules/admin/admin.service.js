@@ -260,7 +260,23 @@ exports.updateUser = async (id, body, adminId) => {
     user.password = await bcrypt.hash(password, salt);
   }
 
+  const wasVerified = user.isVerified;
   if (typeof isVerified !== 'undefined') user.isVerified = isVerified;
+
+  // Send verification email to user if newly verified and not disabled
+  if (isVerified === true && !wasVerified && body.sendEmail !== false) {
+    const emailService = require('../../shared/services/email.service');
+    const College = require('../colleges/college.model');
+    College.findById(user.college).then(col => {
+      emailService.sendAccountVerifiedEmail({
+        to: user.email,
+        name: user.name,
+        collegeName: col ? col.name : 'Your Campus',
+        role: user.role,
+        adminNotes: user.adminNotes || ''
+      }).catch(e => console.error('Verification email dispatch failed:', e.message));
+    }).catch(() => {});
+  }
   if (typeof isAdmin !== 'undefined') user.isAdmin = isAdmin;
   if (role) user.role = role;
   if (college) user.college = college;

@@ -29,7 +29,7 @@ const emptyForm = {
 export default function AdminCollegesPage() {
   const { user: currentUser } = useAuth();
   const isSuperAdminUser = currentUser?.role === 'super_admin' || 
-    ['abdulbarr730@gmail.com', 'rkapoor2913@gmail.com'].includes(currentUser?.email?.toLowerCase()) ||
+    ['abdulbarr730@gmail.com'].includes(currentUser?.email?.toLowerCase()) ||
     (currentUser?.isAdmin && currentUser?.role === 'admin' && !currentUser?.college);
 
   const [colleges, setColleges] = useState([]);

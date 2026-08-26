@@ -216,6 +216,13 @@ exports.changeInitialPassword = async ({ userId, email, currentPassword, newPass
   user.password = await bcrypt.hash(newPassword, salt);
   user.mustChangePassword = false;
   await user.save();
+
+    // Dispatch welcome email asynchronously
+    emailService.sendWelcomeEmail({
+      to: user.email,
+      name: user.name,
+      collegeName: user.college ? 'Your College' : 'CampXCode'
+    }).catch(e => console.error('Welcome email error:', e.message));
     discordService.notifyUserSignup({
       name: user.name,
       email: user.email,
@@ -395,6 +402,11 @@ exports.forgotPassword = async (email) => {
     return { msg: 'If a user with that email exists, a reset link has been sent.' };
   }
 
+  // Rate Limiter: Prevent spam requests within 3 minutes of recent request
+  if (user.passwordResetExpires && (user.passwordResetExpires - Date.now() > 12 * 60 * 1000)) {
+    return { msg: 'A password reset link was recently sent. Please wait a few minutes before requesting another.' };
+  }
+
   const resetToken = crypto.randomBytes(32).toString('hex');
 
   // Store the hashed version — never the raw token
@@ -403,7 +415,8 @@ exports.forgotPassword = async (email) => {
 
   await user.save();
 
-  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+  const { getFrontendUrl } = require('../../core/utils/urlHelper');
+  const clientUrl = getFrontendUrl(null, process.env.CLIENT_URL);
   const resetUrl  = `${clientUrl}/reset-password/${resetToken}`;
 
   await sendMail({

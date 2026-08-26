@@ -176,7 +176,7 @@ export default function AdminUsersPage() {
     let body = {};
     if (action === 'verify' || action === 'unverify') {
       endpoint = '/users/bulk-verify';
-      body = { ids: selected, isVerified: action === 'verify' };
+      body = { ids: selected, isVerified: action === 'verify', sendEmail: notifyEmailOnVerify };
     } else if (action === 'makeAdmin' || action === 'removeAdmin') {
       endpoint = '/users/bulk-admin';
       body = { ids: selected, isAdmin: action === 'makeAdmin' };
@@ -253,6 +253,21 @@ export default function AdminUsersPage() {
           <button onClick={() => handleExport('csv')} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">Export CSV</button>
           <button onClick={() => handleExport('xlsx')} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs sm:text-sm font-bold text-white hover:bg-emerald-500 transition-colors shadow-sm">Export Excel</button>
         </div>
+      </div>
+
+      
+      {/* Email Notification Toggle */}
+      <div className="flex items-center gap-2 p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 text-xs">
+        <input
+          type="checkbox"
+          id="notifyEmailCheck"
+          checked={notifyEmailOnVerify}
+          onChange={(e) => setNotifyEmailOnVerify(e.target.checked)}
+          className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+        />
+        <label htmlFor="notifyEmailCheck" className="text-slate-700 dark:text-slate-200 cursor-pointer font-medium">
+          <strong>Send email notification on verification</strong> — Automatically dispatch official verification notice and portal link to user's email.
+        </label>
       </div>
 
       {/* Filters + Search */}
@@ -355,7 +370,7 @@ export default function AdminUsersPage() {
                 <div className="col-span-2 text-xs font-semibold text-slate-600 dark:text-slate-300 capitalize">{u.role || (u.isAdmin ? 'Admin' : 'Student')}</div>
                 <div className="col-span-3 text-xs text-slate-600 dark:text-slate-300 truncate">{u.team?.teamName || 'No Team'}</div>
                 <div className="col-span-2 flex items-center gap-1.5 justify-end">
-                  <button onClick={() => updateUser(u._id, { isVerified: !u.isVerified }, `User ${u.isVerified ? 'un-verified' : 'verified'}`)} title={u.isVerified ? 'Un-verify User' : 'Verify User'} className={`p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors ${u.isVerified ? 'hover:bg-amber-50 dark:hover:bg-amber-950/40' : 'hover:bg-emerald-50 dark:hover:bg-emerald-950/40'}`}><Icon path={u.isVerified ? ICONS.unverify : ICONS.verify} /></button>
+                  <button onClick={() => updateUser(u._id, { isVerified: !u.isVerified, sendEmail: notifyEmailOnVerify }, `User ${u.isVerified ? 'un-verified' : 'verified'}`)} title={u.isVerified ? 'Un-verify User' : 'Verify User'} className={`p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors ${u.isVerified ? 'hover:bg-amber-50 dark:hover:bg-amber-950/40' : 'hover:bg-emerald-50 dark:hover:bg-emerald-950/40'}`}><Icon path={u.isVerified ? ICONS.unverify : ICONS.verify} /></button>
                   <button onClick={() => updateUser(u._id, { isAdmin: !u.isAdmin }, `User ${u.isAdmin ? 'demoted from admin' : 'promoted to admin'}`)} title={u.isAdmin ? 'Remove Admin Status' : 'Make Admin'} className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"><Icon path={u.isAdmin ? ICONS.removeAdmin : ICONS.makeAdmin} /></button>
                   <button onClick={() => { const newRole = prompt('Enter new role (student, spoc, judge, college_admin, admin):', u.role || 'student'); if (newRole) updateUser(u._id, { role: newRole }, `Role updated to ${newRole}`); }} title="Change User Role" className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors"><Icon path={ICONS.changeRole} /></button>
                   <button onClick={() => { const newPass = prompt('Enter new password for this user:'); if (newPass) updateUser(u._id, { password: newPass }, 'Password reset successfully'); }} title="Reset User Password" className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"><Icon path={ICONS.resetPass} /></button>
