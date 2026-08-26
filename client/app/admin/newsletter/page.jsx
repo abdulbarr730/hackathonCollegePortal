@@ -57,11 +57,15 @@ export default function AdminNewsletterPage() {
   const [broadcastError, setBroadcastError] = useState('');
 
   // Super Admin Check
+  const isSuperAdminUser = user?.role === 'super_admin' || 
+    user?.email?.toLowerCase() === 'abdulbarr730@gmail.com' ||
+    (user?.isAdmin && user?.role === 'admin' && !user?.college);
+
   useEffect(() => {
-    if (user && user.role !== 'super_admin' && !user.isSuperAdmin && user.role !== 'admin') {
+    if (user && !isSuperAdminUser) {
       router.push('/admin/dashboard');
     }
-  }, [user, router]);
+  }, [user, isSuperAdminUser, router]);
 
   const fetchData = async () => {
     try {
