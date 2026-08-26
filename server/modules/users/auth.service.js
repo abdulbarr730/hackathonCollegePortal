@@ -1,3 +1,4 @@
+const discordService = require('../../shared/services/discord.service');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -215,6 +216,13 @@ exports.changeInitialPassword = async ({ userId, email, currentPassword, newPass
   user.password = await bcrypt.hash(newPassword, salt);
   user.mustChangePassword = false;
   await user.save();
+    discordService.notifyUserSignup({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      course: user.course,
+      year: user.year
+    }).catch(() => {});
 
   const payload = {
     user: {

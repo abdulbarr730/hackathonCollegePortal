@@ -1,3 +1,4 @@
+const discordService = require('../../shared/services/discord.service');
 const { Subscriber, Campaign, EmailLog } = require('./newsletter.model');
 const User = require('../users/user.model');
 const ApiError = require('../../core/utils/ApiError');
@@ -70,6 +71,8 @@ exports.subscribe = async (email, clientUrl, metadata = {}) => {
       error: err.message
     });
   }
+
+  discordService.notifyNewsletterSubscription({ email: cleanEmail, source: metadata.source || 'footer' }).catch(() => {});
 
   return {
     msg: 'A verification link has been sent to your email. Please verify to complete your subscription!',

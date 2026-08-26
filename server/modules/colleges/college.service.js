@@ -1,3 +1,4 @@
+const discordService = require('../../shared/services/discord.service');
 const bcrypt = require('bcryptjs');
 const College = require('./college.model');
 const User = require('../users/user.model');
@@ -131,6 +132,9 @@ exports.registerCollege = async (data) => {
     });
 
     await college.save({ session });
+
+    // Non-blocking Discord Notification
+    discordService.notifyCollegeOnboarding(data).catch(() => {});
 
     if (adminPassword) {
       const adminUser = await createCollegeAdmin(college, adminPassword, session);
