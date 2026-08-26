@@ -10,15 +10,18 @@ function getContextualSender(category = 'general') {
     case 'auth':
     case 'otp':
       return process.env.ZEPTOMAIL_FROM_SECURITY || `CampXCode Security <security@${domain}>`;
+    case 'broadcast':
+    case 'updates':
     case 'newsletter':
     case 'bulletin':
-      return process.env.ZEPTOMAIL_FROM_NEWSLETTER || `CampXCode Bulletin <newsletter@${domain}>`;
+      // Personal Sender Name + Updates domain routes to Primary/Updates in Gmail
+      return process.env.ZEPTOMAIL_FROM_UPDATES || `Abdul Barr from CampXCode <updates@${domain}>`;
     case 'onboarding':
     case 'institutional':
     case 'admin':
       return process.env.ZEPTOMAIL_FROM_ONBOARDING || `CampXCode Institutional Desk <onboarding@${domain}>`;
     default:
-      return process.env.ZEPTOMAIL_FROM || process.env.RESEND_FROM || `CampXCode <noreply@${domain}>`;
+      return process.env.ZEPTOMAIL_FROM || process.env.RESEND_FROM || `Abdul Barr from CampXCode <updates@${domain}>`;
   }
 }
 
@@ -28,18 +31,19 @@ const FALLBACK_FROM = 'Hackathon Portal <onboarding@resend.dev>';
 /**
  * Dispatch via Zoho ZeptoMail REST API
  */
-async function sendViaZeptoMail({ to, subject, html, text, from = DEFAULT_FROM }) {
+async function sendViaZeptoMail({ to, subject, html, text, from = DEFAULT_FROM, replyTo = 'hello@abdulbarr.in' }) {
   const token = process.env.ZEPTOMAIL_TOKEN || process.env.ZEPTOMAIL_API_KEY;
   if (!token) return false;
 
   const url = process.env.ZEPTOMAIL_URL || 'https://api.zeptomail.in/v1.1/email';
   
   const fromAddress = from.includes('<') ? from.match(/<([^>]+)>/)[1] : from;
-  const fromName = from.includes('<') ? from.split('<')[0].trim() : 'CampXCode';
+  const fromName = from.includes('<') ? from.split('<')[0].trim() : 'Abdul Barr from CampXCode';
 
   const body = {
     from: { address: fromAddress, name: fromName },
     to: [{ email_address: { address: to } }],
+    reply_to: [{ address: replyTo, name: 'Abdul Barr' }],
     subject: subject,
     htmlbody: html,
     textbody: text || subject
@@ -70,15 +74,21 @@ async function sendViaZeptoMail({ to, subject, html, text, from = DEFAULT_FROM }
  * - 'resend': Resend API
  * - 'auto': ZeptoMail with Resend fallback
  */
-async function sendMail({ to, subject, html, text, from = DEFAULT_FROM, provider = 'auto' }) {
+async function sendMail({ to, subject, html, text, from = DEFAULT_FROM, replyTo = 'hello@abdulbarr.in', provider = 'auto' }) {
   if (!to) throw new Error('Missing recipient');
+
+  const headers = {
+    'X-Priority': '1',
+    'Importance': 'high',
+    'X-Entity-Ref-ID': 'campxcode-' + Date.now()
+  };
 
   // 1. Explicit ZeptoMail Dispatch
   if (provider === 'zeptomail') {
     if (!process.env.ZEPTOMAIL_TOKEN && !process.env.ZEPTOMAIL_API_KEY) {
       throw new Error('Zoho ZeptoMail API Token is not configured in environment variables.');
     }
-    return await sendViaZeptoMail({ to, subject, html, text, from });
+    return await sendViaZeptoMail({ to, subject, html, text, from, replyTo });
   }
 
   // 2. Explicit Resend Dispatch
@@ -92,10 +102,20 @@ async function sendMail({ to, subject, html, text, from = DEFAULT_FROM, provider
       subject,
       html,
       text,
+      reply_to: replyTo,
+      headers
     });
     if (error) {
       if (from !== FALLBACK_FROM && (error.message?.includes('domain') || error.message?.includes('from'))) {
-        const fallbackRes = await resend.emails.send({ from: FALLBACK_FROM, to, subject, html, text });
+        const fallbackRes = await resend.emails.send({ 
+          from: FALLBACK_FROM, 
+          to, 
+          subject, 
+          html, 
+          text,
+          reply_to: replyTo,
+          headers
+        });
         if (fallbackRes.error) throw new Error(fallbackRes.error.message);
         return { success: true, id: fallbackRes.data?.id, provider: 'resend' };
       }
@@ -107,7 +127,7 @@ async function sendMail({ to, subject, html, text, from = DEFAULT_FROM, provider
   // 3. Auto Failover (ZeptoMail -> Resend)
   if (process.env.ZEPTOMAIL_TOKEN || process.env.ZEPTOMAIL_API_KEY) {
     try {
-      const result = await sendViaZeptoMail({ to, subject, html, text, from });
+      const result = await sendViaZeptoMail({ to, subject, html, text, from, replyTo });
       if (result) return { ...result, provider: 'zeptomail' };
     } catch (zeptoErr) {
       console.warn('ZeptoMail dispatch attempt failed, falling back to Resend:', zeptoErr.message);
@@ -125,11 +145,21 @@ async function sendMail({ to, subject, html, text, from = DEFAULT_FROM, provider
     subject,
     html,
     text,
+    reply_to: replyTo,
+    headers
   });
 
   if (error) {
     if (from !== FALLBACK_FROM && (error.message?.includes('domain') || error.message?.includes('from'))) {
-      const fallbackRes = await resend.emails.send({ from: FALLBACK_FROM, to, subject, html, text });
+      const fallbackRes = await resend.emails.send({ 
+        from: FALLBACK_FROM, 
+        to, 
+        subject, 
+        html, 
+        text,
+        reply_to: replyTo,
+        headers
+      });
       if (fallbackRes.error) throw new Error(fallbackRes.error.message);
       return { success: true, id: fallbackRes.data?.id, provider: 'resend' };
     }
@@ -197,7 +227,7 @@ async function sendNewsletterVerification({ email, token, clientUrl, from = getC
 // ---------------------------------------------------------------------------
 // 2. BROADCAST BULLETIN EMAIL TEMPLATE
 // ---------------------------------------------------------------------------
-async function sendBroadcastEmail({ to, subject, content, clientUrl, from = getContextualSender('newsletter'), provider = 'auto' }) {
+async function sendBroadcastEmail({ to, subject, content, clientUrl, from = getContextualSender('updates'), provider = 'auto' }) {
   const formattedContent = String(content).replace(/\n/g, '<br/>');
   const baseUrl = getFrontendUrl(null, clientUrl);
   const portalLink = baseUrl || 'https://www.campxcode.in';
@@ -205,59 +235,86 @@ async function sendBroadcastEmail({ to, subject, content, clientUrl, from = getC
 
   const html = `
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 40px 16px; }
-        .container { max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; border: 1px solid #e2e8f0; padding: 36px; box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05); }
-        .badge { display: inline-block; background-color: #eef2ff; color: #4f46e5; font-size: 11px; font-weight: 800; padding: 5px 14px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 18px; border: 1px solid #e0e7ff; }
-        h1 { font-size: 21px; font-weight: 800; color: #0f172a; margin: 0 0 18px 0; line-height: 1.35; }
-        .content { font-size: 14px; line-height: 1.75; color: #334155; margin-bottom: 26px; }
-        .btn { display: inline-block; background-color: #4f46e5; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 13px 30px; border-radius: 12px; }
-        .signature-box { margin-top: 32px; padding-top: 22px; border-top: 1px solid #f1f5f9; }
-        .footer { font-size: 11px; color: #94a3b8; margin-top: 24px; border-top: 1px solid #f8fafc; padding-top: 14px; line-height: 1.5; }
-      </style>
+      <title>${subject}</title>
     </head>
-    <body>
-      <div class="container">
-        <!-- Brand Logo -->
-        <div style="margin-bottom: 20px;">
-          <img src="${logoUrl}" alt="CampXCode" style="height: 48px; width: auto; display: block; border-radius: 8px;" />
-        </div>
+    <body style="margin: 0; padding: 24px 12px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; -webkit-font-smoothing: antialiased;">
+      <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);">
+        <!-- Top Brand Header -->
+        <tr>
+          <td style="padding: 32px 32px 20px 32px; border-bottom: 1px solid #f1f5f9;">
+            <table width="100%" border="0" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="vertical-align: middle;">
+                  <img src="${logoUrl}" alt="CampXCode" width="140" style="display: block; border: 0; max-height: 48px; width: auto;" />
+                </td>
+                <td align="right" style="vertical-align: middle;">
+                  <span style="display: inline-block; background-color: #eef2ff; color: #4f46e5; font-size: 10px; font-weight: 800; padding: 4px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #e0e7ff;">
+                    Official Notice
+                  </span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-        <div class="badge">Official Hackathon Broadcast</div>
-        <h1>${subject}</h1>
-        <div class="content">${formattedContent}</div>
-        
-        <div style="text-align: left; margin: 24px 0;">
-          <a href="${portalLink}" class="btn" target="_blank">Open Hackathon Portal &rarr;</a>
-        </div>
+        <!-- Main Body -->
+        <tr>
+          <td style="padding: 28px 32px 24px 32px;">
+            <h1 style="margin: 0 0 18px 0; font-size: 20px; font-weight: 800; color: #0f172a; line-height: 1.4;">
+              ${subject}
+            </h1>
+            
+            <div style="font-size: 14px; line-height: 1.75; color: #334155; margin-bottom: 26px;">
+              ${formattedContent}
+            </div>
 
-        <!-- Founder & Brand Signature -->
-        <div class="signature-box">
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <td style="vertical-align: top;">
-                <p style="margin: 0; font-size: 15px; font-weight: 800; color: #0f172a;">Abdul Barr</p>
-                <p style="margin: 2px 0 8px 0; font-size: 12px; font-weight: 700; color: #4f46e5;">Founder &amp; Lead Architect • CampXCode</p>
-                <div style="font-size: 12px; color: #64748b; line-height: 1.6;">
-                  <span>🌐 <a href="https://campxcode.in" target="_blank" style="color: #4f46e5; text-decoration: none; font-weight: 600;">campxcode.in</a></span> &bull; 
-                  <span>💼 <a href="https://abdulbarr.in" target="_blank" style="color: #4f46e5; text-decoration: none; font-weight: 600;">abdulbarr.in</a></span><br/>
-                  <span>✉️ <a href="mailto:hello@abdulbarr.in" style="color: #4f46e5; text-decoration: none; font-weight: 600;">hello@abdulbarr.in</a></span> &bull; 
-                  <span>📞 <a href="tel:+917479934706" style="color: #0f172a; text-decoration: none; font-weight: 600;">+91 7479934706</a></span>
-                </div>
-              </td>
-            </tr>
-          </table>
-        </div>
+            <!-- Action Button -->
+            <div style="margin: 28px 0 24px 0;">
+              <a href="${portalLink}" target="_blank" style="display: inline-block; background-color: #4f46e5; color: #ffffff !important; font-size: 13px; font-weight: 700; padding: 13px 28px; border-radius: 12px; text-decoration: none; box-shadow: 0 4px 8px rgba(79, 70, 229, 0.25);">
+                Open Hackathon Portal &rarr;
+              </a>
+            </div>
+          </td>
+        </tr>
 
-        <div class="footer">
-          You are receiving this official communication as a verified participant, team leader, or subscriber on CampXCode.<br/>
-          &copy; ${new Date().getFullYear()} CampXCode Hackathon Portal. All rights reserved.
-        </div>
-      </div>
+        <!-- Executive Founder Signature -->
+        <tr>
+          <td style="padding: 24px 32px; background-color: #f8fafc; border-top: 1px solid #e2e8f0;">
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td width="48" style="vertical-align: top; padding-right: 14px;">
+                  <img src="${logoUrl}" alt="CampXCode" width="44" height="44" style="display: block; border-radius: 10px; background-color: #ffffff; border: 1px solid #e2e8f0; padding: 2px;" />
+                </td>
+                <td style="vertical-align: top;">
+                  <p style="margin: 0 0 2px 0; font-size: 15px; font-weight: 800; color: #0f172a;">Abdul Barr</p>
+                  <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; color: #4f46e5;">Founder &amp; Lead Architect • CampXCode</p>
+                  
+                  <div style="font-size: 12px; color: #64748b; line-height: 1.6;">
+                    <span>🌐 <a href="https://campxcode.in" target="_blank" style="color: #4f46e5; text-decoration: none; font-weight: 600;">campxcode.in</a></span> &bull; 
+                    <span>💼 <a href="https://abdulbarr.in" target="_blank" style="color: #4f46e5; text-decoration: none; font-weight: 600;">abdulbarr.in</a></span><br/>
+                    <span>✉️ <a href="mailto:hello@abdulbarr.in" style="color: #4f46e5; text-decoration: none; font-weight: 600;">hello@abdulbarr.in</a></span> &bull; 
+                    <span>📞 <a href="tel:+917479934706" style="color: #0f172a; text-decoration: none; font-weight: 600;">+91 7479934706</a></span>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Footer Notice -->
+        <tr>
+          <td style="padding: 16px 32px 24px 32px; background-color: #f8fafc; border-top: 1px solid #f1f5f9; text-align: center;">
+            <p style="margin: 0; font-size: 11px; color: #94a3b8; line-height: 1.5;">
+              You are receiving this official announcement as a verified participant, team leader, or subscriber on CampXCode.<br/>
+              &copy; ${new Date().getFullYear()} CampXCode Institutional Hackathon Portal. All rights reserved.
+            </p>
+          </td>
+        </tr>
+      </table>
     </body>
     </html>
   `;
@@ -268,6 +325,7 @@ async function sendBroadcastEmail({ to, subject, content, clientUrl, from = getC
     html,
     text: content,
     from,
+    replyTo: 'hello@abdulbarr.in',
     provider
   });
 }
