@@ -99,7 +99,6 @@ async function sendMail({ to, subject, html, text, from = DEFAULT_FROM, provider
 
   return { success: true, id: data?.id, provider: 'resend' };
 }
-}
 
 // ---------------------------------------------------------------------------
 // 1. NEWSLETTER VERIFICATION EMAIL TEMPLATE

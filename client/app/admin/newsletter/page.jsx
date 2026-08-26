@@ -148,14 +148,21 @@ export default function AdminNewsletterPage() {
 
       // 2. Year Filter
       if (yearFilter !== 'all') {
-        const itemYear = Number(item.year);
-        if (itemYear !== Number(yearFilter)) return false;
+        const itemYear = parseInt(item.year, 10);
+        if (isNaN(itemYear) || itemYear !== parseInt(yearFilter, 10)) return false;
       }
 
       // 3. College Filter
       if (collegeFilter !== 'all') {
         const itemColId = String(item.college?._id || item.college || '');
-        if (itemColId !== String(collegeFilter)) return false;
+        const itemColName = String(item.college?.name || item.college?.shortName || item.collegeName || '').toLowerCase();
+        const selectedCol = colleges.find(c => String(c._id) === String(collegeFilter));
+        const matchesId = itemColId === String(collegeFilter);
+        const matchesName = selectedCol && (
+          (selectedCol.shortName && itemColName.includes(selectedCol.shortName.toLowerCase())) ||
+          (selectedCol.name && itemColName.includes(selectedCol.name.toLowerCase()))
+        );
+        if (!matchesId && !matchesName) return false;
       }
     }
 
