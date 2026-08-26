@@ -12,23 +12,19 @@ const Icon = ({ path, className = 'w-5 h-5' }) => (
 );
 
 const ICONS = {
-  // New icons for clarity
-  verify: "M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.59L7.3 9.07a.75.75 0 00-1.06 1.06l3.25 3.25a.75.75 0 001.06 0l4.5-4.5a.75.75 0 00-1.06-1.06L10.75 11.3V6.75z", // Checkmark inside a circle
-  unverify: "M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z", // X-mark inside a circle
-  makeAdmin: "M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.095a1.23 1.23 0 00.41-1.412A9.957 9.957 0 0010 12c-2.31 0-4.438.784-6.131 2.095zM17.25 8.5a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5a.75.75 0 01.75-.75zM19 9.25a.75.75 0 00-1.5 0v1.5a.75.75 0 001.5 0v-1.5z", // User icon with a plus for "make admin"
-  removeAdmin: "M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.095a1.23 1.23 0 00.41-1.412A9.957 9.957 0 0010 12c-2.31 0-4.438.784-6.131 2.095zM17.25 9a.75.75 0 01-.75-.75V7.5a.75.75 0 011.5 0v.75A.75.75 0 0117.25 9z", // User icon with a minus for "remove admin"
-  changeRole: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125", // Pencil icon for editing
-  resetPass: "M15.75 5.25a3 3 0 013 3m3 0a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9h.008v.008H9.75V9z", // Key icon for password reset
-  delete: "M14.74 9l-.346 9.102a2.25 2.25 0 01-2.247 2.047H7.74a2.25 2.25 0 01-2.247-2.047L5.26 9m1.454-.472a.75.75 0 01.996-.528l.738.349 1.458-1.564a.75.75 0 011.171 0l1.458 1.564.737-.349a.75.75 0 01.996.528L15.346 9H4.654zM9.25 10a.75.75 0 01.75.75V15a.75.75 0 01-1.5 0v-4.25a.75.75 0 01.75-.75z" // Trash can icon for delete
+  verify: "M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.59L7.3 9.07a.75.75 0 00-1.06 1.06l3.25 3.25a.75.75 0 001.06 0l4.5-4.5a.75.75 0 00-1.06-1.06L10.75 11.3V6.75z",
+  unverify: "M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z",
+  makeAdmin: "M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.095a1.23 1.23 0 00.41-1.412A9.957 9.957 0 0010 12c-2.31 0-4.438.784-6.131 2.095zM17.25 8.5a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5a.75.75 0 01.75-.75zM19 9.25a.75.75 0 00-1.5 0v1.5a.75.75 0 001.5 0v-1.5z",
+  removeAdmin: "M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.095a1.23 1.23 0 00.41-1.412A9.957 9.957 0 0010 12c-2.31 0-4.438.784-6.131 2.095zM17.25 9a.75.75 0 01-.75-.75V7.5a.75.75 0 011.5 0v.75A.75.75 0 0117.25 9z",
+  changeRole: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125",
+  resetPass: "M15.75 5.25a3 3 0 013 3m3 0a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9h.008v.008H9.75V9z",
+  delete: "M14.74 9l-.346 9.102a2.25 2.25 0 01-2.247 2.047H7.74a2.25 2.25 0 01-2.247-2.047L5.26 9m1.454-.472a.75.75 0 01.996-.528l.738.349 1.458-1.564a.75.75 0 011.171 0l1.458 1.564.737-.349a.75.75 0 01.996.528L15.346 9H4.654zM9.25 10a.75.75 0 01.75.75V15a.75.75 0 01-1.5 0v-4.25a.75.75 0 01.75-.75z"
 };
 
-
 export default function AdminUsersPage() {
-  // --- Auth Context ---
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  // --- State Management ---
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,20 +36,18 @@ export default function AdminUsersPage() {
   const [totalUsers, setTotalUsers] = useState(0);
   const pageSize = 15;
 
-  // --- ADDED STATE FOR TEAM FILTER ---
   const [teams, setTeams] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState('');
   const [colleges, setColleges] = useState([]);
   const [selectedCollege, setSelectedCollege] = useState('');
 
-  // --- ADDED: FETCH TEAMS FOR THE FILTER DROPDOWN ---
   useEffect(() => {
     const fetchTeams = async () => {
       try {
         const res = await fetch('/api/admin/teams/list', { credentials: 'include' });
         if (!res.ok) throw new Error('Could not fetch teams');
         const data = await res.json();
-        setTeams(data);
+        setTeams(data || []);
       } catch (err) {
         console.error(err.message);
       }
@@ -78,7 +72,6 @@ export default function AdminUsersPage() {
     if (user && user.isAdmin) fetchColleges();
   }, [user]);
 
-  // --- Fetch Users from Backend ---
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -95,12 +88,17 @@ export default function AdminUsersPage() {
       if (selectedCollege) params.append('collegeId', selectedCollege);
 
       const res = await fetch(`/api/admin/users?${params.toString()}`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to fetch users');
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        // fallback
+      }
+      if (!res.ok) throw new Error(data.msg || 'Failed to fetch users');
 
-      const data = await res.json();
       setUsers(data.items || []);
-      setTotalPages(data.pagination.pages || 1);
-      setTotalUsers(data.pagination.total || 0);
+      setTotalPages(data.pagination?.pages || 1);
+      setTotalUsers(data.pagination?.total || 0);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -108,7 +106,6 @@ export default function AdminUsersPage() {
     }
   };
 
-  // --- MODIFIED: Added selectedTeam to dependency array to refetch users on change ---
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push('/admin/login');
@@ -126,9 +123,14 @@ export default function AdminUsersPage() {
         credentials: 'include',
         body: JSON.stringify(body),
       });
-       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.msg || 'Failed to update user');
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        // fallback
+      }
+      if (!res.ok) {
+        throw new Error(data.msg || data.message || 'Failed to update user');
       }
       fetchUsers();
       alert(successMsg);
@@ -145,9 +147,14 @@ export default function AdminUsersPage() {
         method: 'DELETE',
         credentials: 'include',
       });
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        // fallback
+      }
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.msg || 'Failed to delete user');
+        throw new Error(data.msg || data.message || 'Failed to delete user');
       }
       fetchUsers();
       alert('User deleted successfully');
@@ -185,7 +192,15 @@ export default function AdminUsersPage() {
         credentials: 'include',
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error('Bulk action failed');
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        // fallback
+      }
+      if (!res.ok) {
+        throw new Error(data.msg || data.message || 'Bulk action failed');
+      }
       fetchUsers();
       setSelected([]);
       alert(`Bulk action '${action}' applied successfully`);
@@ -202,7 +217,7 @@ export default function AdminUsersPage() {
     if (filter === 'unverified') params.append('verified', 'false');
     if (filter === 'admin') params.append('admin', 'true');
     if (filter === 'nonadmin') params.append('admin', 'false');
-      if (selectedTeam) params.append('teamId', selectedTeam);
+    if (selectedTeam) params.append('teamId', selectedTeam);
     if (selectedCollege) params.append('collegeId', selectedCollege);
 
     window.open(`/api/admin/users/export?format=${format}&${params.toString()}`, '_blank');

@@ -48,7 +48,7 @@ exports.getAdminMetrics = async (req, res) => {
   try {
     res.json(await adminService.getMetrics(req.user));
   } catch {
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server Error' });
   }
 };
 
@@ -58,7 +58,7 @@ exports.listIdeas = async (req, res) => {
   try {
     res.json(await adminService.listIdeas(req.query, req.user));
   } catch {
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server Error' });
   }
 };
 
@@ -67,7 +67,7 @@ exports.deleteIdea = async (req, res) => {
     await adminService.deleteIdea(req.params.id, req.user.id);
     res.json({ msg: 'Idea deleted successfully' });
   } catch (err) {
-    res.status(err.status || 500).send(err.message);
+    res.status(err.status || 500).json({ msg: err.message || 'Server Error' });
   }
 };
 
@@ -77,7 +77,7 @@ exports.listUsers = async (req, res) => {
   try {
     res.json(await adminService.listUsers(req.query, req.user));
   } catch {
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server Error' });
   }
 };
 
@@ -86,7 +86,7 @@ exports.updateUser = async (req, res) => {
     const user = await adminService.updateUser(req.params.id, req.body, req.user.id);
     res.json({ msg: 'User updated successfully', user });
   } catch (err) {
-    res.status(err.status || 500).send(err.message);
+    res.status(err.status || 500).json({ msg: err.message || 'Server Error' });
   }
 };
 
@@ -95,7 +95,7 @@ exports.deleteUser = async (req, res) => {
     await adminService.deleteUser(req.params.id, req.user.id);
     res.json({ msg: 'User deleted successfully.' });
   } catch (err) {
-    res.status(err.status || 500).send(err.message);
+    res.status(err.status || 500).json({ msg: err.message || 'Server Error' });
   }
 };
 
@@ -109,7 +109,7 @@ exports.getUser = async (req, res) => {
     if (!user) return res.status(404).json({ msg: 'User not found' });
     res.json(user);
   } catch {
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server Error' });
   }
 };
 
@@ -176,7 +176,7 @@ exports.exportUsers = async (req, res) => {
       res.end();
     }
   } catch {
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server Error' });
   }
 };
 
@@ -208,7 +208,7 @@ exports.listTeams = async (req, res) => {
       .lean();
     res.json({ items: teams });
   } catch {
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server Error' });
   }
 };
 

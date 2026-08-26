@@ -31,7 +31,13 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
       trim: true,
-      match: [/^[0-9]{10}$/, 'Invalid phone number'],
+      validate: {
+        validator: function (v) {
+          if (!v || v === '') return true;
+          return /^[0-9]{10}$/.test(v);
+        },
+        message: 'Invalid phone number. Must be 10 digits.'
+      },
       default: ''
     },
 
@@ -60,13 +66,13 @@ const userSchema = new mongoose.Schema(
     gender: {
       type: String,
       enum: ['Male', 'Female', 'Other'],
-      required: true,
+      default: 'Other',
     },
 
     course: {
       type: String,
-      enum: ['B.Tech', 'BCA', 'Diploma'], // Add your course options here
-      required: true,
+      enum: ['B.Tech', 'BCA', 'Diploma', 'MCA', 'M.Tech', 'B.Sc', 'BBA', 'MBA', 'Faculty', 'Other'],
+      default: 'Other',
     },
     courseUpdateCount: { type: Number, default: 0 },
 
