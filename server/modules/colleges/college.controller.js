@@ -37,7 +37,12 @@ exports.approveCollege = asyncHandler(async (req, res) => {
   const result = await collegeService.approveCollege(
     req.params.id,
     req.user?.id,
-    { adminPassword: req.body?.adminPassword }
+    { 
+      adminPassword: req.body?.adminPassword || req.body?.password,
+      role: req.body?.role || 'spoc',
+      sendEmail: req.body?.sendEmail !== false,
+      clientUrl: req.body?.clientUrl
+    }
   );
 
   res.json(result);

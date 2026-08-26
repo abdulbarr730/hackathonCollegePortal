@@ -68,6 +68,14 @@ export default function AdminCollegesPage() {
   const [settingsModalCollege, setSettingsModalCollege] = useState(null);
   const [settingsForm, setSettingsForm] = useState({});
   const [settingsSaving, setSettingsSaving] = useState(false);
+  // Approve & Provision Modal State
+  const [approveModalCollege, setApproveModalCollege] = useState(null);
+  const [approvePassword, setApprovePassword] = useState('');
+  const [approveRole, setApproveRole] = useState('spoc');
+  const [approveSendEmail, setApproveSendEmail] = useState(true);
+  const [approveSaving, setApproveSaving] = useState(false);
+  const [approveError, setApproveError] = useState('');
+
 
   const fetchColleges = async () => {
     setLoading(true);
@@ -138,19 +146,51 @@ export default function AdminCollegesPage() {
     }
   };
 
-  const approveCollege = async (college) => {
-    const adminPassword = prompt(`Create temporary initial password for ${college.spocEmail}:`);
-    if (!adminPassword) return;
+    const generateRandomPassword = (shortName) => {
+    const prefix = (shortName || 'CampX').replace(/[^a-zA-Z0-9]/g, '') || 'CampX';
+    return `${prefix}@${Math.floor(1000 + Math.random() * 9000)}`;
+  };
 
-    const res = await fetch(`/api/colleges/approve/${college._id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ adminPassword })
-    });
-    const data = await res.json();
-    if (!res.ok) return alert(data.msg || 'Approval failed');
-    fetchColleges();
+  const openApproveModal = (college) => {
+    setApproveModalCollege(college);
+    setApprovePassword(generateRandomPassword(college.shortName || college.name));
+    setApproveRole('spoc');
+    setApproveSendEmail(true);
+    setApproveError('');
+  };
+
+  const handleConfirmApprove = async (e) => {
+    e.preventDefault();
+    if (!approveModalCollege) return;
+    if (!approvePassword || approvePassword.length < 6) {
+      setApproveError('Please specify an initial password of at least 6 characters.');
+      return;
+    }
+
+    setApproveSaving(true);
+    setApproveError('');
+
+    try {
+      const res = await fetch(`/api/colleges/approve/${approveModalCollege._id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          adminPassword: approvePassword,
+          role: approveRole,
+          sendEmail: approveSendEmail,
+          clientUrl: typeof window !== 'undefined' ? window.location.origin : 'https://www.campxcode.in'
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || 'Failed to approve and provision college.');
+      setApproveModalCollege(null);
+      fetchColleges();
+    } catch (err) {
+      setApproveError(err.message);
+    } finally {
+      setApproveSaving(false);
+    }
   };
 
   const rejectCollege = async (college) => {
@@ -520,7 +560,7 @@ export default function AdminCollegesPage() {
                 </button>
 
                 {isSuperAdminUser && college.status !== 'approved' && (
-                  <button onClick={() => approveCollege(college)} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all">
+                  <button onClick={() => openApproveModal(college)} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all">
                     <CheckCircle size={15} /> Approve
                   </button>
                 )}
@@ -1032,6 +1072,161 @@ export default function AdminCollegesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Super Admin College Approval & SPOC Provisioning Modal */}
+      {approveModalCollege && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-6">
+            
+            <button
+              onClick={() => setApproveModalCollege(null)}
+              className="absolute top-6 right-6 p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                  Approve &amp; Provision College
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Verify institution credentials and generate SPOC admin access.
+                </p>
+              </div>
+            </div>
+
+            {approveError && (
+              <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle size={16} className="shrink-0" />
+                <span>{approveError}</span>
+              </div>
+            )}
+
+            {/* Institution Summary Box */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Institution:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{approveModalCollege.name} ({approveModalCollege.shortName || 'N/A'})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Nodal SPOC:</span>
+                <span className="font-semibold text-slate-900 dark:text-white">{approveModalCollege.spocName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">SPOC Email:</span>
+                <span className="font-mono text-indigo-600 dark:text-indigo-400 font-semibold">{approveModalCollege.spocEmail}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Domain Policy:</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">{approveModalCollege.domain || (approveModalCollege.allowGenericEmails ? 'Generic Emails' : 'Custom Domain')}</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleConfirmApprove} className="space-y-5">
+              
+              {/* Role Selection */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+                  Assigned Administrative Role
+                </label>
+                <select
+                  value={approveRole}
+                  onChange={(e) => setApproveRole(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="spoc">SPOC (Single Point of Contact - Team Approvals)</option>
+                  <option value="college_admin">College Admin (Full Campus Administration)</option>
+                </select>
+              </div>
+
+              {/* Password Setting */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Set Initial SPOC Password *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setApprovePassword(generateRandomPassword(approveModalCollege.shortName || approveModalCollege.name))}
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold flex items-center gap-1"
+                  >
+                    <RefreshCw size={12} /> Auto-Generate
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    minLength={6}
+                    value={approvePassword}
+                    onChange={(e) => setApprovePassword(e.target.value)}
+                    placeholder="Enter or generate initial password"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 pr-10 text-sm font-mono text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <Key className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                </div>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Minimum 6 characters. SPOC will be prompted to change upon first login.
+                </p>
+              </div>
+
+              {/* Dispatch Email Checkbox */}
+              <div className="p-3.5 rounded-xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/50 dark:bg-indigo-950/30">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={approveSendEmail}
+                    onChange={(e) => setApproveSendEmail(e.target.checked)}
+                    className="mt-1 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                  />
+                  <div className="text-xs">
+                    <span className="font-bold text-slate-900 dark:text-white block">
+                      Send credentials to SPOC via Email
+                    </span>
+                    <span className="text-slate-500 dark:text-slate-400">
+                      Dispatches an official welcome email to <strong className="font-mono text-slate-700 dark:text-slate-300">{approveModalCollege.spocEmail}</strong> containing their username, initial password, and portal link.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              {/* Modal Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setApproveModalCollege(null)}
+                  disabled={approveSaving}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={approveSaving}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {approveSaving ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Provisioning...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={14} />
+                      <span>Approve &amp; Provision Access</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+            </form>
+
           </div>
         </div>
       )}

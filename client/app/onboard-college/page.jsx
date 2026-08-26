@@ -33,11 +33,10 @@ export default function CollegeOnboardingPage() {
     designation: '',
     department: '',
     estimatedStudents: '500-1500',
-    adminPassword: '',
-    confirmPassword: '',
+    
   });
 
-  const [showPassword, setShowPassword] = useState(false);
+  
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -58,15 +57,9 @@ export default function CollegeOnboardingPage() {
       return;
     }
 
-    if (formData.adminPassword && formData.adminPassword.length < 6) {
-      setError('Admin password must be at least 6 characters.');
-      return;
-    }
+    
 
-    if (formData.adminPassword !== formData.confirmPassword) {
-      setError('Initial administrative passwords do not match.');
-      return;
-    }
+    
 
     if (!agreedToTerms) {
       setError('You must accept the Institutional Master Services Agreement and Data Processing Terms.');
@@ -176,10 +169,10 @@ export default function CollegeOnboardingPage() {
 
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
-                href="/admin/login"
+                href="/"
                 className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-md shadow-indigo-600/20 active:scale-95 transition-all"
               >
-                Go to SPOC Login Portal
+                Return to Homepage
               </Link>
               <Link
                 href="/"
@@ -533,67 +526,7 @@ export default function CollegeOnboardingPage() {
               </div>
             </div>
 
-            {/* SECTION 3: INITIAL SPOC ADMINISTRATIVE CREDENTIALS */}
-            <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-10 shadow-sm space-y-6">
-              <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
-                  <Lock size={22} />
-                </div>
-                <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
-                    3. Provision SPOC Dashboard Access Password
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Set the initial password for the SPOC admin account ({formData.spocEmail || 'spoc@college.edu'}).
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-                    Initial Admin Password *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      minLength={6}
-                      name="adminPassword"
-                      value={formData.adminPassword}
-                      onChange={handleChange}
-                      placeholder="At least 6 characters"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-                    Confirm Admin Password *
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    placeholder="Re-enter password"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* SECTION 4: INSTITUTIONAL LEGAL AGREEMENT & SECURITY CHALLENGE */}
+            {/* SECTION 3: INSTITUTIONAL LEGAL AGREEMENT & SECURITY CHALLENGE */}
             <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-10 shadow-sm space-y-6">
               <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
