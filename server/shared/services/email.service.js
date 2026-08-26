@@ -47,7 +47,8 @@ async function sendMail({ to, subject, html, text, from = DEFAULT_FROM }) {
 }
 
 // ---------------------------------------------------------------------------
-// NEWSLETTER VERIFICATION EMAIL TEMPLATE
+// ---------------------------------------------------------------------------
+// NEWSLETTER VERIFICATION EMAIL TEMPLATE (LIGHT THEME)
 // ---------------------------------------------------------------------------
 async function sendNewsletterVerification({ email, token, clientUrl }) {
   const verifyLink = `${clientUrl || 'http://localhost:3000'}/verify-newsletter?token=${token}&email=${encodeURIComponent(email)}`;
@@ -57,29 +58,35 @@ async function sendNewsletterVerification({ email, token, clientUrl }) {
     <html>
     <head>
       <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 40px 20px; }
-        .container { max-width: 560px; margin: 0 auto; background-color: #1e293b; border-radius: 24px; border: 1px solid #334155; padding: 40px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
-        .logo { font-size: 20px; font-weight: 900; color: #6366f1; letter-spacing: -0.5px; margin-bottom: 24px; }
-        h1 { font-size: 24px; font-weight: 800; color: #ffffff; margin: 0 0 16px 0; }
-        p { font-size: 15px; line-height: 1.6; color: #94a3b8; margin: 0 0 24px 0; }
-        .btn { display: inline-block; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 15px; padding: 14px 32px; border-radius: 9999px; box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3); }
-        .footer { font-size: 12px; color: #64748b; margin-top: 36px; border-top: 1px solid #334155; padding-top: 20px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 40px 16px; }
+        .container { max-width: 540px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0; padding: 36px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05); }
+        .badge { display: inline-block; background-color: #eef2ff; color: #4f46e5; font-size: 11px; font-weight: 800; padding: 5px 14px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 20px; border: 1px solid #e0e7ff; }
+        h1 { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 16px 0; line-height: 1.3; }
+        p { font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 20px 0; }
+        .btn-wrapper { text-align: center; margin: 28px 0; }
+        .btn { display: inline-block; background-color: #0f172a; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 13px 32px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.2); }
+        .url-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; font-size: 12px; color: #64748b; margin-top: 24px; word-break: break-all; }
+        .footer { font-size: 11px; color: #94a3b8; margin-top: 32px; border-top: 1px solid #f1f5f9; padding-top: 18px; line-height: 1.5; }
       </style>
     </head>
     <body>
       <div class="container">
-        <div class="logo">⚡ Hackathon & SIH Portal</div>
+        <div class="badge">⚡ Official Hackathon Portal</div>
         <h1>Confirm Your Newsletter Subscription</h1>
         <p>You recently requested to subscribe to official Smart India Hackathon announcements, campus problem statements, and schedule alerts.</p>
         <p>Please click the button below to verify your email address and activate your subscription:</p>
-        <div style="text-align: center; margin: 32px 0;">
-          <a href="${verifyLink}" class="btn" target="_blank">Confirm Subscription</a>
+        <div class="btn-wrapper">
+          <a href="${verifyLink}" class="btn" target="_blank">Confirm Subscription &rarr;</a>
         </div>
-        <p style="font-size: 13px; color: #64748b;">If the button doesn't work, copy and paste this URL into your browser:<br/><a href="${verifyLink}" style="color: #818cf8; word-break: break-all;">${verifyLink}</a></p>
+        <div class="url-box">
+          If the button doesn't work, copy and paste this URL into your browser:<br/>
+          <a href="${verifyLink}" style="color: #4f46e5; text-decoration: underline;">${verifyLink}</a>
+        </div>
         <div class="footer">
           If you did not request this subscription, you can safely ignore this email.<br/>
-          &copy; ${new Date().getFullYear()} Official Campus Hackathon Portal.
+          &copy; ${new Date().getFullYear()} Campus Hackathon Portal. All rights reserved.
         </div>
       </div>
     </body>
@@ -95,7 +102,7 @@ async function sendNewsletterVerification({ email, token, clientUrl }) {
 }
 
 // ---------------------------------------------------------------------------
-// BROADCAST ANNOUNCEMENT EMAIL TEMPLATE
+// BROADCAST ANNOUNCEMENT EMAIL TEMPLATE (LIGHT THEME)
 // ---------------------------------------------------------------------------
 async function sendBroadcastEmail({ to, subject, content, clientUrl }) {
   const formattedContent = String(content).replace(/\n/g, '<br/>');
@@ -106,14 +113,15 @@ async function sendBroadcastEmail({ to, subject, content, clientUrl }) {
     <html>
     <head>
       <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 40px 20px; }
-        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; border: 1px solid #e2e8f0; padding: 40px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
-        .badge { display: inline-block; background-color: #e0e7ff; color: #4338ca; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 9999px; text-transform: uppercase; margin-bottom: 16px; }
-        h1 { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 20px 0; line-height: 1.3; }
-        .content { font-size: 15px; line-height: 1.7; color: #334155; margin-bottom: 32px; }
-        .btn { display: inline-block; background-color: #0f172a; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 28px; border-radius: 14px; }
-        .footer { font-size: 12px; color: #94a3b8; margin-top: 36px; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 40px 16px; }
+        .container { max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0; padding: 36px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05); }
+        .badge { display: inline-block; background-color: #eef2ff; color: #4f46e5; font-size: 11px; font-weight: 800; padding: 5px 14px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 20px; border: 1px solid #e0e7ff; }
+        h1 { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 18px 0; line-height: 1.3; }
+        .content { font-size: 14px; line-height: 1.7; color: #334155; margin-bottom: 28px; }
+        .btn { display: inline-block; background-color: #0f172a; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 28px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.2); }
+        .footer { font-size: 11px; color: #94a3b8; margin-top: 32px; border-top: 1px solid #f1f5f9; padding-top: 18px; line-height: 1.5; }
       </style>
     </head>
     <body>
