@@ -5,7 +5,7 @@ const Otp = require('../auth/otp.model');
 const withTransaction = require('../../shared/utils/withTransaction');
 const ApiError = require('../../core/utils/ApiError');
 const { isSuperAdmin } = require('../../core/utils/roleHelper');
-const { sendMail } = require('../../shared/services/resend.service');
+const { sendMail } = require('../../shared/services/email.service');
 
 const createCollegeAdmin = async (college, password, session, role = 'spoc') => {
   if (!password || password.length < 6) {
