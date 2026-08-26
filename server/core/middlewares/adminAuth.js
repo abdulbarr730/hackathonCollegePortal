@@ -21,8 +21,8 @@ module.exports = async function (req, res, next) {
       return res.status(401).json({ msg: 'User not found, authorization denied' });
     }
 
-    if (!user.isAdmin) {
-      return res.status(403).json({ msg: 'Not an admin, authorization denied' });
+    if (!user.isAdmin && !['spoc', 'college_admin', 'admin', 'super_admin', 'judge'].includes(user.role)) {
+      return res.status(403).json({ msg: 'Not authorized for institutional administration' });
     }
 
     req.user = user;

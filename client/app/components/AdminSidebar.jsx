@@ -13,49 +13,43 @@ export default function AdminSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
-  const isSuperAdmin = user?.role === 'admin' && !user?.college;
+  const isSuperAdmin = user?.role === 'super_admin' || 
+    user?.email?.toLowerCase() === 'abdulbarr730@gmail.com' ||
+    (user?.isAdmin && user?.role === 'admin' && !user?.college);
+
   const isCollegeAdmin = user?.role === 'college_admin' || (user?.role === 'admin' && user?.college);
   const isSpoc = user?.role === 'spoc';
 
   // Build menu items dynamically based on user role
   const getNavItems = () => {
-    if (isSpoc) {
+    // 1. Super Admin ONLY (abdulbarr730@gmail.com / super_admin)
+    if (isSuperAdmin) {
       return [
+        { href: '/admin/dashboard', label: 'Super Dashboard', icon: LayoutGrid },
+        { href: '/admin/colleges', label: 'Colleges Onboarding', icon: Building2 },
         { href: '/admin/staff', label: 'SPOCs & Admins', icon: Shield },
-        { href: '/admin/teams', label: 'College Teams', icon: Users },
+        { href: '/admin/hackathons', label: 'All Hackathons', icon: Trophy },
         { href: '/admin/approved-students', label: 'Approved Students', icon: FileSpreadsheet },
-        { href: '/admin/resources', label: 'Resources', icon: FileText },
-        { href: '/admin/updates', label: 'Updates', icon: Megaphone },
-      ];
-    }
-
-    if (isCollegeAdmin) {
-      return [
-        { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutGrid },
-        { href: '/admin/staff', label: 'SPOCs & Admins', icon: Shield },
-        { href: '/admin/hackathons', label: 'Internal Hackathons', icon: Trophy },
-        { href: '/admin/approved-students', label: 'Approved Students', icon: FileSpreadsheet },
-        { href: '/admin/users', label: 'College Users', icon: Users },
-        { href: '/admin/teams', label: 'College Teams', icon: Users },
+        { href: '/admin/users', label: 'User Directory', icon: Users },
+        { href: '/admin/teams', label: 'All Teams & SIH Export', icon: Users },
         { href: '/admin/ideas', label: 'Idea Repository', icon: Lightbulb },
         { href: '/admin/resources', label: 'Resources', icon: FileText },
-        { href: '/admin/updates', label: 'Updates', icon: Megaphone },
+        { href: '/admin/updates', label: 'Updates & Announcements', icon: Megaphone },
+        { href: '/admin/newsletter', label: 'Newsletter Broadcast', icon: Mail },
       ];
     }
 
-    // Super Admin: sees all system controls
+    // 2. Institutional Staff (SPOCs & College Admins) - Full College Governance
     return [
-      { href: '/admin/dashboard', label: 'Super Dashboard', icon: LayoutGrid },
-      { href: '/admin/colleges', label: 'Colleges Onboarding', icon: Building2 },
+      { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutGrid },
       { href: '/admin/staff', label: 'SPOCs & Admins', icon: Shield },
-      { href: '/admin/hackathons', label: 'All Hackathons', icon: Trophy },
-      { href: '/admin/approved-students', label: 'Approved Students', icon: FileSpreadsheet },
       { href: '/admin/users', label: 'User Directory', icon: Users },
-      { href: '/admin/teams', label: 'All Teams & SIH Export', icon: Users },
+      { href: '/admin/teams', label: 'College Teams', icon: Users },
+      { href: '/admin/approved-students', label: 'Approved Students', icon: FileSpreadsheet },
+      { href: '/admin/hackathons', label: 'Internal Hackathons', icon: Trophy },
       { href: '/admin/ideas', label: 'Idea Repository', icon: Lightbulb },
       { href: '/admin/resources', label: 'Resources', icon: FileText },
-      { href: '/admin/updates', label: 'Updates & Announcements', icon: Megaphone },
-      { href: '/admin/newsletter', label: 'Newsletter Broadcast', icon: Mail },
+      { href: '/admin/updates', label: 'Updates', icon: Megaphone },
     ];
   };
 
