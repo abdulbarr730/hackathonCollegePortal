@@ -88,3 +88,20 @@ exports.uploadUpdateFile = async (req, res) => {
     res.status(err.status || 500).json({ msg: err.message || 'Upload failed' });
   }
 };
+
+/* ============================================================================
+   MANUAL SYNC CONTROLLER
+============================================================================ */
+exports.syncSIH = async (_req, res) => {
+  try {
+    const result = await service.syncSIHNow();
+    res.json({
+      ok: true,
+      msg: `Scraped ${result.scrapedCount || 0} updates from SIH portal. ${result.newUpdatesCount || 0} new updates saved!`,
+      result
+    });
+  } catch (err) {
+    console.error('Manual SIH sync error:', err);
+    res.status(500).json({ msg: err.message || 'Sync failed' });
+  }
+};

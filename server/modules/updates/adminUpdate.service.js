@@ -9,7 +9,7 @@ const supabase = require('../../shared/services/supabase.service');
 ============================================================================ */
 exports.listUpdates = async () => {
 
-  const updates = await Update.find({ source: { $ne: 'scraper' } })
+  const updates = await Update.find()
     .populate('hackathon', 'name shortName')
     .sort({ pinned: -1, publishedAt: -1 });
 
@@ -149,4 +149,12 @@ exports.uploadUpdateFile = async (file) => {
     .getPublicUrl(filePath);
 
   return data.publicUrl;
+};
+
+/* ============================================================================
+   MANUAL SYNC TRIGGER
+============================================================================ */
+exports.syncSIHNow = async () => {
+  const { scrapeSIH } = require('./update.scraper');
+  return await scrapeSIH();
 };

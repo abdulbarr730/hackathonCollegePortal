@@ -21,53 +21,26 @@ const cron = require('node-cron');
 const { notifyUsersNewUpdates } = require('./shared/services/updateNotifications.service');
 // -------------------- Feeder scheduler --------------------
 // 1. DEFINE THE VARIABLES FIRST
-const FEEDER_ENABLED = String(process.env.FEEDER_ENABLED || 'false') === 'true';
+const FEEDER_ENABLED = String(process.env.FEEDER_ENABLED || 'true') === 'true';
 const FEEDER_CRON = process.env.FEEDER_CRON || '*/15 * * * *';
 const FEEDER_SOURCE_URL = process.env.FEEDER_SOURCE_URL || 'https://sih.gov.in/';
 const PLAYWRIGHT_ENABLED = String(process.env.PLAYWRIGHT_ENABLED || 'true') === 'true';
 let runFeederOnce = null;
 if (FEEDER_ENABLED) {
-  ({ runFeederOnce } = require('./shared/services/sihFeeder.service'));
-}
+  const { scrapeSIH } = require('./modules/updates/update.scraper');
+  
+  // Initial scrape on server boot (after 5 seconds delay)
+  setTimeout(() => {
+    console.log('🚀 Running initial SIH update scrape on server startup...');
+    scrapeSIH().catch(e => console.error('Initial SIH scrape error:', e.message));
+  }, 5000);
 
-// DB
-const connectDB = require('./core/database/db');
-
-const app = express();
-
-// Connect DB
-connectDB();
-
-// Core middleware
-app.use('/uploads/resources', express.static(path.join(__dirname, 'uploads/resources')));
-app.use(cors({ origin: process.env.CLIENT_URL , credentials: true }));
-app.set("trust proxy", 1);
-app.use(cookieParser());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-
-// Static uploads
-const uploadsDir = path.join(__dirname, '..', 'uploads');
-app.use('/uploads', express.static(uploadsDir));
-app.use('/uploads/avatars', express.static(path.join(__dirname, '..', 'uploads', 'avatars')));
-
-// Optional request logging
-app.use((req, _res, next) => {
-  if (req.path.startsWith('/api/admin/users/export.csv')) {
-    console.log('CSV export request', {
-      q: req.query?.q,
-      verified: req.query?.verified,
-      admin: req.query?.admin,
-    });
-  }
-  next();
-});
-
-const registerRoutes = require('./modules/index');
-registerRoutes(app);
-
-// Health check
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
+  // Scheduled recurring scrape every 30 minutes
+  cron.schedule(FEEDER_CRON, () => {
+    console.log('⏰ Running scheduled SIH scraper cron...');
+    scrapeSIH().catch(e => console.error('Scheduled SIH scrape error:', e.message));
+  });
+}));
 
 // Error handler
 app.use((err, _req, res, _next) => {

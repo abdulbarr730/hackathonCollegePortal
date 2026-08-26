@@ -26,6 +26,45 @@ const DEFAULT_FROM = getContextualSender('general');
 const FALLBACK_FROM = 'Hackathon Portal <onboarding@resend.dev>';
 
 /**
+ * Dispatch via Zoho ZeptoMail REST API
+ */
+async function sendViaZeptoMail({ to, subject, html, text, from = DEFAULT_FROM }) {
+  const token = process.env.ZEPTOMAIL_TOKEN || process.env.ZEPTOMAIL_API_KEY;
+  if (!token) return false;
+
+  const url = process.env.ZEPTOMAIL_URL || 'https://api.zeptomail.in/v1.1/email';
+  
+  const fromAddress = from.includes('<') ? from.match(/<([^>]+)>/)[1] : from;
+  const fromName = from.includes('<') ? from.split('<')[0].trim() : 'CampXCode';
+
+  const body = {
+    from: { address: fromAddress, name: fromName },
+    to: [{ email_address: { address: to } }],
+    subject: subject,
+    htmlbody: html,
+    textbody: text || subject
+  };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Authorization': `Zoho-enczapikey ${token}`
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.message || `ZeptoMail error HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return { success: true, id: data.data?.[0]?.message_id || 'zepto-' + Date.now(), provider: 'zeptomail' };
+}
+
+/**
  * Main sendMail dispatcher supporting explicit provider selection:
  * - 'zeptomail': Zoho ZeptoMail API
  * - 'resend': Resend API

@@ -31,4 +31,6 @@ router.put('/:id', requireAdmin, controller.updateUpdate);
 
 router.delete('/:id', requireAdmin, controller.deleteUpdate);
 
+router.post('/sync-sih', controller.syncSIH);
+
 module.exports = router;

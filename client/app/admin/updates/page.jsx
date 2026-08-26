@@ -124,12 +124,32 @@ export default function AdminUpdatesPage() {
     }
   };
 
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncSIH = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/admin/updates/sync-sih', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || 'Sync failed');
+      alert(data.msg);
+      fetchData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Official Updates & Notices</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Post verified announcements and purge scraped notifications.</p>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Automated SIH scraping, verified announcements, and instant student notifications.</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -140,6 +160,17 @@ export default function AdminUpdatesPage() {
            <span className={`px-3 py-1 rounded-xl text-xs font-bold border ${activeHackathon ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'}`}>
              {activeHackathon ? activeHackathon.name : 'None (Global)'}
            </span>
+
+           {/* SYNC SIH OFFICIAL PORTAL BUTTON */}
+           <button
+             onClick={handleSyncSIH}
+             disabled={syncing}
+             className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-emerald-500 shadow-sm disabled:opacity-50"
+             title="Run live SIH auto-scraper now and notify students"
+           >
+             <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
+             {syncing ? 'Scraping SIH...' : 'Sync SIH Live'}
+           </button>
 
            {/* RETAG BUTTON */}
            <button 
