@@ -148,22 +148,22 @@ export default function HomePage() {
       <div className="relative z-10 w-full">
         
         {/* --- HERO SECTION --- */}
-        <section className="container mx-auto px-4 sm:px-6 pt-20 sm:pt-28 pb-16 sm:pb-24 text-center">
+        <section className="container mx-auto px-4 sm:px-6 pt-4 sm:pt-6 pb-12 sm:pb-16 text-center">
           <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
             
             {/* Dynamic Badge showing CURRENTLY active event, but keeping main text general */}
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-8 sm:mb-10 shadow-sm">
+            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-4 sm:mb-6 shadow-sm">
               <Zap size={14} className="fill-indigo-600 dark:fill-indigo-400" /> 
               Now Live: {activeEvent?.name || "Hackathon Season"}
             </span>
 
-            <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-slate-900 dark:text-white leading-tight md:leading-[0.95] mb-6 sm:mb-10 tracking-tight">
+            <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-slate-900 dark:text-white leading-tight md:leading-[0.95] mb-4 sm:mb-6 tracking-tight">
               One Portal. <br />
               <span className="text-indigo-600 dark:text-indigo-400">
                 Any Hackathon.
               </span>
             </h1>
-            <p className="text-sm sm:text-lg md:text-2xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto mb-8 sm:mb-14 font-medium leading-relaxed">
+            <p className="text-sm sm:text-lg md:text-2xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto mb-6 sm:mb-8 font-medium leading-relaxed">
               Whether it's the massive <strong>Smart India Hackathon (SIH)</strong> or an intense <strong>Internal College Sprint</strong>, finding a team shouldn't be chaos. 
               <br className="hidden sm:inline" />
               <span className="text-slate-500 mt-2 block text-sm sm:text-lg">
