@@ -3,8 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'next/navigation';
+import { 
+  CheckCircle2, ShieldCheck, Mail, AlertCircle, X, Search, Filter,
+  Users, Building2, UserCheck, UserX, UserPlus, Key, Trash2
+} from 'lucide-react';
 
-// --- Icon components for a cleaner UI ---
 const Icon = ({ path, className = 'w-5 h-5' }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
     <path fillRule="evenodd" d={path} clipRule="evenodd" />
@@ -44,12 +47,17 @@ export default function AdminUsersPage() {
   const [selectedTeam, setSelectedTeam] = useState('');
   const [colleges, setColleges] = useState([]);
   const [selectedCollege, setSelectedCollege] = useState('');
-  const [notifyEmailOnVerify, setNotifyEmailOnVerify] = useState(true);
+
+  // Interactive Verification Confirmation Modal State
+  const [verifyModalTarget, setVerifyModalTarget] = useState(null); // null | { type: 'single', user: u } | { type: 'bulk', count: selected.length, ids: selected }
+  const [sendEmailPrompt, setSendEmailPrompt] = useState(true);
 
   useEffect(() => {
     const fetchTeams = async () => {
       try {
-        const res = await fetch('/api/admin/teams/list', { credentials: 'include' });
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch('/api/admin/teams/list', { headers, credentials: 'include' });
         if (!res.ok) throw new Error('Could not fetch teams');
         const data = await res.json();
         setTeams(data || []);
@@ -58,41 +66,46 @@ export default function AdminUsersPage() {
       }
     };
     
-    if (user && user.isAdmin) {
-      fetchTeams();
-    }
-  }, [user]);
-
-  useEffect(() => {
     const fetchColleges = async () => {
       try {
-        const res = await fetch('/api/colleges?status=approved', { credentials: 'include' });
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch('/api/colleges?status=approved', { headers, credentials: 'include' });
+        if (!res.ok) throw new Error('Could not fetch colleges');
         const data = await res.json();
-        if (res.ok) setColleges(data.items || []);
+        setColleges(data.items || []);
       } catch (err) {
         console.error(err.message);
       }
     };
 
-    if (user && user.isAdmin) fetchColleges();
-  }, [user]);
+    if (user && user.isAdmin) {
+      fetchTeams();
+      if (isSuperAdminUser) fetchColleges();
+    }
+  }, [user, isSuperAdminUser]);
 
   const fetchUsers = async () => {
     setLoading(true);
+    setError('');
     try {
-      const params = new URLSearchParams();
-      params.append('page', currentPage);
-      params.append('limit', pageSize);
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: pageSize,
+      });
 
-      if (search) params.append('q', search);
-      if (filter === 'verified') params.append('verified', 'true');
-      if (filter === 'unverified') params.append('verified', 'false');
-      if (filter === 'admin') params.append('admin', 'true');
-      if (filter === 'nonadmin') params.append('admin', 'false');
+      if (search) params.append('search', search);
+      if (filter && filter !== 'all') params.append('filter', filter);
       if (selectedTeam) params.append('teamId', selectedTeam);
       if (selectedCollege) params.append('collegeId', selectedCollege);
 
-      const res = await fetch(`/api/admin/users?${params.toString()}`, { credentials: 'include' });
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const res = await fetch(`/api/admin/users?${params.toString()}`, {
+        headers,
+        credentials: 'include',
+      });
       let data = {};
       try {
         data = await res.json();
@@ -119,12 +132,15 @@ export default function AdminUsersPage() {
     }
   }, [user, isAuthenticated, authLoading, search, filter, selectedTeam, selectedCollege, currentPage, router]);
 
-  // --- Update Single User ---
   const updateUser = async (userId, body, successMsg) => {
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         credentials: 'include',
         body: JSON.stringify(body),
       });
@@ -144,12 +160,13 @@ export default function AdminUsersPage() {
     }
   };
 
-  // --- Delete Single User ---
   const handleDeleteUser = async (userId) => {
-    if (!confirm('Are you sure you want to delete this user? This is irreversible.')) return;
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       let data = {};
@@ -168,20 +185,85 @@ export default function AdminUsersPage() {
     }
   };
 
-  // --- Bulk Action on Selected Users ---
+  // Trigger single user verification prompt
+  const initiateVerifyUser = (u) => {
+    if (u.isVerified) {
+      // Un-verifying
+      if (confirm(`Un-verify ${u.name}?`)) {
+        updateUser(u._id, { isVerified: false, sendEmail: false }, 'User status set to Unverified');
+      }
+    } else {
+      // Verifying -> Open explicit modal prompt
+      setVerifyModalTarget({ type: 'single', user: u });
+      setSendEmailPrompt(true);
+    }
+  };
+
+  // Trigger bulk verification prompt
+  const initiateBulkVerify = () => {
+    if (selected.length === 0) return alert('No users selected.');
+    setVerifyModalTarget({ type: 'bulk', count: selected.length, ids: selected });
+    setSendEmailPrompt(true);
+  };
+
+  // Confirm verification from modal
+  const handleConfirmVerification = async () => {
+    if (!verifyModalTarget) return;
+
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers = { 
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+
+      if (verifyModalTarget.type === 'single') {
+        const u = verifyModalTarget.user;
+        const res = await fetch(`/api/admin/users/${u._id}`, {
+          method: 'PUT',
+          headers,
+          credentials: 'include',
+          body: JSON.stringify({ isVerified: true, sendEmail: sendEmailPrompt }),
+        });
+        if (!res.ok) throw new Error('Failed to verify user');
+        alert(`${u.name} has been verified successfully${sendEmailPrompt ? ' (Verification email dispatched)' : ''}!`);
+      } else {
+        const res = await fetch('/api/admin/users/bulk-verify', {
+          method: 'POST',
+          headers,
+          credentials: 'include',
+          body: JSON.stringify({ ids: verifyModalTarget.ids, isVerified: true, sendEmail: sendEmailPrompt }),
+        });
+        if (!res.ok) throw new Error('Failed to bulk verify users');
+        alert(`${verifyModalTarget.count} users verified successfully${sendEmailPrompt ? ' (Verification emails dispatched)' : ''}!`);
+        setSelected([]);
+      }
+
+      setVerifyModalTarget(null);
+      fetchUsers();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const handleBulkAction = async (action) => {
     if (selected.length === 0) {
       alert('No users selected.');
       return;
     }
 
-    if (action === 'delete' && !confirm(`Delete ${selected.length} users?`)) return;
+    if (action === 'verify') {
+      initiateBulkVerify();
+      return;
+    }
+
+    if (action === 'delete' && !confirm(`Delete ${selected.length} users permanently?`)) return;
 
     let endpoint = '';
     let body = {};
-    if (action === 'verify' || action === 'unverify') {
+    if (action === 'unverify') {
       endpoint = '/users/bulk-verify';
-      body = { ids: selected, isVerified: action === 'verify', sendEmail: notifyEmailOnVerify };
+      body = { ids: selected, isVerified: false, sendEmail: false };
     } else if (action === 'makeAdmin' || action === 'removeAdmin') {
       endpoint = '/users/bulk-admin';
       body = { ids: selected, isAdmin: action === 'makeAdmin' };
@@ -191,21 +273,17 @@ export default function AdminUsersPage() {
     }
 
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const res = await fetch(`/api/admin${endpoint}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         credentials: 'include',
         body: JSON.stringify(body),
       });
-      let data = {};
-      try {
-        data = await res.json();
-      } catch {
-        // fallback
-      }
-      if (!res.ok) {
-        throw new Error(data.msg || data.message || 'Bulk action failed');
-      }
+      if (!res.ok) throw new Error('Bulk action failed');
       fetchUsers();
       setSelected([]);
       alert(`Bulk action '${action}' applied successfully`);
@@ -214,104 +292,72 @@ export default function AdminUsersPage() {
     }
   };
 
-  // --- Export Users ---
-  const handleExport = (format) => {
-    const params = new URLSearchParams();
-    if (search) params.append('q', search);
-    if (filter === 'verified') params.append('verified', 'true');
-    if (filter === 'unverified') params.append('verified', 'false');
-    if (filter === 'admin') params.append('admin', 'true');
-    if (filter === 'nonadmin') params.append('admin', 'false');
-    if (selectedTeam) params.append('teamId', selectedTeam);
-    if (selectedCollege) params.append('collegeId', selectedCollege);
-
-    window.open(`/api/admin/users/export?format=${format}&${params.toString()}`, '_blank');
-  };
-
-  // --- Select All in Current Page ---
-  const toggleSelectAll = () => {
-    const idsOnPage = users.map(u => u._id);
-    const allSelected = idsOnPage.every(id => selected.includes(id));
-    if (allSelected) {
-      setSelected(selected.filter(id => !idsOnPage.includes(id)));
+  const toggleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelected(users.map(u => u._id));
     } else {
-      setSelected([...new Set([...selected, ...idsOnPage])]);
+      setSelected([]);
     }
   };
 
-  if (authLoading) {
-    return <div className="flex justify-center items-center h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">Loading...</div>;
-  }
-  if (error) {
-    return <div className="flex justify-center items-center h-screen bg-slate-50 dark:bg-slate-950 text-red-500">Error: {error}</div>;
-  }
-
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">User Directory</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Total users found: {totalUsers}</p>
-        </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <button onClick={() => handleExport('csv')} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">Export CSV</button>
-          <button onClick={() => handleExport('xlsx')} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs sm:text-sm font-bold text-white hover:bg-emerald-500 transition-colors shadow-sm">Export Excel</button>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-bold uppercase tracking-wider mb-2">
+            <ShieldCheck size={14} /> Institutional Student Directory
+          </div>
+          <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">Student &amp; User Directory</h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Manage registrations, perform single/bulk verifications, assign roles, and inspect team rosters.
+          </p>
         </div>
       </div>
 
-      
-      {/* Email Notification Toggle */}
-      <div className="flex items-center gap-2 p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 text-xs">
-        <input
-          type="checkbox"
-          id="notifyEmailCheck"
-          checked={notifyEmailOnVerify}
-          onChange={(e) => setNotifyEmailOnVerify(e.target.checked)}
-          className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
-        />
-        <label htmlFor="notifyEmailCheck" className="text-slate-700 dark:text-slate-200 cursor-pointer font-medium">
-          <strong>Send email notification on verification</strong> — Automatically dispatch official verification notice and portal link to user's email.
-        </label>
-      </div>
+      {error && (
+        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold">
+          {error}
+        </div>
+      )}
 
-      {/* Filters + Search */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+      {/* Filters and Search Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <input
           type="text"
-          placeholder="Search by name, email, or roll..."
+          placeholder="Search by name, roll number or email..."
           value={search}
           onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-          className="md:col-span-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm"
+          className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm"
         />
         <select
           value={filter}
           onChange={(e) => { setFilter(e.target.value); setCurrentPage(1); }}
-          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm cursor-pointer"
+          className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer"
         >
           <option value="all">All Verification Statuses</option>
-          <option value="verified">Verified</option>
-          <option value="unverified">Unverified</option>
-          <option value="admin">Admins</option>
-          <option value="nonadmin">Non-Admins</option>
+          <option value="verified">Verified Only</option>
+          <option value="unverified">Unverified Only</option>
+          <option value="admin">Admins / SPOCs</option>
+          <option value="nonadmin">Students</option>
         </select>
         <select
           value={selectedTeam}
           onChange={(e) => { setSelectedTeam(e.target.value); setCurrentPage(1); }}
-          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm cursor-pointer"
+          className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer"
         >
-          <option value="">All Teams</option>
+          <option value="">All Squads &amp; Teams</option>
           {teams.map(team => (
-            <option key={team._id} value={team._id}>{team.name}</option>
+            <option key={team._id} value={team._id}>{team.name || team.teamName}</option>
           ))}
         </select>
         {isSuperAdminUser && (
           <select
             value={selectedCollege}
             onChange={(e) => { setSelectedCollege(e.target.value); setCurrentPage(1); }}
-            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm cursor-pointer"
+            className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer"
           >
-            <option value="">All Colleges</option>
+            <option value="">All Colleges (Global)</option>
             {colleges.map(college => (
               <option key={college._id} value={college._id}>{college.shortName || college.name}</option>
             ))}
@@ -321,67 +367,75 @@ export default function AdminUsersPage() {
       
       {/* Bulk Actions */}
       {selected.length > 0 && (
-        <div className="bg-indigo-50/70 dark:bg-slate-800 border border-indigo-100 dark:border-slate-700 p-4 rounded-2xl flex flex-wrap items-center gap-3 shadow-sm">
-            <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">{selected.length} user(s) selected</p>
+        <div className="bg-indigo-50/70 dark:bg-slate-800 border border-indigo-100 dark:border-slate-700 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-sm">
+            <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+              {selected.length} user(s) selected
+            </p>
             <div className="flex flex-wrap gap-2">
-                <button onClick={() => handleBulkAction('verify')} className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-xs font-bold text-white transition-colors">Verify</button>
-                <button onClick={() => handleBulkAction('unverify')} className="rounded-xl bg-amber-600 hover:bg-amber-500 px-3 py-1.5 text-xs font-bold text-white transition-colors">Un-verify</button>
-                <button onClick={() => handleBulkAction('makeAdmin')} className="rounded-xl bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-xs font-bold text-white transition-colors">Make Admin</button>
-                <button onClick={() => handleBulkAction('removeAdmin')} className="rounded-xl bg-purple-600 hover:bg-purple-500 px-3 py-1.5 text-xs font-bold text-white transition-colors">Remove Admin</button>
-                <button onClick={() => handleBulkAction('delete')} className="rounded-xl bg-red-600 hover:bg-red-500 px-3 py-1.5 text-xs font-bold text-white transition-colors">Delete</button>
+                <button onClick={() => handleBulkAction('verify')} className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white transition-colors shadow">
+                  ✓ Verify Selected
+                </button>
+                <button onClick={() => handleBulkAction('unverify')} className="rounded-xl bg-amber-600 hover:bg-amber-500 px-4 py-2 text-xs font-bold text-white transition-colors">
+                  Un-verify
+                </button>
+                <button onClick={() => handleBulkAction('makeAdmin')} className="rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-bold text-white transition-colors">
+                  Make Admin
+                </button>
+                <button onClick={() => handleBulkAction('delete')} className="rounded-xl bg-rose-600 hover:bg-rose-500 px-4 py-2 text-xs font-bold text-white transition-colors">
+                  Delete
+                </button>
             </div>
         </div>
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-        {/* Table Header */}
+      <div className="overflow-x-auto rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
         <div className="min-w-[920px] grid grid-cols-15 gap-4 bg-slate-50 dark:bg-slate-800/80 p-4 text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider border-b border-slate-200 dark:border-slate-800">
           <div className="col-span-1 flex items-center">
-            <input type="checkbox" onChange={toggleSelectAll} checked={users.length > 0 && users.every(u => selected.includes(u._id))} className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+            <input type="checkbox" onChange={toggleSelectAll} checked={users.length > 0 && users.every(u => selected.includes(u._id))} className="rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
           </div>
-          <div className="col-span-3">User</div>
+          <div className="col-span-3">User &amp; Email</div>
           <div className="col-span-2">Roll Number</div>
           <div className="col-span-2">Status</div>
           <div className="col-span-2">Role</div>
-          <div className="col-span-3">Team</div>
+          <div className="col-span-3">Assigned Team</div>
           <div className="col-span-2 text-right">Actions</div>
         </div>
 
-        {/* User Rows */}
         <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
           {loading ? (
-            <div className="text-center p-8 text-slate-400">Loading users...</div>
+            <div className="text-center p-12 text-slate-400 font-bold text-xs">Loading users...</div>
           ) : users.length === 0 ? (
-            <div className="text-center p-8 text-slate-400">No users found matching your criteria.</div>
+            <div className="text-center p-12 text-slate-400 font-bold text-xs">No users found matching your search.</div>
           ) : (
             users.map((u) => (
               <div key={u._id} className="min-w-[920px] grid grid-cols-15 gap-4 p-4 items-center hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                 <div className="col-span-1">
-                  <input type="checkbox" checked={selected.includes(u._id)} onChange={(e) => setSelected(e.target.checked ? [...selected, u._id] : selected.filter(id => id !== u._id))} className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                  <input type="checkbox" checked={selected.includes(u._id)} onChange={(e) => setSelected(e.target.checked ? [...selected, u._id] : selected.filter(id => id !== u._id))} className="rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
                 </div>
-                <div className="col-span-3">
-                  <p className="font-bold text-slate-900 dark:text-white truncate">{u.nameWithYear || u.name}</p>
+                <div className="col-span-3 min-w-0">
+                  <p className="font-bold text-slate-900 dark:text-white truncate text-sm">{u.nameWithYear || u.name}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{u.email}</p>
-                  {u.termsAcceptedAt && (
-                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-1 mt-0.5">
-                      <span>✓ Terms Accepted:</span>
-                      <span>{new Date(u.termsAcceptedAt).toLocaleDateString()}</span>
-                    </p>
-                  )}
                 </div>
                 <div className="col-span-2 text-xs font-mono font-semibold text-indigo-600 dark:text-indigo-400">{u.rollNumber || 'N/A'}</div>
                 <div className="col-span-2">
-                  <span className={`px-2.5 py-0.5 text-[11px] font-bold rounded-full border ${u.isVerified ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' : 'bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'}`}>{u.isVerified ? 'Verified' : 'Unverified'}</span>
+                  <span className={`px-2.5 py-0.5 text-[11px] font-bold rounded-full border ${u.isVerified ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' : 'bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'}`}>
+                    {u.isVerified ? '✓ Verified' : 'Unverified'}
+                  </span>
                 </div>
                 <div className="col-span-2 text-xs font-semibold text-slate-600 dark:text-slate-300 capitalize">{u.role || (u.isAdmin ? 'Admin' : 'Student')}</div>
-                <div className="col-span-3 text-xs text-slate-600 dark:text-slate-300 truncate">{u.team?.teamName || 'No Team'}</div>
+                <div className="col-span-3 text-xs text-slate-600 dark:text-slate-300 truncate">{u.team?.teamName || u.team?.name || 'No Team'}</div>
                 <div className="col-span-2 flex items-center gap-1.5 justify-end">
-                  <button onClick={() => updateUser(u._id, { isVerified: !u.isVerified, sendEmail: notifyEmailOnVerify }, `User ${u.isVerified ? 'un-verified' : 'verified'}`)} title={u.isVerified ? 'Un-verify User' : 'Verify User'} className={`p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors ${u.isVerified ? 'hover:bg-amber-50 dark:hover:bg-amber-950/40' : 'hover:bg-emerald-50 dark:hover:bg-emerald-950/40'}`}><Icon path={u.isVerified ? ICONS.unverify : ICONS.verify} /></button>
-                  <button onClick={() => updateUser(u._id, { isAdmin: !u.isAdmin }, `User ${u.isAdmin ? 'demoted from admin' : 'promoted to admin'}`)} title={u.isAdmin ? 'Remove Admin Status' : 'Make Admin'} className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"><Icon path={u.isAdmin ? ICONS.removeAdmin : ICONS.makeAdmin} /></button>
-                  <button onClick={() => { const newRole = prompt('Enter new role (student, spoc, judge, college_admin, admin):', u.role || 'student'); if (newRole) updateUser(u._id, { role: newRole }, `Role updated to ${newRole}`); }} title="Change User Role" className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors"><Icon path={ICONS.changeRole} /></button>
-                  <button onClick={() => { const newPass = prompt('Enter new password for this user:'); if (newPass) updateUser(u._id, { password: newPass }, 'Password reset successfully'); }} title="Reset User Password" className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"><Icon path={ICONS.resetPass} /></button>
-                  <button onClick={() => handleDeleteUser(u._id)} title="Delete User" className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"><Icon path={ICONS.delete} /></button>
+                  <button 
+                    onClick={() => initiateVerifyUser(u)} 
+                    title={u.isVerified ? 'Un-verify User' : 'Verify Profile (Asks to send email)'} 
+                    className={`p-2 rounded-xl text-slate-500 dark:text-slate-400 transition-all ${u.isVerified ? 'hover:bg-amber-50 text-amber-600' : 'hover:bg-emerald-50 text-emerald-600'}`}
+                  >
+                    <Icon path={u.isVerified ? ICONS.unverify : ICONS.verify} />
+                  </button>
+                  <button onClick={() => updateUser(u._id, { isAdmin: !u.isAdmin }, `User ${u.isAdmin ? 'demoted from admin' : 'promoted to admin'}`)} title={u.isAdmin ? 'Remove Admin' : 'Make Admin'} className="p-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"><Icon path={u.isAdmin ? ICONS.removeAdmin : ICONS.makeAdmin} /></button>
+                  <button onClick={() => { const newPass = prompt('Enter new password for this user:'); if (newPass) updateUser(u._id, { password: newPass }, 'Password reset successfully'); }} title="Reset Password" className="p-2 rounded-xl text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"><Icon path={ICONS.resetPass} /></button>
+                  <button onClick={() => handleDeleteUser(u._id)} title="Delete User" className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"><Icon path={ICONS.delete} /></button>
                 </div>
               </div>
             ))
@@ -392,13 +446,100 @@ export default function AdminUsersPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-between items-center text-xs text-slate-500">
-            <span>Page {currentPage} of {totalPages}</span>
+            <span>Page {currentPage} of {totalPages} (Total: {totalUsers} users)</span>
             <div className="flex gap-2">
-                <button onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Previous</button>
-                <button onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Next</button>
+                <button onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Previous</button>
+                <button onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Next</button>
             </div>
         </div>
       )}
+
+      {/* Verification Confirmation Modal */}
+      {verifyModalTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 sm:p-8 rounded-3xl shadow-2xl max-w-md w-full space-y-6 animate-in zoom-in-95">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                  {verifyModalTarget.type === 'single'
+                    ? `Verify Profile: ${verifyModalTarget.user.name}`
+                    : `Verify ${verifyModalTarget.count} Selected Students`}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Grant verified campus access &amp; team participation rights.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3 text-xs">
+              <p className="font-bold text-slate-700 dark:text-slate-200">
+                Do you want to send an official verification email?
+              </p>
+              
+              <label 
+                onClick={() => setSendEmailPrompt(true)}
+                className={`p-3 rounded-2xl border flex items-start gap-2.5 cursor-pointer transition ${sendEmailPrompt ? 'border-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 font-bold shadow-sm' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
+              >
+                <input
+                  type="radio"
+                  name="sendEmailOption"
+                  checked={sendEmailPrompt}
+                  onChange={() => setSendEmailPrompt(true)}
+                  className="mt-0.5 text-emerald-600"
+                />
+                <div>
+                  <span className="block text-xs font-bold text-slate-900 dark:text-white">
+                    ✉️ Yes, send official verification email
+                  </span>
+                  <span className="block text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">
+                    Dispatches an official account verification notice to the student's email.
+                  </span>
+                </div>
+              </label>
+
+              <label 
+                onClick={() => setSendEmailPrompt(false)}
+                className={`p-3 rounded-2xl border flex items-start gap-2.5 cursor-pointer transition ${!sendEmailPrompt ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 font-bold shadow-sm' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
+              >
+                <input
+                  type="radio"
+                  name="sendEmailOption"
+                  checked={!sendEmailPrompt}
+                  onChange={() => setSendEmailPrompt(false)}
+                  className="mt-0.5 text-indigo-600"
+                />
+                <div>
+                  <span className="block text-xs font-bold text-slate-900 dark:text-white">
+                    🔕 No, verify silently without email
+                  </span>
+                  <span className="block text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">
+                    Updates status to Verified in database without sending an email notification.
+                  </span>
+                </div>
+              </label>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={handleConfirmVerification}
+                className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-emerald-600/20 transition"
+              >
+                Confirm &amp; Verify Profile
+              </button>
+              <button
+                onClick={() => setVerifyModalTarget(null)}
+                className="px-6 py-3.5 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

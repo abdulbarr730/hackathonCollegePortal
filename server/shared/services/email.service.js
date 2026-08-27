@@ -359,12 +359,12 @@ async function sendWelcomeEmail({ to, name, collegeName, clientUrl, from = getCo
       <div class="container">
         <div class="badge">✓ Welcome to CampXCode</div>
         <h1>Welcome, ${name || 'Student'}!</h1>
-        <p>Your account has been created on the official Smart India Hackathon & Campus Coding Portal for <strong>${collegeName || 'your institution'}</strong>.</p>
+        <p>Your account has been created on the official CampXCode Portal for <strong>${collegeName || 'your institution'}</strong>.</p>
         
         <div class="highlight">
           <strong>Next Steps:</strong><br/>
           1. Complete your coder profile with GitHub & LinkedIn.<br/>
-          2. Form or join a hackathon squad for SIH 2025.<br/>
+          2. Form or join a hackathon squad on your campus.<br/>
           3. Submit your problem statements for SPOC approval.
         </div>
 
@@ -423,7 +423,7 @@ async function sendAccountVerifiedEmail({ to, name, collegeName, role = 'student
         <div class="badge">✓ Account Verified</div>
         <h1>Your Profile is Verified!</h1>
         <p>Dear <strong>${name}</strong>,</p>
-        <p>Your account has been officially verified by the college administrator for <strong>${collegeName || 'your institution'}</strong>. You now have full verified access to create teams, submit ideas, and represent your college in Smart India Hackathon (SIH 2025).</p>
+        <p>Your account has been officially verified by the administrator for <strong>${collegeName || 'your college'}</strong>. You now have full verified access to access the portal, create or join hackathon squads, share resources, submit project ideas, and represent your college in collegiate hackathons and coding sprints.</p>
         
         <div class="details-box">
           <div class="row"><span class="label">Registered Email:</span> <span class="val">${to}</span></div>
@@ -447,7 +447,7 @@ async function sendAccountVerifiedEmail({ to, name, collegeName, role = 'student
 
   return sendMail({
     to,
-    subject: `Account Verified: Welcome to Official Hackathon Submissions - ${name}`,
+    subject: `Account Verified: You now have full portal access - ${name}`,
     html,
     text: `Your account has been verified by the administrator. Log in at: ${portalLink}`
   });
