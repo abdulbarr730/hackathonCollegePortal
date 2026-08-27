@@ -1,7 +1,6 @@
 const Update = require('./update.model');
 const crypto = require('crypto');
 const Hackathon = require('../hackathons/hackathon.model');
-const supabase = require('../../shared/services/supabase.service');
 const { isSuperAdmin } = require('../../core/utils/roleHelper');
 const { scrapeSIH } = require('./update.scraper');
 const { notifyUsersNewUpdates } = require('../../shared/services/updateNotifications.service');
@@ -17,7 +16,8 @@ exports.listUpdates = async (requester = null) => {
     filter = {
       $or: [
         { college: null }, // Global SIH official updates
-        { college: collegeId } // This college internal updates
+        { college: collegeId }, // This college internal updates
+        { visibility: 'public' } // Public updates from other partner colleges
       ]
     };
   }
@@ -26,7 +26,7 @@ exports.listUpdates = async (requester = null) => {
     .populate('hackathon', 'name shortName')
     .populate('college', 'name shortName')
     .populate('author', 'name email role')
-    .sort({ pinned: -1, publishedAt: -1 });
+    .sort({ pinned: -1, publishedAt: -1, createdAt: -1 });
 
   return { items: updates };
 };
@@ -40,7 +40,7 @@ exports.deleteScrapedUpdates = async () => {
    CREATE UPDATE
 ============================================================================ */
 exports.createUpdate = async (body, requester = null) => {
-  const { title, summary, url, isPublic, pinned, hackathon, fileUrl, college } = body;
+  const { title, summary, url, isPublic, pinned, hackathon, fileUrl, college, visibility = 'private' } = body;
 
   if (!title?.trim()) {
     const err = new Error('Title required');
@@ -60,6 +60,7 @@ exports.createUpdate = async (body, requester = null) => {
     summary: summary?.trim(),
     url: url?.trim(),
     fileUrl,
+    visibility: visibility === 'public' ? 'public' : 'private',
     isPublic: isPublic !== undefined ? isPublic : true,
     pinned: pinned || false,
     hackathon: hackathon || null,
@@ -79,7 +80,7 @@ exports.createUpdate = async (body, requester = null) => {
 };
 
 /* ============================================================================
-   UPDATE UPDATE
+   UPDATE UPDATE (Only author's college admin or Super Admin can edit)
 ============================================================================ */
 exports.updateUpdate = async (id, body, requester = null) => {
   const existing = await Update.findById(id);
@@ -89,26 +90,52 @@ exports.updateUpdate = async (id, body, requester = null) => {
     throw err;
   }
 
-  if (requester && !isSuperAdmin(requester) && requester.college) {
+  if (requester && !isSuperAdmin(requester)) {
+    if (!requester.college) {
+      const err = new Error('Unauthorized');
+      err.status = 403;
+      throw err;
+    }
     const userCollegeId = String(requester.college._id || requester.college);
-    if (existing.college && String(existing.college) !== userCollegeId) {
-      const err = new Error('You do not have permission to edit updates from another college.');
+    const existingColId = String(existing.college?._id || existing.college || '');
+
+    // If it is a global official update or belongs to another college, reject edit
+    if (!existing.college || existingColId !== userCollegeId) {
+      const err = new Error('You do not have permission to edit announcements posted by another college or platform administrators.');
       err.status = 403;
       throw err;
     }
   }
 
+  const { title, summary, url, fileUrl, isPublic, pinned, hackathon, visibility, college } = body;
+  const updates = {};
+  if (title) updates.title = title.trim();
+  if (summary !== undefined) updates.summary = summary.trim();
+  if (url !== undefined) updates.url = url.trim();
+  if (fileUrl !== undefined) updates.fileUrl = fileUrl;
+  if (isPublic !== undefined) updates.isPublic = isPublic;
+  if (pinned !== undefined) updates.pinned = pinned;
+  if (hackathon !== undefined) updates.hackathon = hackathon || null;
+  if (visibility) updates.visibility = visibility === 'public' ? 'public' : 'private';
+
+  // Only super admins can reassign college ownership
+  if (isSuperAdmin(requester) && college !== undefined) {
+    updates.college = college && college !== 'all' ? college : null;
+  }
+
   const updated = await Update.findByIdAndUpdate(
     id,
-    { $set: body },
+    { $set: updates },
     { new: true }
-  );
+  ).populate('hackathon', 'name shortName')
+   .populate('college', 'name shortName')
+   .populate('author', 'name email role');
 
   return updated;
 };
 
 /* ============================================================================
-   DELETE UPDATE
+   DELETE UPDATE (Only author's college admin or Super Admin can delete)
 ============================================================================ */
 exports.deleteUpdate = async (id, requester = null) => {
   const existing = await Update.findById(id);
@@ -118,10 +145,17 @@ exports.deleteUpdate = async (id, requester = null) => {
     throw err;
   }
 
-  if (requester && !isSuperAdmin(requester) && requester.college) {
+  if (requester && !isSuperAdmin(requester)) {
+    if (!requester.college) {
+      const err = new Error('Unauthorized');
+      err.status = 403;
+      throw err;
+    }
     const userCollegeId = String(requester.college._id || requester.college);
-    if (existing.college && String(existing.college) !== userCollegeId) {
-      const err = new Error('You do not have permission to delete updates from another college.');
+    const existingColId = String(existing.college?._id || existing.college || '');
+
+    if (!existing.college || existingColId !== userCollegeId) {
+      const err = new Error('You do not have permission to delete announcements posted by another college or platform administrators.');
       err.status = 403;
       throw err;
     }
@@ -132,7 +166,7 @@ exports.deleteUpdate = async (id, requester = null) => {
 };
 
 /* ============================================================================
-   DISPATCH NOTIFICATION EMAIL FOR UPDATE (Super Admin / SPOC 1-Click Trigger)
+   DISPATCH NOTIFICATION EMAIL FOR UPDATE (Super Admin Only)
 ============================================================================ */
 exports.dispatchUpdateEmail = async (id, requester = null) => {
   const updateDoc = await Update.findById(id);
@@ -142,7 +176,6 @@ exports.dispatchUpdateEmail = async (id, requester = null) => {
     throw err;
   }
 
-  // Trigger dispatch to relevant users
   await notifyUsersNewUpdates([updateDoc]);
 
   updateDoc.emailDispatched = true;
@@ -158,51 +191,12 @@ exports.dispatchUpdateEmail = async (id, requester = null) => {
 ============================================================================ */
 exports.retagAllUpdates = async () => {
   const activeHackathon = await Hackathon.findOne({ isActive: true });
-  if (!activeHackathon) {
-    const err = new Error('No active hackathon found');
-    err.status = 400;
-    throw err;
-  }
+  if (!activeHackathon) throw new Error("No active hackathon found to tag updates against");
 
-  const result = await Update.updateMany({}, { hackathon: activeHackathon._id });
-  return { count: result.modifiedCount || 0, name: activeHackathon.name };
-};
+  const result = await Update.updateMany(
+    { hackathon: null },
+    { $set: { hackathon: activeHackathon._id } }
+  );
 
-/* ============================================================================
-   UPLOAD UPDATE FILE (PDF) TO SUPABASE
-============================================================================ */
-exports.uploadUpdateFile = async (file) => {
-  if (!file) {
-    const err = new Error('No file provided');
-    err.status = 400;
-    throw err;
-  }
-
-  const fileName = `updates/${Date.now()}_${file.originalname.replace(/\s+/g, '_')}`;
-  const { data, error } = await supabase.storage
-    .from('resources')
-    .upload(fileName, file.buffer, {
-      contentType: file.mimetype,
-      upsert: true
-    });
-
-  if (error) {
-    const err = new Error(error.message);
-    err.status = 500;
-    throw err;
-  }
-
-  const { data: publicData } = supabase.storage
-    .from('resources')
-    .getPublicUrl(fileName);
-
-  return publicData.publicUrl;
-};
-
-/* ============================================================================
-   MANUAL SYNC SIH NOW TRIGGER
-============================================================================ */
-exports.syncSIHNow = async () => {
-  const result = await scrapeSIH();
-  return result;
+  return { msg: `Successfully tagged ${result.modifiedCount} updates to '${activeHackathon.name}'!` };
 };

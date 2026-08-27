@@ -30,6 +30,14 @@ export default function AdminUpdatesPage() {
   const [syncing, setSyncing] = useState(false);
   const [dispatchingId, setDispatchingId] = useState(null);
 
+  const canManageUpdate = (u) => {
+    if (isSuperAdminUser) return true;
+    if (!user?.college) return false;
+    const userColId = String(user.college._id || user.college);
+    const updColId = String(u.college?._id || u.college || '');
+    return userColId === updColId;
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -274,8 +282,20 @@ export default function AdminUpdatesPage() {
                       {update.source === 'sih_official' ? '🏛️ Official SIH Circular' : '📢 College Notice'}
                     </span>
 
-                    <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
+                    <span className={`px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center gap-1`}>
                       <Building2 size={11} /> {update.college?.shortName || update.college?.name || 'All Colleges (Global)'}
+                    </span>
+
+                    <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${
+                      update.visibility === 'public'
+                        ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                    }`}>
+                      {update.visibility === 'public' ? (
+                        <><Globe size={10} /> Public</>
+                      ) : (
+                        <><Lock size={10} /> Private</>
+                      )}
                     </span>
 
                     {update.pinned && (
@@ -351,9 +371,10 @@ export default function AdminUpdatesPage() {
                     )
                   )}
 
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => { setEditingUpdate(update); setIsModalOpen(true); }} 
+                  {canManageUpdate(update) ? (
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => { setEditingUpdate(update); setIsModalOpen(true); }} 
                       className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-indigo-600 transition"
                       title="Edit Notice"
                     >
@@ -366,8 +387,13 @@ export default function AdminUpdatesPage() {
                       title="Delete Notice"
                     >
                       <Trash2 size={15} />
-                    </button>
-                  </div>
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] font-bold text-slate-400 italic">
+                      Managed by author's institution
+                    </span>
+                  )}
 
                 </div>
 

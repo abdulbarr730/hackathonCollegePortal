@@ -7,6 +7,7 @@ const updateSchema = new mongoose.Schema({
   fileUrl: { type: String }, // Supabase or direct PDF URL
   
   isPublic: { type: Boolean, default: true },
+  visibility: { type: String, enum: ['public', 'private'], default: 'private', index: true },
   pinned: { type: Boolean, default: false },
   publishedAt: { type: Date, default: Date.now },
   hash: { type: String, unique: true, sparse: true }, 

@@ -29,7 +29,16 @@ router.get('/', async (req, res) => {
     if (String(pinnedOnly) === 'true') filters.pinned = true;
 
     if (collegeId && collegeId !== 'all') {
-      filters.$or = [{ college: null }, { college: collegeId }];
+      filters.$or = [
+        { college: null },
+        { college: collegeId },
+        { visibility: 'public' }
+      ];
+    } else {
+      filters.$or = [
+        { college: null },
+        { visibility: 'public' }
+      ];
     }
 
     // Always serve pinned first when not using pinnedOnly
