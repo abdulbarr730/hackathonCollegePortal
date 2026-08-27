@@ -20,7 +20,8 @@ import {
   Building2,
   X,
   CheckCircle,
-  Loader2
+  Loader2,
+  Mail
 } from "lucide-react";
 
 import { useState, useEffect } from "react";
