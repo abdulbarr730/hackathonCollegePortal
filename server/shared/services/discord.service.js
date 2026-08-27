@@ -121,3 +121,25 @@ exports.notifyNewsletterSubscription = async ({ email, source = 'Footer' }) => {
     footer: 'CampXCode • Newsletter Engine'
   });
 };
+
+// 5. SIH Live Update Scraped Alert (1-Hour Automated Feeder)
+exports.notifySIHUpdateScraped = async (updates = []) => {
+  const url = WEBHOOKS.GENERAL || WEBHOOKS.COLLEGES;
+  if (!url || !Array.isArray(updates) || updates.length === 0) return;
+
+  const updateFields = updates.slice(0, 6).map((u, i) => ({
+    name: `📌 [${i + 1}] ${(u.title || 'Official SIH Announcement').slice(0, 100)}`,
+    value: `${u.summary ? u.summary.slice(0, 150) + '...' : 'Smart India Hackathon official circular.'}
+🔗 [View Official Circular](${u.url || 'https://sih.gov.in'})
+⚙️ [Review & Dispatch Email in Dashboard](https://www.campxcode.in/admin/updates)`,
+    inline: false
+  }));
+
+  await sendDiscordEmbed(url, {
+    title: `🚨 ${updates.length} New Official SIH Update(s) Scraped & Staged for Review!`,
+    description: `The automated 1-hour SIH Scraper captured new official guidelines, deadlines, or announcements. You can review them in the Super Admin Dashboard and trigger student email notifications with one click.`,
+    color: 0xec4899, // Pink / Magenta
+    fields: updateFields,
+    footer: 'CampXCode • High-Precision SIH Scraper Engine'
+  });
+};

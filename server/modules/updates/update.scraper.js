@@ -1,8 +1,9 @@
+const mongoose = require('mongoose');
 const cheerio = require('cheerio');
 const crypto = require('crypto');
 const Update = require('./update.model');
 const Hackathon = require('../hackathons/hackathon.model');
-const { notifyUsersNewUpdates } = require('../../shared/services/updateNotifications.service');
+const { notifySIHUpdateScraped } = require('../../shared/services/discord.service');
 
 const IGNORE_PATTERNS = [
   /abhay jere/i,
@@ -55,8 +56,9 @@ const VALID_ANNOUNCEMENT_KEYWORDS = [
 ];
 
 /* ============================================================================
-   HIGH-PRECISION SIH OFFICIAL SCRAPER
-   Extracts ONLY actual hackathon circulars, PDFs, guidelines, and announcements
+   HIGH-PRECISION 1-HOUR SIH OFFICIAL SCRAPER
+   Captures only official guidelines, circulars, PPT formats, and deadlines.
+   Posts live alerts to Discord and stages in Super Admin Dashboard for approval.
 ============================================================================ */
 async function scrapeSIH() {
   console.log('🔄 Running precision SIH official announcements scraper...');
@@ -148,7 +150,10 @@ async function scrapeSIH() {
           publishedAt: new Date(),
           hash,
           hackathon: activeHackathon?._id || null,
-          source: 'sih_official'
+          source: 'sih_official',
+          college: null, // Global for all colleges
+          requiresReview: true, // Super Admin approves before emailing
+          emailDispatched: false
         });
 
         newInsertedUpdates.push(newDoc);
@@ -156,17 +161,15 @@ async function scrapeSIH() {
       }
     }
 
-    // Notify registered students & team leaders only if brand-new genuine updates arrived
+    // Trigger Discord alert if new updates were captured
     if (newInsertedUpdates.length > 0) {
-      console.log(`📧 Dispatching update email notification for ${newInsertedUpdates.length} new verified SIH updates...`);
-      notifyUsersNewUpdates(newInsertedUpdates).catch(e => 
-        console.error('Failed to notify users of new updates:', e.message)
+      console.log(`📢 Sending Discord alert for ${newInsertedUpdates.length} new SIH updates...`);
+      notifySIHUpdateScraped(newInsertedUpdates).catch(e => 
+        console.error('Discord scraper alert error:', e.message)
       );
     }
 
     const remainingTotal = await Update.countDocuments();
-
-    await mongoose.disconnect();
 
     return {
       success: true,
@@ -178,7 +181,6 @@ async function scrapeSIH() {
 
   } catch (err) {
     console.error('❌ SIH Scraper Error:', err.message);
-    if (mongoose.connection.readyState === 1) await mongoose.disconnect();
     return {
       success: false,
       error: err.message,

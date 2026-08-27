@@ -42,7 +42,7 @@ export default function ResourcesPage() {
         status: 'approved',
       });
 
-      const res = await fetch(`/api/resources?${params.toString()}`);
+      const res = await fetch(`/api/resources?${params.toString()}`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setResources(data.items || []);

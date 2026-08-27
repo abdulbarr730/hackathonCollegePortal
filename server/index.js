@@ -41,7 +41,7 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, timestamp: new Date()
 
 // High-Reliability Automated SIH Scraper & Feeder
 const FEEDER_ENABLED = String(process.env.FEEDER_ENABLED || 'true') === 'true';
-const FEEDER_CRON = process.env.FEEDER_CRON || '*/30 * * * *';
+const FEEDER_CRON = process.env.FEEDER_CRON || '0 * * * *';
 
 if (FEEDER_ENABLED) {
   // Initial scrape 8 seconds after server startup

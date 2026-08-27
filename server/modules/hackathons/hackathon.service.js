@@ -1,18 +1,26 @@
 const Hackathon = require('./hackathon.model');
 const Team = require('../teams/team.model');
+const { isSuperAdmin } = require('../../core/utils/roleHelper');
+
 /* ============================================================================
    GET ACTIVE HACKATHON
 ============================================================================ */
-exports.getActiveHackathon = async () => {
-
-  const active = await Hackathon.findOne({ isActive: true });
+exports.getActiveHackathon = async (collegeId = null) => {
+  let active = null;
+  if (collegeId && collegeId !== 'all') {
+    active = await Hackathon.findOne({ isActive: true, college: collegeId }).populate('college', 'name shortName');
+  }
+  if (!active) {
+    active = await Hackathon.findOne({ isActive: true }).populate('college', 'name shortName');
+  }
 
   if (!active) {
     return {
-      title: "Hackathon",
+      name: "Smart India Hackathon 2026",
+      shortName: "SIH '26",
       minTeamSize: 6,
       maxTeamSize: 6,
-      minFemaleMembers: 0
+      minFemaleMembers: 1
     };
   }
 
@@ -20,10 +28,9 @@ exports.getActiveHackathon = async () => {
 };
 
 /* ============================================================================
-   LIST HACKATHONS (WITH ARCHIVE FILTER)
+   LIST HACKATHONS (Scoped strictly by College for non-super admins)
 ============================================================================ */
-exports.listHackathons = async (query) => {
-
+exports.listHackathons = async (query = {}, requester = null) => {
   const { status, collegeId } = query;
   let filter = {};
 
@@ -32,7 +39,11 @@ exports.listHackathons = async (query) => {
     filter.isActive = false;
   }
 
-  if (collegeId && collegeId !== 'all') {
+  // Multi-Tenancy Scope: SPOC / College Admin only sees their college hackathons
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    const userCollegeId = requester.college._id || requester.college;
+    filter.college = userCollegeId;
+  } else if (collegeId && collegeId !== 'all') {
     filter.college = collegeId;
   }
 
@@ -47,33 +58,40 @@ exports.listHackathons = async (query) => {
 /* ============================================================================
    CREATE HACKATHON
 ============================================================================ */
-exports.createHackathon = async (body) => {
+exports.createHackathon = async (body, requester = null) => {
+  const { name, startDate, college, minTeamSize, maxTeamSize, minFemaleMembers, ...rest } = body;
 
-  const { name, startDate, college, ...rest } = body;
+  let assignedCollege = null;
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    assignedCollege = requester.college._id || requester.college;
+  } else if (college && college !== 'all') {
+    assignedCollege = college;
+  }
 
-  // Ensure only one active hackathon
+  // Ensure only one active hackathon per college scope
   if (body.isActive) {
-    await Hackathon.updateMany({}, { isActive: false });
+    const scope = assignedCollege ? { college: assignedCollege } : { college: null };
+    await Hackathon.updateMany(scope, { isActive: false });
   }
 
   const newHackathon = new Hackathon({
     name,
-    college: college || null,
+    college: assignedCollege,
     startDate: startDate || new Date(),
+    minTeamSize: minTeamSize !== undefined ? Number(minTeamSize) : 6,
+    maxTeamSize: maxTeamSize !== undefined ? Number(maxTeamSize) : 6,
+    minFemaleMembers: minFemaleMembers !== undefined ? Number(minFemaleMembers) : 1,
     ...rest
   });
 
   await newHackathon.save();
-
   return newHackathon;
 };
 
 /* ============================================================================
    SET ACTIVE HACKATHON
 ============================================================================ */
-exports.setActiveHackathon = async (id) => {
-
-  // First deactivate all
+exports.setActiveHackathon = async (id, requester = null) => {
   const current = await Hackathon.findById(id);
   if (!current) {
     const err = new Error('Hackathon not found');
@@ -81,30 +99,46 @@ exports.setActiveHackathon = async (id) => {
     throw err;
   }
 
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    const userCollegeId = String(requester.college._id || requester.college);
+    if (current.college && String(current.college) !== userCollegeId) {
+      const err = new Error('You do not have permission to activate hackathons of another college.');
+      err.status = 403;
+      throw err;
+    }
+  }
+
   const scope = current.college ? { college: current.college } : { college: { $in: [null, undefined] } };
   await Hackathon.updateMany(scope, { isActive: false });
 
-  // Then activate selected one
   const updated = await Hackathon.findByIdAndUpdate(
     id,
     { isActive: true },
     { new: true }
-  );
+  ).populate('college', 'name shortName');
 
-  if (!updated) {
+  return updated;
+};
+
+/* ============================================================================
+   UPDATE HACKATHON DETAILS
+============================================================================ */
+exports.updateHackathon = async (id, body, requester = null) => {
+  const existing = await Hackathon.findById(id);
+  if (!existing) {
     const err = new Error('Hackathon not found');
     err.status = 404;
     throw err;
   }
 
-  return updated;
-};
-
-
-/* ============================================================================
-   UPDATE HACKATHATHON DETAILS
-============================================================================ */
-exports.updateHackathon = async (id, body) => {
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    const userCollegeId = String(requester.college._id || requester.college);
+    if (existing.college && String(existing.college) !== userCollegeId) {
+      const err = new Error('You do not have permission to edit hackathons of another college.');
+      err.status = 403;
+      throw err;
+    }
+  }
 
   const {
     name,
@@ -118,85 +152,74 @@ exports.updateHackathon = async (id, body) => {
     minFemaleMembers
   } = body;
 
+  let assignedCollege = existing.college;
+  if (isSuperAdmin(requester)) {
+    assignedCollege = college && college !== 'all' ? college : null;
+  }
+
   const updated = await Hackathon.findByIdAndUpdate(
     id,
     {
       name,
       shortName,
       tagline,
-      college: college || null,
+      college: assignedCollege,
       startDate,
       submissionDeadline,
-      minTeamSize,
-      maxTeamSize,
-      minFemaleMembers
+      minTeamSize: minTeamSize !== undefined ? Number(minTeamSize) : 6,
+      maxTeamSize: maxTeamSize !== undefined ? Number(maxTeamSize) : 6,
+      minFemaleMembers: minFemaleMembers !== undefined ? Number(minFemaleMembers) : 1
     },
     { new: true }
-  );
-
-  if (!updated) {
-    const err = new Error('Hackathon not found');
-    err.status = 404;
-    throw err;
-  }
+  ).populate('college', 'name shortName');
 
   return updated;
 };
 
 /* ============================================================================
-   MIGRATE LEGACY TEAMS (ADD hackathonId TO OLD TEAMS)
-============================================================================ */
-exports.migrateLegacyTeams = async (targetHackathonId) => {
-  if (!targetHackathonId) {
-    const err = new Error('Target Hackathon ID required');
-    err.status = 400;
-    throw err;
-  }
-
-  const result = await Team.updateMany(
-    { hackathonId: { $exists: false } },
-    { $set: { hackathonId: targetHackathonId } }
-  );
-
-  return result.modifiedCount;
-};
-
-/* ============================================================================
-   BULK LOCK TEAMS FOR A HACKATHON
-============================================================================ */
-exports.lockAllTeams = async (hackathonId) => {
-  if (!hackathonId) {
-    const err = new Error('Hackathon ID is required.');
-    err.status = 400;
-    throw err;
-  }
-
-  const result = await Team.updateMany(
-    { hackathonId: hackathonId },
-    { $set: { isSubmitted: true, pendingRequests: [] } }
-  );
-
-  return result.modifiedCount;
-};
-
-/* ============================================================================
    DELETE HACKATHON
 ============================================================================ */
-exports.deleteHackathon = async (id, requester) => {
-  const hackathon = await Hackathon.findById(id);
-  if (!hackathon) {
+exports.deleteHackathon = async (id, requester = null) => {
+  const existing = await Hackathon.findById(id);
+  if (!existing) {
     const err = new Error('Hackathon not found');
     err.status = 404;
     throw err;
   }
 
-  // If college admin, ensure it belongs to their college
-  if (requester?.role === 'college_admin' && hackathon.college && String(hackathon.college) !== String(requester.college)) {
-    const err = new Error('Unauthorized to delete hackathon from another institution');
-    err.status = 403;
-    throw err;
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    const userCollegeId = String(requester.college._id || requester.college);
+    if (existing.college && String(existing.college) !== userCollegeId) {
+      const err = new Error('You do not have permission to delete hackathons of another college.');
+      err.status = 403;
+      throw err;
+    }
   }
 
   await Hackathon.findByIdAndDelete(id);
-  return { msg: 'Hackathon deleted successfully' };
+  return true;
+};
+
+/* ============================================================================
+   MIGRATE LEGACY TEAMS
+============================================================================ */
+exports.migrateLegacyTeams = async () => {
+  const active = await Hackathon.findOne({ isActive: true });
+  if (!active) throw new Error('No active hackathon found to attach teams to');
+  const res = await Team.updateMany(
+    { hackathonId: { $exists: false } },
+    { $set: { hackathonId: active._id } }
+  );
+  return res;
+};
+
+/* ============================================================================
+   BULK LOCK TEAMS
+============================================================================ */
+exports.lockAllTeams = async (hackathonId) => {
+  const res = await Team.updateMany(
+    { hackathonId: hackathonId },
+    { $set: { isSubmitted: true } }
+  );
+  return res;
 };

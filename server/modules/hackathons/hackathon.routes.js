@@ -1,44 +1,35 @@
 const express = require('express');
 const router = express.Router();
-const Hackathon = require('./hackathon.model');
-const Team = require('../teams/team.model');
-const auth = require('../../core/middlewares/auth'); // Updated path for auth middleware
-const adminAuth = require('../../core/middlewares/adminAuth'); // Updated path for adminAuth middleware
+const adminAuth = require('../../core/middlewares/adminAuth');
 const controller = require('./hackathon.controller');
+const jwt = require('jsonwebtoken');
+const User = require('../users/user.model');
 
-// ==========================================
-// PUBLIC / USER ROUTES
-// ==========================================
+// Optional auth helper to attach user if token exists
+const attachUserIfAvailable = async (req, _res, next) => {
+  try {
+    const token = req.cookies?.token || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.split(' ')[1] : null);
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+      const user = await User.findById(decoded.id || decoded.userId).populate('college');
+      if (user) req.user = user;
+    }
+  } catch (e) {
+    // Ignore invalid token on optional route
+  }
+  next();
+};
 
-// 1. GET ACTIVE HACKATHON
-router.get('/active', controller.getActiveHackathon);
+router.get('/active', attachUserIfAvailable, controller.getActiveHackathon);
+router.get('/all', attachUserIfAvailable, controller.listHackathons);
 
-// ==========================================
-// ADMIN ROUTES (Protected)
-// ==========================================
-
-// ==========================================
-// 2. GET HACKATHONS (Fixed for Archive Access)
-// ==========================================
-// REMOVED: adminAuth (So students can see the Archive)
-router.get('/all', controller.listHackathons);
-// 3. CREATE NEW HACKATHON
 router.post('/create', adminAuth, controller.createHackathon);
-
-// 4. SET ACTIVE HACKATHON
 router.put('/set-active/:id', adminAuth, controller.setActiveHackathon);
-
-// 5. UPDATE HACKATHON DETAILS
 router.put('/update/:id', adminAuth, controller.updateHackathon);
-
-// 6. MIGRATE LEGACY TEAMS
-router.put('/migrate-legacy-teams', adminAuth, controller.migrateLegacyTeams);
-
-// 7. BULK LOCK TEAMS
-router.put('/lock-all-teams', adminAuth, controller.lockAllTeams);
-
-// 8. DELETE HACKATHON
 router.delete('/:id', adminAuth, controller.deleteHackathon);
 router.delete('/delete/:id', adminAuth, controller.deleteHackathon);
+
+router.put('/migrate-legacy-teams', adminAuth, controller.migrateLegacyTeams);
+router.put('/lock-all-teams', adminAuth, controller.lockAllTeams);
 
 module.exports = router;

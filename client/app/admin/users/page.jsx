@@ -44,6 +44,7 @@ export default function AdminUsersPage() {
   const [selectedTeam, setSelectedTeam] = useState('');
   const [colleges, setColleges] = useState([]);
   const [selectedCollege, setSelectedCollege] = useState('');
+  const [notifyEmailOnVerify, setNotifyEmailOnVerify] = useState(true);
 
   useEffect(() => {
     const fetchTeams = async () => {

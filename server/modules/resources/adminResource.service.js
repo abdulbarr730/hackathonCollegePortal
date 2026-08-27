@@ -1,13 +1,9 @@
 const { isSuperAdmin } = require('../../core/utils/roleHelper');
 const Resource = require('./resource.model');
-const supabase = require('../../shared/services/supabase.service');
-const BUCKET = 'resources';
+const User = require('../users/user.model');
+const getSupabase = require('../../shared/services/supabase.service');
 
-/* ============================================================================
-   LIST RESOURCES (filters + pagination)
-============================================================================ */
-exports.listResources = async (query, requester = null) => {
-
+exports.listResources = async (query = {}, requester = null) => {
   const {
     status = '',
     q = '',
@@ -21,14 +17,8 @@ exports.listResources = async (query, requester = null) => {
   const perPage = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
   const filters = {};
-
   if (status) filters.status = status;
-  if (requester && !isSuperAdmin(requester) && requester.college) {
-    filters.college = requester.college;
-  } else if (query.collegeId && query.collegeId !== 'all') {
-    filters.college = query.collegeId;
-  }
-  if (category) filters.category = category;
+  if (category && category !== 'All') filters.category = category;
 
   if (q) {
     filters.$or = [
@@ -38,19 +28,36 @@ exports.listResources = async (query, requester = null) => {
     ];
   }
 
-  const [items, total] = await Promise.all([
+  let userCollegeId = null;
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    userCollegeId = requester.college._id || requester.college;
+    filters.college = userCollegeId;
+  } else if (query.collegeId && query.collegeId !== 'all') {
+    filters.college = query.collegeId;
+  }
+
+  const [items, total, totalAllApproved, totalCollegeApproved, totalPending] = await Promise.all([
     Resource.find(filters)
       .sort(sort)
       .skip((pageNum - 1) * perPage)
       .limit(perPage)
-      .populate('addedBy', 'name email')
+      .populate('addedBy', 'name email role')
       .populate('approvedBy', 'name email')
       .populate('college', 'name shortName'),
     Resource.countDocuments(filters),
+    Resource.countDocuments({ status: 'approved' }),
+    userCollegeId ? Resource.countDocuments({ status: 'approved', college: userCollegeId }) : Resource.countDocuments({ status: 'approved' }),
+    userCollegeId ? Resource.countDocuments({ status: 'pending', college: userCollegeId }) : Resource.countDocuments({ status: 'pending' })
   ]);
 
   return {
     items,
+    counts: {
+      allApproved: totalAllApproved,
+      collegeApproved: totalCollegeApproved,
+      otherInstitutionsApproved: Math.max(0, totalAllApproved - totalCollegeApproved),
+      pending: totalPending
+    },
     pagination: {
       page: pageNum,
       pages: Math.max(Math.ceil(total / perPage), 1),
@@ -60,14 +67,13 @@ exports.listResources = async (query, requester = null) => {
   };
 };
 
-/* ============================================================================
-   APPROVE RESOURCE
-============================================================================ */
 exports.approveResource = async (id, userId, requester = null) => {
   const existing = await Resource.findById(id);
   if (!existing) throw new Error('Resource not found');
+
   if (requester && !isSuperAdmin(requester) && requester.college) {
-    if (existing.college && String(existing.college) !== String(requester.college)) {
+    const userCollegeId = String(requester.college._id || requester.college);
+    if (existing.college && String(existing.college) !== userCollegeId) {
       const err = new Error('You do not have permission to approve resources from another college.');
       err.status = 403;
       throw err;
@@ -82,26 +88,18 @@ exports.approveResource = async (id, userId, requester = null) => {
       approvedBy: userId || undefined,
     },
     { new: true }
-  );
-
-  if (!doc) {
-    const err = new Error('Not found');
-    err.status = 404;
-    throw err;
-  }
+  ).populate('college', 'name shortName').populate('addedBy', 'name email role');
 
   return doc;
 };
 
-
-/* ============================================================================
-   REJECT RESOURCE
-============================================================================ */
 exports.rejectResource = async (id, reason = '', requester = null) => {
   const existing = await Resource.findById(id);
   if (!existing) throw new Error('Resource not found');
+
   if (requester && !isSuperAdmin(requester) && requester.college) {
-    if (existing.college && String(existing.college) !== String(requester.college)) {
+    const userCollegeId = String(requester.college._id || requester.college);
+    if (existing.college && String(existing.college) !== userCollegeId) {
       const err = new Error('You do not have permission to reject resources from another college.');
       err.status = 403;
       throw err;
@@ -110,165 +108,66 @@ exports.rejectResource = async (id, reason = '', requester = null) => {
 
   const doc = await Resource.findByIdAndUpdate(
     id,
-    {
-      status: 'rejected',
-      rejectionReason: reason,
-      approvedBy: undefined,
-    },
+    { status: 'rejected', rejectionReason: reason },
     { new: true }
   );
 
-  if (!doc) {
-    const err = new Error('Not found');
-    err.status = 404;
-    throw err;
-  }
-
   return doc;
 };
 
-/* ============================================================================
-   UPDATE RESOURCE (title / description only)
-============================================================================ */
-exports.updateResource = async (id, body) => {
-
-  const { title, description } = body || {};
-  const updates = {};
-
-  if (typeof title === 'string') updates.title = title;
-  if (typeof description === 'string') updates.description = description;
-
-  const doc = await Resource.findByIdAndUpdate(id, updates, { new: true });
-
-  if (!doc) {
-    const err = new Error('Not found');
-    err.status = 404;
-    throw err;
-  }
-
-  return doc;
-};
-
-/* ============================================================================
-   DELETE RESOURCE (DB + storage)
-============================================================================ */
 exports.deleteResource = async (id, requester = null) => {
   const existing = await Resource.findById(id);
   if (!existing) throw new Error('Resource not found');
+
   if (requester && !isSuperAdmin(requester) && requester.college) {
-    if (existing.college && String(existing.college) !== String(requester.college)) {
-      const err = new Error('You cannot delete resources belonging to another college.');
+    const userCollegeId = String(requester.college._id || requester.college);
+    if (existing.college && String(existing.college) !== userCollegeId) {
+      const err = new Error('You do not have permission to delete resources from another college.');
       err.status = 403;
       throw err;
     }
   }
 
-  const doc = await Resource.findByIdAndDelete(id);
-
-  if (!doc) {
-    const err = new Error('Not found');
-    err.status = 404;
-    throw err;
-  }
-
-  try {
-    const path = doc?.file?.path;
-    if (path) {
-      const { error } = await supabase.storage.from(BUCKET).remove([path]);
-      if (error) console.error('Supabase single delete error:', error.message || error);
-    }
-  } catch (e) {
-    console.error('Supabase delete exception:', e);
-  }
-
-  return true;
-};
-
-/* ============================================================================
-   BULK DELETE (DB + storage)
-============================================================================ */
-exports.bulkDeleteResources = async (ids = []) => {
-
-  if (!Array.isArray(ids) || ids.length === 0) {
-    const err = new Error('Invalid IDs');
-    err.status = 400;
-    throw err;
-  }
-
-  const resources = await Resource.find(
-    { _id: { $in: ids } },
-    { file: 1 }
-  ).lean();
-
-  const paths = resources
-    .map(r => r?.file?.path)
-    .filter(Boolean);
-
-  // delete DB
-  const dbResult = await Resource.deleteMany({ _id: { $in: ids } });
-
-  // delete storage (best effort)
-  if (paths.length) {
-    const { error } = await supabase.storage.from(BUCKET).remove(paths);
-    if (error) {
-      console.error('Supabase bulk delete error:', error.message || error);
+  if (existing.file?.key) {
+    try {
+      const supabase = getSupabase();
+      await supabase.storage.from('resources').remove([existing.file.key]);
+    } catch (e) {
+      console.error('Failed to delete file from Supabase storage:', e.message);
     }
   }
 
-  return {
-    requested: ids.length,
-    deleted: dbResult?.deletedCount || 0,
-    filesAttempted: paths.length,
-  };
+  await Resource.findByIdAndDelete(id);
+  return { msg: 'Deleted successfully' };
 };
 
-/* ============================================================================
-   GET VIEW URL
-============================================================================ */
-exports.getViewUrl = async (id) => {
-  const resource = await Resource.findById(id).lean();
+exports.updateResource = async (id, body, requester = null) => {
+  const existing = await Resource.findById(id);
+  if (!existing) throw new Error('Resource not found');
 
-  if (!resource || !resource.file?.url) {
-    const err = new Error('File or view URL not found.');
-    err.status = 404;
-    throw err;
-  }
-
-  return resource.file.url;
-};
-
-
-/* ============================================================================
-   GET DOWNLOAD URL
-============================================================================ */
-exports.getDownloadUrl = async (id) => {
-  const resource = await Resource.findById(id).lean();
-
-  if (!resource || !resource.file?.downloadUrl) {
-    const err = new Error('File or download URL not found.');
-    err.status = 404;
-    throw err;
-  }
-
-  return resource.file.downloadUrl;
-};
-
-/* ============================================================================
-   GET COUNTS BY STATUS
-============================================================================ */
-exports.getCounts = async () => {
-
-  const counts = await Resource.aggregate([
-    { $group: { _id: '$status', count: { $sum: 1 } } },
-  ]);
-
-  const result = { pending: 0, approved: 0, rejected: 0 };
-
-  counts.forEach(c => {
-    if (c._id && Object.prototype.hasOwnProperty.call(result, c._id)) {
-      result[c._id] = c.count;
+  if (requester && !isSuperAdmin(requester) && requester.college) {
+    const userCollegeId = String(requester.college._id || requester.college);
+    if (existing.college && String(existing.college) !== userCollegeId) {
+      const err = new Error('You do not have permission to edit resources from another college.');
+      err.status = 403;
+      throw err;
     }
-  });
+  }
 
-  return result;
+  const { title, description, category, url, visibility, college } = body;
+  const updates = {};
+  if (title) updates.title = title.trim();
+  if (description !== undefined) updates.description = description.trim();
+  if (category) updates.category = category.trim();
+  if (url) updates.url = url.trim();
+  if (visibility) updates.visibility = visibility;
+  if (isSuperAdmin(requester) && college !== undefined) {
+    updates.college = college && college !== 'all' ? college : null;
+  }
+
+  const doc = await Resource.findByIdAndUpdate(id, { $set: updates }, { new: true })
+    .populate('college', 'name shortName')
+    .populate('addedBy', 'name email role');
+
+  return doc;
 };

@@ -13,7 +13,9 @@ import {
   Layers,
   Sparkles,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Lock,
+  Building2
 } from 'lucide-react';
 
 export default function SuggestResourcePage() {
@@ -23,6 +25,7 @@ export default function SuggestResourcePage() {
     url: '',
     description: '',
     category: 'Tools',
+    visibility: 'private', // Default: Private (College only)
   });
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState('');
@@ -59,12 +62,14 @@ export default function SuggestResourcePage() {
         data.append('title', formData.title);
         data.append('category', formData.category);
         if (formData.description) data.append('description', formData.description);
+        data.append('visibility', formData.visibility);
         data.append('file', file);
 
         endpoint = '/api/resources/upload';
 
         res = await fetch(endpoint, {
           method: 'POST',
+          credentials: 'include',
           body: data,
         });
       } else {
@@ -79,6 +84,7 @@ export default function SuggestResourcePage() {
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'include',
           body: JSON.stringify(formData),
         });
       }
@@ -86,8 +92,8 @@ export default function SuggestResourcePage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.msg || 'Submission failed.');
 
-      setMessage('Resource submitted successfully!');
-      setTimeout(() => router.push('/resources'), 2000);
+      setMessage('Resource submitted successfully for moderation!');
+      setTimeout(() => router.push('/resources'), 1800);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -96,212 +102,224 @@ export default function SuggestResourcePage() {
   };
 
   return (
-    // BREAKOUT UTILITY: Full screen width background
     <div className="relative w-screen left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 selection:bg-indigo-500/30 flex flex-col">
-      
-      {/* 1. BACKGROUND */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[500px] bg-indigo-500/5 dark:bg-indigo-500/10 blur-[120px] rounded-full" />
-      </div>
-
-      {/* MAIN CONTENT */}
-      <div className="relative z-10 w-full max-w-3xl mx-auto px-6 py-12 flex-grow flex flex-col justify-center">
+      <div className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         
-        {/* Back Link */}
-        <div className="mb-8">
-          <Link
-            href="/resources"
-            className="group inline-flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors mb-6"
-          >
-            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-            Back to Resource Hub
-          </Link>
-          
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-3">
-            Contribute to the <span className="text-indigo-600 dark:text-indigo-400">Vault</span>
-          </h1>
-          <p className="text-lg text-slate-600 dark:text-slate-400 max-w-xl">
-            Share a helpful tool, library, or guide with the community. All submissions are reviewed before going live.
-          </p>
-        </div>
+        {/* Navigation */}
+        <Link 
+          href="/resources" 
+          className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors mb-6 group"
+        >
+          <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+          Back to Resource Hub
+        </Link>
 
-        {/* Form Card */}
-        <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-black/20 p-8 md:p-10">
+        {/* Card */}
+        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-6 sm:p-10 shadow-2xl space-y-8">
           
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase tracking-wider mb-2">
+              <Sparkles size={13} /> Institutional Knowledge Base
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+              Contribute a Resource
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Share development templates, design assets, PPT boilerplates, or APIs with your college peers.
+            </p>
+          </div>
+
+          {message && (
+            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-sm flex items-center gap-3">
+              <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+              <span>{message}</span>
+            </div>
+          )}
+
+          {error && (
+            <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-800 dark:text-rose-300 text-sm flex items-center gap-3">
+              <AlertCircle size={18} className="text-rose-600 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
             
-            {/* Alerts */}
-            {message && (
-              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center gap-3">
-                <CheckCircle2 size={20} />
-                <span className="font-medium">{message}</span>
-              </div>
-            )}
-            {error && (
-              <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 flex items-center gap-3">
-                <AlertCircle size={20} />
-                <span className="font-medium">{error}</span>
-              </div>
-            )}
-
-            {/* Submission Type Toggle */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
-                Resource Type
-              </label>
-              <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setSubmissionType('link')}
-                  className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
-                    submissionType === 'link'
-                      ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-slate-600'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <LinkIcon size={18} /> Submit Link
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSubmissionType('file')}
-                  className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
-                    submissionType === 'file'
-                      ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-slate-600'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <UploadCloud size={18} /> Upload File
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              {/* Title Input */}
-              <div className="space-y-2">
-                <label htmlFor="title" className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300">
-                  <Type size={16} className="text-indigo-500" /> Resource Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="title"
-                  id="title"
-                  required
-                  placeholder="e.g. Ultimate React Cheatsheet"
-                  value={formData.title}
-                  onChange={handleChange}
-                  className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
-                />
-              </div>
-
-              {/* URL or File Input */}
-              {submissionType === 'link' ? (
-                <div className="space-y-2">
-                  <label htmlFor="url" className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300">
-                    <Globe size={16} className="text-indigo-500" /> Resource URL <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="url"
-                    name="url"
-                    id="url"
-                    required
-                    placeholder="https://example.com/resource"
-                    value={formData.url}
-                    onChange={handleChange}
-                    className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
-                  />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <label htmlFor="file" className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300">
-                    <FileText size={16} className="text-indigo-500" /> Upload Document <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      name="file"
-                      id="file"
-                      onChange={handleFileChange}
-                      className="block w-full text-sm text-slate-500 dark:text-slate-400
-                        file:mr-4 file:py-2.5 file:px-4
-                        file:rounded-lg file:border-0
-                        file:text-sm file:font-bold
-                        file:bg-indigo-50 file:text-indigo-600
-                        dark:file:bg-slate-800 dark:file:text-indigo-400
-                        hover:file:bg-indigo-100 dark:hover:file:bg-slate-700
-                        cursor-pointer transition-all"
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-500 font-medium pl-1">
-                    Max size: 10MB. Supported: PDF, DOCX, ZIP.
-                  </p>
-                </div>
-              )}
-
-              {/* Category Select */}
-              <div className="space-y-2">
-                <label htmlFor="category" className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300">
-                  <Layers size={16} className="text-indigo-500" /> Category
-                </label>
-                <div className="relative">
-                  <select
-                    name="category"
-                    id="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    className="w-full h-12 pl-4 pr-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none appearance-none cursor-pointer font-medium transition-all"
-                  >
-                    <option>Tools</option>
-                    <option>Tutorials</option>
-                    <option>API</option>
-                    <option>Design</option>
-                    <option>Development</option>
-                    <option>Boilerplates</option>
-                    <option>Other</option>
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                  </div>
-                </div>
-              </div>
-
-              {/* Description Textarea */}
-              <div className="space-y-2">
-                <label htmlFor="description" className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300">
-                  <Sparkles size={16} className="text-indigo-500" /> Description <span className="text-slate-400 font-normal text-xs">(Optional)</span>
-                </label>
-                <textarea
-                  name="description"
-                  id="description"
-                  rows="4"
-                  placeholder="Briefly describe what makes this resource useful..."
-                  value={formData.description}
-                  onChange={handleChange}
-                  className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium resize-none"
-                ></textarea>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <div className="pt-4">
+            {/* Format Selector */}
+            <div className="grid grid-cols-2 gap-3 p-1.5 bg-slate-100 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-800">
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-lg shadow-xl shadow-slate-900/10 hover:shadow-2xl hover:shadow-indigo-500/20 hover:-translate-y-1 active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                type="button"
+                onClick={() => setSubmissionType('link')}
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all ${
+                  submissionType === 'link'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-md'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                }`}
               >
-                {loading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    Submit for Review
-                  </>
-                )}
+                <LinkIcon size={16} /> External Web Link
+              </button>
+              <button
+                type="button"
+                onClick={() => setSubmissionType('file')}
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all ${
+                  submissionType === 'file'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-md'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                }`}
+              >
+                <UploadCloud size={16} /> Upload Document / File
               </button>
             </div>
 
+            {/* Title */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                <Type size={14} className="text-indigo-500" /> Resource Title *
+              </label>
+              <input
+                type="text"
+                name="title"
+                required
+                placeholder="e.g. SIH 2026 Pitch Deck Architecture Template"
+                value={formData.title}
+                onChange={handleChange}
+                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              />
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                <Layers size={14} className="text-indigo-500" /> Category *
+              </label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
+              >
+                <option value="Tools">Tools &amp; SDKs</option>
+                <option value="Documentation">Documentation &amp; Guides</option>
+                <option value="Datasets">Datasets &amp; Models</option>
+                <option value="Templates">Templates &amp; PPT Formats</option>
+                <option value="UI Kits">UI Kits &amp; Design Assets</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            {/* Visibility Selector: Default is Private */}
+            <div className="p-5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 space-y-3">
+              <label className="block text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                <Lock size={14} /> Sharing &amp; Visibility Policy (Default: Private)
+              </label>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label 
+                  onClick={() => setFormData({...formData, visibility: 'private'})}
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
+                    formData.visibility === 'private'
+                      ? 'border-indigo-600 bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm ring-1 ring-indigo-500/20'
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value="private"
+                    checked={formData.visibility === 'private'}
+                    onChange={handleChange}
+                    className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <div>
+                    <span className="block text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                      🔒 Private (My College Only) <span className="text-[10px] px-1.5 py-0.2 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded font-black">Default</span>
+                    </span>
+                    <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Only verified students, mentors, and SPOCs from your college campus can view this.
+                    </span>
+                  </div>
+                </label>
+
+                <label 
+                  onClick={() => setFormData({...formData, visibility: 'public'})}
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
+                    formData.visibility === 'public'
+                      ? 'border-indigo-600 bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm ring-1 ring-indigo-500/20'
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value="public"
+                    checked={formData.visibility === 'public'}
+                    onChange={handleChange}
+                    className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <div>
+                    <span className="block text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                      🌐 Public (All Institutions)
+                    </span>
+                    <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Visible to all verified students across all partner colleges. Editable only by your college admin.
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* URL or File upload input */}
+            {submissionType === 'link' ? (
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                  <Globe size={14} className="text-indigo-500" /> Resource URL Link *
+                </label>
+                <input
+                  type="url"
+                  name="url"
+                  required={submissionType === 'link'}
+                  placeholder="https://github.com/example/sih-starter or https://figma.com/..."
+                  value={formData.url}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono text-xs sm:text-sm"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                  <UploadCloud size={14} className="text-indigo-500" /> Attach File (PDF, PPTX, ZIP, DOCX) *
+                </label>
+                <input
+                  type="file"
+                  required={submissionType === 'file'}
+                  onChange={handleFileChange}
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 text-slate-900 dark:text-white text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer"
+                />
+              </div>
+            )}
+
+            {/* Description */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                <FileText size={14} className="text-indigo-500" /> Description &amp; Usage Notes
+              </label>
+              <textarea
+                name="description"
+                rows={3}
+                placeholder="Explain what this resource contains and how team leaders can use it..."
+                value={formData.description}
+                onChange={handleChange}
+                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/25 transition-all disabled:opacity-50"
+            >
+              {loading ? 'Publishing Resource...' : 'Submit Resource for Verification'}
+            </button>
           </form>
         </div>
       </div>

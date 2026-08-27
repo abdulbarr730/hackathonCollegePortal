@@ -1,9 +1,8 @@
 const mongoose = require('mongoose');
-const { supabase } = require('../../shared/services/supabase.service'); // adjust path if needed
 
 const fileSchema = new mongoose.Schema(
   {
-    key: { type: String, required: true },        // Supabase object key (path in bucket)
+    key: { type: String, required: true },        // Supabase object key
     url: { type: String, required: true },        // Public view URL
     downloadUrl: { type: String, required: true },// Direct download URL
     originalName: { type: String, required: true },
@@ -21,10 +20,20 @@ const resourceSchema = new mongoose.Schema(
     url: { type: String, trim: true }, // For external links
     file: fileSchema,                  // For uploaded files
     tags: [{ type: String }],
+    
+    // Visibility: Private (College only - default) vs Public (All colleges can view)
+    visibility: {
+      type: String,
+      enum: ['public', 'private'],
+      default: 'private',
+      index: true
+    },
+
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],
       default: 'pending',
+      index: true
     },
     addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -44,32 +53,5 @@ resourceSchema.pre('validate', function (next) {
   }
   next();
 });
-
-// Auto-delete file from Supabase when admin deletes resource
-resourceSchema.pre('remove', async function (next) {
-  try {
-    if (this.file && this.file.key) {
-      const { error } = await supabase
-        .storage
-        .from('resources') // 👈 bucket name
-        .remove([this.file.key]);
-
-      if (error) {
-        console.error('❌ Failed to delete file from Supabase:', error.message);
-      } else {
-        console.log(`✅ File deleted from Supabase: ${this.file.key}`);
-      }
-    }
-    next();
-  } catch (err) {
-    console.error('❌ Error in Supabase delete hook:', err.message);
-    next(err);
-  }
-});
-
-// Indexes
-resourceSchema.index({ status: 1, category: 1 });
-resourceSchema.index({ tags: 1 });
-resourceSchema.index({ title: 'text', description: 'text' });
 
 module.exports = mongoose.model('Resource', resourceSchema);

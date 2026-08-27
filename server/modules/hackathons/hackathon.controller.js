@@ -1,11 +1,9 @@
 const service = require('./hackathon.service');
 
-/* ============================================================================
-   ACTIVE HACKATHON CONTROLLER
-============================================================================ */
-exports.getActiveHackathon = async (_req, res) => {
+exports.getActiveHackathon = async (req, res) => {
   try {
-    const data = await service.getActiveHackathon();
+    const collegeId = req.query.collegeId || req.user?.college?._id || req.user?.college;
+    const data = await service.getActiveHackathon(collegeId);
     res.json(data);
   } catch (err) {
     console.error('Active hackathon error:', err);
@@ -13,12 +11,9 @@ exports.getActiveHackathon = async (_req, res) => {
   }
 };
 
-/* ============================================================================
-   LIST HACKATHONS CONTROLLER
-============================================================================ */
 exports.listHackathons = async (req, res) => {
   try {
-    const data = await service.listHackathons(req.query);
+    const data = await service.listHackathons(req.query, req.user);
     res.json(data);
   } catch (err) {
     console.error('List hackathons error:', err);
@@ -26,12 +21,9 @@ exports.listHackathons = async (req, res) => {
   }
 };
 
-/* ============================================================================
-   CREATE HACKATHON CONTROLLER
-============================================================================ */
 exports.createHackathon = async (req, res) => {
   try {
-    const hackathon = await service.createHackathon(req.body);
+    const hackathon = await service.createHackathon(req.body, req.user);
     res.json(hackathon);
   } catch (err) {
     console.error('Create hackathon error:', err);
@@ -39,82 +31,48 @@ exports.createHackathon = async (req, res) => {
   }
 };
 
-/* ============================================================================
-   SET ACTIVE HACKATHON CONTROLLER
-============================================================================ */
 exports.setActiveHackathon = async (req, res) => {
   try {
-    const hackathon = await service.setActiveHackathon(req.params.id);
+    const hackathon = await service.setActiveHackathon(req.params.id, req.user);
     res.json(hackathon);
   } catch (err) {
     res.status(err.status || 500).json({ msg: err.message || 'Server Error' });
   }
 };
 
-/* ============================================================================
-   UPDATE HACKATHON CONTROLLER
-============================================================================ */
 exports.updateHackathon = async (req, res) => {
   try {
-    const hackathon = await service.updateHackathon(
-      req.params.id,
-      req.body
-    );
-
+    const hackathon = await service.updateHackathon(req.params.id, req.body, req.user);
     res.json(hackathon);
   } catch (err) {
     res.status(err.status || 500).json({ msg: err.message || 'Server Error' });
   }
 };
 
-/* ============================================================================
-   MIGRATE LEGACY TEAMS CONTROLLER
-============================================================================ */
-exports.migrateLegacyTeams = async (req, res) => {
-  try {
-    const count = await service.migrateLegacyTeams(
-      req.body.targetHackathonId
-    );
-
-    res.json({
-      msg: `Migrated ${count} legacy teams successfully.`
-    });
-
-  } catch (err) {
-    res.status(err.status || 500).json({
-      msg: err.message || 'Migration failed'
-    });
-  }
-};
-
-/* ============================================================================
-   BULK LOCK TEAMS CONTROLLER
-============================================================================ */
-exports.lockAllTeams = async (req, res) => {
-  try {
-    const count = await service.lockAllTeams(req.body.hackathonId);
-
-    res.json({
-      msg: `Successfully locked ${count} teams for this hackathon.`
-    });
-
-  } catch (err) {
-    res.status(err.status || 500).json({
-      msg: err.message || 'Server Error during bulk lock'
-    });
-  }
-};
-
-/* ============================================================================
-   DELETE HACKATHON CONTROLLER
-============================================================================ */
 exports.deleteHackathon = async (req, res) => {
   try {
-    const result = await service.deleteHackathon(req.params.id, req.user);
-    res.json(result);
+    await service.deleteHackathon(req.params.id, req.user);
+    res.json({ msg: 'Deleted successfully' });
   } catch (err) {
-    res.status(err.status || 500).json({
-      msg: err.message || 'Server Error during hackathon deletion'
-    });
+    res.status(err.status || 500).json({ msg: err.message || 'Server Error' });
+  }
+};
+
+exports.migrateLegacyTeams = async (_req, res) => {
+  try {
+    const data = await service.migrateLegacyTeams();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+exports.lockAllTeams = async (req, res) => {
+  try {
+    const { hackathonId } = req.body;
+    const data = await service.lockAllTeams(hackathonId);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
   }
 };

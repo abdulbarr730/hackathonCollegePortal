@@ -1,11 +1,8 @@
 const service = require('./adminUpdate.service');
 
-/* ============================================================================
-   LIST UPDATES CONTROLLER
-============================================================================ */
-exports.listUpdates = async (_req, res) => {
+exports.listUpdates = async (req, res) => {
   try {
-    const data = await service.listUpdates();
+    const data = await service.listUpdates(req.user);
     res.json(data);
   } catch (err) {
     console.error('List updates error:', err);
@@ -13,40 +10,39 @@ exports.listUpdates = async (_req, res) => {
   }
 };
 
-/* ============================================================================
-   CREATE UPDATE CONTROLLER
-============================================================================ */
 exports.createUpdate = async (req, res) => {
   try {
-    const item = await service.createUpdate(req.body);
+    const item = await service.createUpdate(req.body, req.user);
     res.status(201).json({ ok: true, item });
   } catch (err) {
     res.status(err.status || 500).json({ msg: err.message || 'Create Failed' });
   }
 };
 
-/* ============================================================================
-   UPDATE UPDATE CONTROLLER
-============================================================================ */
 exports.updateUpdate = async (req, res) => {
   try {
-    const item = await service.updateUpdate(req.params.id, req.body);
+    const item = await service.updateUpdate(req.params.id, req.body, req.user);
     res.json({ ok: true, item });
   } catch (err) {
     res.status(err.status || 500).json({ msg: err.message || 'Update Failed' });
   }
 };
 
-
-/* ============================================================================
-   DELETE UPDATE CONTROLLER
-============================================================================ */
 exports.deleteUpdate = async (req, res) => {
   try {
-    await service.deleteUpdate(req.params.id);
+    await service.deleteUpdate(req.params.id, req.user);
     res.json({ msg: 'Deleted' });
   } catch (err) {
     res.status(err.status || 500).json({ msg: err.message || 'Delete Failed' });
+  }
+};
+
+exports.dispatchUpdateEmail = async (req, res) => {
+  try {
+    const result = await service.dispatchUpdateEmail(req.params.id, req.user);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ msg: err.message || 'Dispatch Failed' });
   }
 };
 
@@ -62,9 +58,6 @@ exports.deleteScrapedUpdates = async (_req, res) => {
   }
 };
 
-/* ============================================================================
-   RETAG UPDATES CONTROLLER
-============================================================================ */
 exports.retagAllUpdates = async (_req, res) => {
   try {
     const result = await service.retagAllUpdates();
@@ -76,9 +69,6 @@ exports.retagAllUpdates = async (_req, res) => {
   }
 };
 
-/* ============================================================================
-   UPLOAD FILE TO SUPABASE CONTROLLER
-============================================================================ */
 exports.uploadUpdateFile = async (req, res) => {
   try {
     const url = await service.uploadUpdateFile(req.file);
@@ -89,19 +79,15 @@ exports.uploadUpdateFile = async (req, res) => {
   }
 };
 
-/* ============================================================================
-   MANUAL SYNC CONTROLLER
-============================================================================ */
 exports.syncSIH = async (_req, res) => {
   try {
     const result = await service.syncSIHNow();
     res.json({
       ok: true,
       msg: `Scraped ${result.scrapedCount || 0} updates from SIH portal. ${result.newUpdatesCount || 0} new updates saved!`,
-      result
+      details: result
     });
   } catch (err) {
-    console.error('Manual SIH sync error:', err);
-    res.status(500).json({ msg: err.message || 'Sync failed' });
+    res.status(500).json({ msg: 'Failed to sync with SIH portal: ' + err.message });
   }
 };

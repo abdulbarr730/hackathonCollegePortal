@@ -31,10 +31,11 @@ export default function AdminTeamsPage() {
   // --- DATA FETCHING ---
   const fetchHackathons = async () => {
     try {
-      const res = await fetch('/api/hackathon/all');
+      const res = await fetch('/api/hackathon/all', { credentials: 'include' });
       const data = await res.json();
-      setHackathons(data);
-      const active = data.find(h => h.isActive);
+      const list = Array.isArray(data) ? data : [];
+      setHackathons(list);
+      const active = list.find(h => h.isActive);
       if (active) setSelectedHackathon(active._id);
       return active?._id || 'all';
     } catch (err) { return 'all'; }

@@ -9,6 +9,7 @@ const router = express.Router();
  *  - q: search by title (optional)
  *  - page, limit: pagination (defaults 1, 20)
  *  - pinnedOnly: 'true' to return only pinned items
+ *  - collegeId: optional college filter
  */
 router.get('/', async (req, res) => {
   try {
@@ -17,6 +18,7 @@ router.get('/', async (req, res) => {
       page = '1',
       limit = '20',
       pinnedOnly = 'false',
+      collegeId = ''
     } = req.query;
 
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
@@ -26,11 +28,16 @@ router.get('/', async (req, res) => {
     if (q) filters.title = new RegExp(q, 'i');
     if (String(pinnedOnly) === 'true') filters.pinned = true;
 
+    if (collegeId && collegeId !== 'all') {
+      filters.$or = [{ college: null }, { college: collegeId }];
+    }
+
     // Always serve pinned first when not using pinnedOnly
     const sort = { pinned: -1, publishedAt: -1, createdAt: -1 };
 
     const [items, total] = await Promise.all([
       Update.find(filters)
+        .populate('college', 'name shortName')
         .sort(sort)
         .skip((pageNum - 1) * perPage)
         .limit(perPage)
