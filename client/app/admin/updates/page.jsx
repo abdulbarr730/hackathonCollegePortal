@@ -208,25 +208,29 @@ export default function AdminUpdatesPage() {
         
         <div className="flex flex-wrap items-center gap-2.5">
           
-          <button
-            onClick={handleSyncSIH}
-            disabled={syncing}
-            className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-bold text-white transition hover:bg-emerald-500 shadow-lg shadow-emerald-600/20 disabled:opacity-50"
-            title="Run precision SIH scraper now"
-          >
-            <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
-            {syncing ? 'Scraping SIH...' : 'Sync SIH Live'}
-          </button>
+          {isSuperAdminUser && (
+            <>
+              <button
+                onClick={handleSyncSIH}
+                disabled={syncing}
+                className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-bold text-white transition hover:bg-emerald-500 shadow-lg shadow-emerald-600/20 disabled:opacity-50"
+                title="Run precision SIH scraper now"
+              >
+                <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
+                {syncing ? 'Scraping SIH...' : 'Sync SIH Live'}
+              </button>
 
-          <button
-            onClick={handleCleanupScraped}
-            disabled={cleaning}
-            className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-600 px-4 py-3 text-xs font-bold hover:bg-rose-600 hover:text-white transition disabled:opacity-50"
-            title="Clean scraped SIH circulars"
-          >
-            {cleaning ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
-            Purge Scraped
-          </button>
+              <button
+                onClick={handleCleanupScraped}
+                disabled={cleaning}
+                className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-600 px-4 py-3 text-xs font-bold hover:bg-rose-600 hover:text-white transition disabled:opacity-50"
+                title="Clean scraped SIH circulars"
+              >
+                {cleaning ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Purge Scraped
+              </button>
+            </>
+          )}
 
           <button 
             onClick={() => { setEditingUpdate(null); setIsModalOpen(true); }}
@@ -324,25 +328,27 @@ export default function AdminUpdatesPage() {
                 {/* Right Action Column */}
                 <div className="flex lg:flex-col items-center lg:items-end gap-2 shrink-0">
                   
-                  {/* Broadcast Email Button */}
-                  {!update.emailDispatched ? (
-                    <button
-                      onClick={() => handleDispatchEmail(update._id, update.title)}
-                      disabled={dispatchingId === update._id}
-                      className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-indigo-600/20 transition flex items-center gap-1.5 disabled:opacity-50"
-                    >
-                      <Mail size={13} />
-                      {dispatchingId === update._id ? 'Dispatching...' : '📧 Blast Email'}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleDispatchEmail(update._id, update.title)}
-                      disabled={dispatchingId === update._id}
-                      className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 text-[11px] font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1"
-                      title="Re-broadcast email notification"
-                    >
-                      <RefreshCw size={11} /> Re-send Email
-                    </button>
+                  {/* Broadcast Email Button (Super Admin Only) */}
+                  {isSuperAdminUser && (
+                    !update.emailDispatched ? (
+                      <button
+                        onClick={() => handleDispatchEmail(update._id, update.title)}
+                        disabled={dispatchingId === update._id}
+                        className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-indigo-600/20 transition flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <Mail size={13} />
+                        {dispatchingId === update._id ? 'Dispatching...' : '📧 Blast Email'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleDispatchEmail(update._id, update.title)}
+                        disabled={dispatchingId === update._id}
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 text-[11px] font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1"
+                        title="Re-broadcast email notification"
+                      >
+                        <RefreshCw size={11} /> Re-send Email
+                      </button>
+                    )
                   )}
 
                   <div className="flex items-center gap-2">
