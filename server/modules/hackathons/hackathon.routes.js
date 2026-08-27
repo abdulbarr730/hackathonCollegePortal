@@ -3,19 +3,26 @@ const router = express.Router();
 const adminAuth = require('../../core/middlewares/adminAuth');
 const controller = require('./hackathon.controller');
 const jwt = require('jsonwebtoken');
+require('../colleges/college.model');
 const User = require('../users/user.model');
 
-// Optional auth helper to attach user if token exists
+// Universal Auth Token Extraction Helper
 const attachUserIfAvailable = async (req, _res, next) => {
   try {
-    const token = req.cookies?.token || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.split(' ')[1] : null);
+    let token = req.cookies?.token;
+    if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-      const user = await User.findById(decoded.id || decoded.userId).populate('college');
-      if (user) req.user = user;
+      const userId = decoded.user?.id || decoded.userId || decoded.id || decoded._id;
+      if (userId) {
+        const user = await User.findById(userId).populate('college');
+        if (user) req.user = user;
+      }
     }
   } catch (e) {
-    // Ignore invalid token on optional route
+    // Ignore invalid token on optional public route
   }
   next();
 };

@@ -31,7 +31,11 @@ export default function AdminTeamsPage() {
   // --- DATA FETCHING ---
   const fetchHackathons = async () => {
     try {
-      const res = await fetch('/api/hackathon/all', { credentials: 'include' });
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const res = await fetch('/api/hackathon/all', { 
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include' 
+      });
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
       setHackathons(list);
